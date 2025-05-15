@@ -8,15 +8,15 @@ const double kTableCardRadius = 18;
 const double kTableCardShadowBlur = 12;
 const double kTableButtonTop = 12;
 const double kTableButtonRight = 40;
-const double kColumnClaveWidth = 70;
-const double kColumnNombreWidth = 180;
-const double kColumnTotalSemanalWidth = 110;
-const double kColumnComederoWidth = 70;
-const double kColumnObsWidth = 180;
-const double kColumnOtrasPercWidth = 180;
-const double kColumnDeduccionesWidth = 90;
-const double kColumnNetoWidth = 110;
-const double kColumnDiaWidth = 60;
+const double kColumnClaveWidth = 55;
+const double kColumnNombreWidth = 140;
+const double kColumnTotalSemanalWidth = 85;
+const double kColumnComederoWidth = 60;
+const double kColumnObsWidth = 120;
+const double kColumnOtrasPercWidth = 120;
+const double kColumnDeduccionesWidth = 80;
+const double kColumnNetoWidth = 85;
+const double kColumnDiaWidth = 45;
 const double kIndicatorCardWidth = 260;
 const double kIndicatorCardHeight = 80;
 const double kIndicatorIconSize = 22;
@@ -618,40 +618,35 @@ class _FloatingTableButton extends StatelessWidget {
 }
 
 class _EditableCell extends StatelessWidget {
-  final String value;
+  final String initialValue;
   final double width;
-  final int minLines;
+  final int? minLines;
   final Function(String) onChanged;
 
   const _EditableCell(
-    this.value,
+    this.initialValue,
     this.width, {
-    this.minLines = 1,
+    this.minLines,
     required this.onChanged,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       width: width,
       child: TextField(
-        controller: TextEditingController.fromValue(
-          TextEditingValue(
-            text: value,
-            selection: TextSelection.collapsed(offset: value.length),
-          ),
-        ),
-        textAlign: TextAlign.center,
-        minLines: minLines,
-        maxLines: null, // Permite multilinea
-        scrollPadding: EdgeInsets.all(8),
-        onChanged: onChanged,
+        controller: TextEditingController(text: initialValue),
         decoration: InputDecoration(
           isDense: true,
-          contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
           border: InputBorder.none,
         ),
         style: AppTextStyles.tableCell,
+        textAlign: TextAlign.center,
+        minLines: minLines ?? 1,
+        maxLines: minLines ?? 1,
+        onChanged: onChanged,
       ),
     );
   }
@@ -727,6 +722,10 @@ class _NominaTable extends StatelessWidget {
   final Function(int) onEmpleadoRemoved;
   final VoidCallback onEmpleadoAdded;
 
+  static const List<String> diasSemana = [
+    'jue', 'vie', 'sab', 'dom', 'lun', 'mar', 'mier'
+  ];
+
   const _NominaTable({
     required this.empleados,
     required this.onEmpleadoUpdated,
@@ -736,162 +735,155 @@ class _NominaTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 400, // Ajusta la altura según tu diseño
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
       child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          headingRowColor: MaterialStateProperty.all(AppColors.tableHeader),
-          columnSpacing: 16,
+        scrollDirection: Axis.vertical,
+        child: Table(
           border: TableBorder.all(color: AppColors.tableBorder, width: 1),
-          columns: const [
-            DataColumn(
-              label: Center(
-                child: SizedBox(
-                  width: kColumnClaveWidth,
-                  child: Text('Clave', style: AppTextStyles.tableHeader, textAlign: TextAlign.center),
-                ),
+          defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+          columnWidths: {
+            0: const FixedColumnWidth(50),  // Clave
+            1: const FixedColumnWidth(120), // Nombre
+            for (int i = 0; i < diasSemana.length * 2; i++)
+              i + 2: const FixedColumnWidth(35), // H y TT columns
+            diasSemana.length * 2 + 2: const FixedColumnWidth(60), // Total
+          },
+          children: [
+            // Primera fila: Encabezados de días que abarcan dos columnas
+            TableRow(
+              decoration: BoxDecoration(
+                color: AppColors.tableHeader,
               ),
-            ),
-            DataColumn(
-              label: Center(
-                child: SizedBox(
-                  width: kColumnNombreWidth,
-                  child: Text('Nombre', style: AppTextStyles.tableHeader, textAlign: TextAlign.center),
-                ),
-              ),
-            ),
-            DataColumn(
-              label: Center(
-                child: SizedBox(
-                  width: kColumnTotalSemanalWidth,
-                  child: Text('Total semanal', style: AppTextStyles.tableHeader, textAlign: TextAlign.center),
-                ),
-              ),
-            ),
-            DataColumn(
-              label: Center(
-                child: SizedBox(
-                  width: kColumnComederoWidth,
-                  child: Text('Comedero', style: AppTextStyles.tableHeader, textAlign: TextAlign.center),
-                ),
-              ),
-            ),
-            DataColumn(
-              label: Center(
-                child: SizedBox(
-                  width: kColumnObsWidth,
-                  child: Text('Observaciones', style: AppTextStyles.tableHeader, textAlign: TextAlign.center),
-                ),
-              ),
-            ),
-            DataColumn(
-              label: Center(
-                child: SizedBox(
-                  width: kColumnOtrasPercWidth,
-                  child: Text('Otras percepciones', style: AppTextStyles.tableHeader, textAlign: TextAlign.center),
-                ),
-              ),
-            ),
-            DataColumn(
-              label: Center(
-                child: SizedBox(
-                  width: kColumnDeduccionesWidth,
-                  child: Text('Deducciones', style: AppTextStyles.tableHeader, textAlign: TextAlign.center),
-                ),
-              ),
-            ),
-            DataColumn(
-              label: Center(
-                child: SizedBox(
-                  width: kColumnNetoWidth,
-                  child: Text('Neto a pagar', style: AppTextStyles.tableHeader, textAlign: TextAlign.center),
-                ),
-              ),
-            ),
-          ],
-          rows: empleados.asMap().entries.map((entry) {
-            final index = entry.key;
-            final empleado = entry.value;
-            return DataRow(
-              cells: [
-                DataCell(_EditableCell(
-                  empleado.clave,
-                  kColumnClaveWidth,
-                  onChanged: (value) {
-                    final updated = empleado.copy();
-                    updated.clave = value;
-                    onEmpleadoUpdated(index, updated);
-                  },
-                )),
-                DataCell(_EditableCell(
-                  empleado.nombre,
-                  kColumnNombreWidth,
-                  minLines: 2,
-                  onChanged: (value) {
-                    final updated = empleado.copy();
-                    updated.nombre = value;
-                    onEmpleadoUpdated(index, updated);
-                  },
-                )),
-                DataCell(_EditableCell(
-                  empleado.totalSemanal,
-                  kColumnTotalSemanalWidth,
-                  onChanged: (value) {
-                    final updated = empleado.copy();
-                    updated.totalSemanal = value;
-                    onEmpleadoUpdated(index, updated);
-                  },
-                )),
-                DataCell(_EditableCell(
-                  empleado.comedero,
-                  kColumnComederoWidth,
-                  onChanged: (value) {
-                    final updated = empleado.copy();
-                    updated.comedero = value;
-                    onEmpleadoUpdated(index, updated);
-                  },
-                )),
-                DataCell(_EditableCell(
-                  empleado.observaciones,
-                  kColumnObsWidth,
-                  onChanged: (value) {
-                    final updated = empleado.copy();
-                    updated.observaciones = value;
-                    onEmpleadoUpdated(index, updated);
-                  },
-                )),
-                DataCell(_EditableCell(
-                  empleado.otrasPercepciones,
-                  kColumnOtrasPercWidth,
-                  onChanged: (value) {
-                    final updated = empleado.copy();
-                    updated.otrasPercepciones = value;
-                    onEmpleadoUpdated(index, updated);
-                  },
-                )),
-                DataCell(_EditableCell(
-                  empleado.deducciones,
-                  kColumnDeduccionesWidth,
-                  onChanged: (value) {
-                    final updated = empleado.copy();
-                    updated.deducciones = value;
-                    onEmpleadoUpdated(index, updated);
-                  },
-                )),
-                DataCell(_EditableCell(
-                  empleado.netoPagar,
-                  kColumnNetoWidth,
-                  onChanged: (value) {
-                    final updated = empleado.copy();
-                    updated.netoPagar = value;
-                    onEmpleadoUpdated(index, updated);
-                  },
-                )),
+              children: [
+                _buildHeaderCell('Clave', height: 40),
+                _buildHeaderCell('Nombre', height: 40),
+                for (var dia in diasSemana)
+                  ...[
+                    _buildHeaderCell(dia.toUpperCase(), height: 40, fontSize: 12),
+                    Container(), // Placeholder to ensure consistent column count
+                  ],
+                _buildHeaderCell('Total', height: 40),
               ],
-            );
-          }).toList(),
+            ),
+            // Segunda fila: Subencabezados H y TT
+            TableRow(
+              decoration: BoxDecoration(
+                color: AppColors.tableHeader,
+              ),
+              children: [
+                Container(height: 30),  // Clave
+                Container(height: 30),  // Nombre
+                for (var _ in diasSemana)
+                  ...[
+                    _buildHeaderCell('H', height: 30, fontSize: 10),
+                    _buildHeaderCell('TT', height: 30, fontSize: 10),
+                  ],
+                Container(height: 30),  // Total
+              ],
+            ),
+            // Filas de datos
+            for (var entry in empleados.asMap().entries)
+              TableRow(
+                children: [
+                  _buildDataCell(
+                    entry.value.clave,
+                    width: 50,
+                    onChanged: (value) {
+                      final updated = entry.value.copy();
+                      updated.clave = value;
+                      onEmpleadoUpdated(entry.key, updated);
+                    },
+                  ),
+                  _buildDataCell(
+                    entry.value.nombre,
+                    width: 120,
+                    maxLines: 2,
+                    onChanged: (value) {
+                      final updated = entry.value.copy();
+                      updated.nombre = value;
+                      onEmpleadoUpdated(entry.key, updated);
+                    },
+                  ),
+                  ...diasSemana.expand((dia) => [
+                    _buildDataCell(
+                      entry.value.diasTrabajados['${dia}_H'] ?? '',
+                      width: 35,
+                      onChanged: (value) {
+                        final updated = entry.value.copy();
+                        updated.diasTrabajados['${dia}_H'] = value;
+                        onEmpleadoUpdated(entry.key, updated);
+                      },
+                    ),
+                    _buildDataCell(
+                      entry.value.diasTrabajados['${dia}_TT'] ?? '',
+                      width: 35,
+                      onChanged: (value) {
+                        final updated = entry.value.copy();
+                        updated.diasTrabajados['${dia}_TT'] = value;
+                        onEmpleadoUpdated(entry.key, updated);
+                      },
+                    ),
+                  ]),
+                  Container(
+                    width: 60,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    alignment: Alignment.center,
+                    child: Text(
+                      entry.value.diasTrabajados.entries
+                        .where((e) => e.key.contains('_H') || e.key.contains('_TT'))
+                        .map((e) => int.tryParse(e.value) ?? 0)
+                        .fold(0, (a, b) => a + b)
+                        .toString(),
+                      style: AppTextStyles.tableCell.copyWith(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+          ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildHeaderCell(String text, {double? height, double fontSize = 12}) {
+    return Container(
+      height: height,
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+      alignment: Alignment.center,
+      child: Text(
+        text,
+        style: AppTextStyles.tableHeader.copyWith(fontSize: fontSize),
+        textAlign: TextAlign.center,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  }
+
+  Widget _buildDataCell(String text, {
+    double? width,
+    int maxLines = 1,
+    required Function(String) onChanged,
+  }) {
+    return Container(
+      width: width,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      child: TextField(
+        key: ValueKey(text), // Add key to maintain focus
+        controller: TextEditingController(text: text),
+        decoration: const InputDecoration(
+          isDense: true,
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.zero,
+        ),
+        style: AppTextStyles.tableCell.copyWith(fontSize: 13),
+        textAlign: TextAlign.center,
+        textDirection: TextDirection.ltr, // Fix backwards text
+        maxLines: maxLines,
+        onChanged: onChanged,
       ),
     );
   }
@@ -914,120 +906,192 @@ class _DiasTrabajadosTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 400, // Ajusta la altura según tu diseño
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
       child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          headingRowColor: MaterialStateProperty.all(AppColors.tableHeader),
-          columnSpacing: 12,
-          border: TableBorder.all(color: AppColors.tableBorder, width: 1),
-          columns: [
-            DataColumn(
-              label: Center(
-                child: SizedBox(
-                  width: kColumnClaveWidth,
-                  child: Text('Clave', style: AppTextStyles.tableHeader, textAlign: TextAlign.center),
+        scrollDirection: Axis.vertical,
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Table(
+            border: TableBorder.all(color: AppColors.tableBorder, width: 1),
+            defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+            columnWidths: {
+              0: const FixedColumnWidth(60),  // Clave
+              1: const FixedColumnWidth(180), // Nombre
+              for (int i = 0; i < dias.length; i++)
+                i + 2: const FixedColumnWidth(80), // Días
+              dias.length + 2: const FixedColumnWidth(70),   // Total días
+              dias.length + 3: const FixedColumnWidth(80),   // Debo
+              dias.length + 4: const FixedColumnWidth(80),   // Total
+              dias.length + 5: const FixedColumnWidth(80),   // Comedero
+              dias.length + 6: const FixedColumnWidth(80),   // Total Neto
+            },
+            children: [
+              // Primera fila - Encabezados principales
+              TableRow(
+                decoration: BoxDecoration(
+                  color: AppColors.tableHeader,
                 ),
+                children: [
+                  _buildHeaderCell('Clave'),
+                  _buildHeaderCell('Nombre'),
+                  for (var dia in dias) _buildHeaderCell(dia),
+                  _buildHeaderCell('Total'),
+                  _buildHeaderCell('Debo'),
+                  _buildHeaderCell('Total'),
+                  _buildHeaderCell('Comedero'),
+                  _buildHeaderCell('Total Neto'),
+                ],
               ),
-            ),
-            DataColumn(
-              label: Center(
-                child: SizedBox(
-                  width: kColumnNombreWidth,
-                  child: Text('Nombre', style: AppTextStyles.tableHeader, textAlign: TextAlign.center),
+              // Segunda fila - TT
+              TableRow(
+                decoration: BoxDecoration(
+                  color: AppColors.tableHeader,
                 ),
+                children: [
+                  Container(height: 30),  // Clave
+                  Container(height: 30),  // Nombre
+                  for (var _ in dias) _buildHeaderCell('TT', fontSize: 12),
+                  Container(height: 30),  // Total
+                  Container(height: 30),  // Debo
+                  Container(height: 30),  // Total
+                  Container(height: 30),  // Comedero
+                  Container(height: 30),  // Total Neto
+                ],
               ),
-            ),
-            ...dias.map((d) => DataColumn(
-              label: Center(child: Text(d, style: AppTextStyles.tableHeader.copyWith(fontSize: 11), textAlign: TextAlign.center)),
-            )),
-            DataColumn(
-              label: Center(child: Text('Debo', style: AppTextStyles.tableHeader, textAlign: TextAlign.center)),
-            ),
-            DataColumn(
-              label: Center(child: Text('Total', style: AppTextStyles.tableHeader, textAlign: TextAlign.center)),
-            ),
-            DataColumn(
-              label: Center(child: Text('Comedor', style: AppTextStyles.tableHeader, textAlign: TextAlign.center)),
-            ),
-            DataColumn(
-              label: Center(child: Text('Total neto', style: AppTextStyles.tableHeader, textAlign: TextAlign.center)),
-            ),
-          ],
-          rows: empleados.asMap().entries.map((entry) {
-            final index = entry.key;
-            final empleado = entry.value;
-            return DataRow(
-              cells: [
-                DataCell(_EditableCell(
-                  empleado.clave,
-                  kColumnClaveWidth,
-                  onChanged: (value) {
-                    final updated = empleado.copy();
-                    updated.clave = value;
-                    onEmpleadoUpdated(index, updated);
-                  },
-                )),
-                DataCell(_EditableCell(
-                  empleado.nombre,
-                  kColumnNombreWidth,
-                  minLines: 2,
-                  onChanged: (value) {
-                    final updated = empleado.copy();
-                    updated.nombre = value;
-                    onEmpleadoUpdated(index, updated);
-                  },
-                )),
-                ...dias.map((d) => DataCell(_EditableCell(
-                  empleado.diasTrabajados[d] ?? '',
-                  kColumnDiaWidth,
-                  onChanged: (value) {
-                    final updated = empleado.copy();
-                    updated.diasTrabajados[d] = value;
-                    onEmpleadoUpdated(index, updated);
-                  },
-                ))),
-                DataCell(_EditableCell(
-                  empleado.deducciones,
-                  kColumnDeduccionesWidth,
-                  onChanged: (value) {
-                    final updated = empleado.copy();
-                    updated.deducciones = value;
-                    onEmpleadoUpdated(index, updated);
-                  },
-                )),
-                DataCell(_EditableCell(
-                  empleado.netoPagar,
-                  kColumnNetoWidth,
-                  onChanged: (value) {
-                    final updated = empleado.copy();
-                    updated.netoPagar = value;
-                    onEmpleadoUpdated(index, updated);
-                  },
-                )),
-                DataCell(_EditableCell(
-                  empleado.comedero,
-                  kColumnComederoWidth,
-                  onChanged: (value) {
-                    final updated = empleado.copy();
-                    updated.comedero = value;
-                    onEmpleadoUpdated(index, updated);
-                  },
-                )),
-                DataCell(_EditableCell(
-                  empleado.netoPagar,
-                  kColumnNetoWidth,
-                  onChanged: (value) {
-                    final updated = empleado.copy();
-                    updated.netoPagar = value;
-                    onEmpleadoUpdated(index, updated);
-                  },
-                )),
-              ],
-            );
-          }).toList(),
+              // Filas de datos
+              for (var entry in empleados.asMap().entries)
+                TableRow(
+                  children: [
+                    _buildDataCell(
+                      entry.value.clave,
+                      width: 60,
+                      onChanged: (value) {
+                        final updated = entry.value.copy();
+                        updated.clave = value;
+                        onEmpleadoUpdated(entry.key, updated);
+                      },
+                    ),
+                    _buildDataCell(
+                      entry.value.nombre,
+                      width: 180,
+                      maxLines: 2,
+                      onChanged: (value) {
+                        final updated = entry.value.copy();
+                        updated.nombre = value;
+                        onEmpleadoUpdated(entry.key, updated);
+                      },
+                    ),
+                    for (var dia in dias)
+                      _buildDataCell(
+                        entry.value.diasTrabajados[dia] ?? '',
+                        width: 80,
+                        onChanged: (value) {
+                          final updated = entry.value.copy();
+                          updated.diasTrabajados[dia] = value;
+                          onEmpleadoUpdated(entry.key, updated);
+                        },
+                      ),
+                    // Total días
+                    Container(
+                      width: 70,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                      alignment: Alignment.center,
+                      child: Text(
+                        (entry.value.diasTrabajados.values
+                            .map((v) => int.tryParse(v) ?? 0)
+                            .fold(0, (a, b) => a + b))
+                            .toString(),
+                        style: AppTextStyles.tableCell.copyWith(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold
+                        ),
+                      ),
+                    ),
+                    // Debo
+                    _buildDataCell(
+                      entry.value.totalSemanal,
+                      width: 80,
+                      onChanged: (value) {
+                        final updated = entry.value.copy();
+                        updated.totalSemanal = value;
+                        onEmpleadoUpdated(entry.key, updated);
+                      },
+                    ),
+                    // Total
+                    _buildDataCell(
+                      entry.value.otrasPercepciones,
+                      width: 80,
+                      onChanged: (value) {
+                        final updated = entry.value.copy();
+                        updated.otrasPercepciones = value;
+                        onEmpleadoUpdated(entry.key, updated);
+                      },
+                    ),
+                    // Comedero
+                    _buildDataCell(
+                      entry.value.comedero,
+                      width: 80,
+                      onChanged: (value) {
+                        final updated = entry.value.copy();
+                        updated.comedero = value;
+                        onEmpleadoUpdated(entry.key, updated);
+                      },
+                    ),
+                    // Total Neto
+                    _buildDataCell(
+                      entry.value.netoPagar,
+                      width: 80,
+                      onChanged: (value) {
+                        final updated = entry.value.copy();
+                        updated.netoPagar = value;
+                        onEmpleadoUpdated(entry.key, updated);
+                      },
+                    ),
+                  ],
+                ),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildHeaderCell(String text, {double? height, double fontSize = 14}) {
+    return Container(
+      height: height,
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+      alignment: Alignment.center,
+      child: Text(
+        text,
+        style: AppTextStyles.tableHeader.copyWith(fontSize: fontSize),
+        textAlign: TextAlign.center,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  }
+
+  Widget _buildDataCell(String text, {
+    double? width,
+    int maxLines = 1,
+    required Function(String) onChanged,
+  }) {
+    return Container(
+      width: width,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      child: TextField(
+        key: ValueKey(text),
+        controller: TextEditingController(text: text),
+        decoration: const InputDecoration(
+          isDense: true,
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.zero,
+        ),
+        style: AppTextStyles.tableCell.copyWith(fontSize: 13),
+        textAlign: TextAlign.center,
+        textDirection: TextDirection.ltr,
+        maxLines: maxLines,
+        onChanged: onChanged,
       ),
     );
   }
@@ -1035,8 +1099,8 @@ class _DiasTrabajadosTable extends StatelessWidget {
 
 // Ajustar estilos de texto
 class AppTextStyles {
-  static const tableHeader = TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black);
-  static const tableCell = TextStyle(fontSize: 14, color: Colors.black);
+  static const tableHeader = TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black);
+  static const tableCell = TextStyle(fontSize: 13, color: Colors.black);
   static const indicatorValue = TextStyle(fontWeight: FontWeight.bold, fontSize: 22);
   static const indicatorLabel = TextStyle(fontWeight: FontWeight.w500, fontSize: 14);
   static const button = TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white);
