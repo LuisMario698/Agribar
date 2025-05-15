@@ -1,4 +1,29 @@
 import 'package:flutter/material.dart';
+import '../theme/app_styles.dart';
+
+// === Constantes de estilo globales ===
+const double kEmpleadosTabFontSize = 18;
+const double kEmpleadosTabRadius = 4;
+const double kEmpleadosTabUnderlineHeight = 3;
+const double kEmpleadosTabUnderlineWidth = 60;
+const double kEmpleadosTabSpacing = 24;
+const double kEmpleadosMetricCardRadius = 30;
+const double kEmpleadosMetricCardShadowBlur = 12;
+const double kEmpleadosMetricCardPaddingH = 32;
+const double kEmpleadosMetricCardPaddingV = 16;
+const double kEmpleadosMetricTitleFontSize = 20;
+const double kEmpleadosMetricValueFontSize = 32;
+const double kEmpleadosMetricIconSize = 32;
+const double kEmpleadosTableCardRadius = 18;
+const double kEmpleadosTableCardShadowBlur = 12;
+const double kEmpleadosTableCardPadding = 16;
+const Color kEmpleadosTabSelectedColor = Colors.black;
+const Color kEmpleadosTabUnselectedColor = Colors.grey;
+const Color kEmpleadosTabUnderlineColor = Color(0xFF5BA829);
+const Color kEmpleadosMetricCardColor = Colors.white;
+const Color kEmpleadosTableHeaderColor = Color(0xFFF3F3F3);
+const Color kEmpleadosTableCardColor = Colors.white;
+const Color kEmpleadosTableBorderColor = Color(0xFFBDBDBD);
 
 class EmpleadosContent extends StatelessWidget {
   @override
@@ -38,21 +63,22 @@ class EmpleadosContent extends StatelessWidget {
           child: Center(
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
+                color: AppColors.white,
+                borderRadius: BorderRadius.circular(AppDimens.cardRadius),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 12,
+                    color: AppColors.black12,
+                    blurRadius: AppDimens.cardShadowBlur,
                     offset: Offset(0, 4),
                   ),
                 ],
               ),
-              padding: EdgeInsets.all(16),
+              padding: EdgeInsets.all(AppDimens.tableCardPadding),
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: DataTable(
-                  headingRowColor: MaterialStateProperty.all(Color(0xFFF3F3F3)),
+                  headingRowColor: MaterialStateProperty.all(kEmpleadosTableHeaderColor),
+                  border: TableBorder.all(color: kEmpleadosTableBorderColor, width: 1),
                   columns: const [
                     DataColumn(
                       label: Text(
@@ -175,6 +201,7 @@ class EmpleadosContent extends StatelessWidget {
   }
 }
 
+// === Widget reutilizable: Tab de empleados ===
 class _EmpleadosTab extends StatelessWidget {
   final String text;
   final bool selected;
@@ -183,25 +210,25 @@ class _EmpleadosTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(right: 24.0),
+      padding: const EdgeInsets.only(right: kEmpleadosTabSpacing),
       child: Column(
         children: [
           Text(
             text,
             style: TextStyle(
-              fontSize: 18,
+              fontSize: kEmpleadosTabFontSize,
               fontWeight: FontWeight.w500,
-              color: selected ? Colors.black : Colors.grey[700],
+              color: selected ? AppColors.greenDark : Colors.grey[700],
             ),
           ),
           SizedBox(height: 4),
           AnimatedContainer(
             duration: Duration(milliseconds: 200),
-            height: 3,
-            width: selected ? 60 : 0,
+            height: kEmpleadosTabUnderlineHeight,
+            width: selected ? kEmpleadosTabUnderlineWidth : 0,
             decoration: BoxDecoration(
-              color: selected ? Color(0xFF5BA829) : Colors.transparent,
-              borderRadius: BorderRadius.circular(4),
+              color: selected ? kEmpleadosTabUnderlineColor : Colors.transparent,
+              borderRadius: BorderRadius.circular(kEmpleadosTabRadius),
             ),
           ),
         ],
@@ -210,6 +237,7 @@ class _EmpleadosTab extends StatelessWidget {
   }
 }
 
+// === Widget reutilizable: Métrica empleados ===
 class _EmpleadosMetricCard extends StatelessWidget {
   final String title;
   final String value;
@@ -224,14 +252,14 @@ class _EmpleadosMetricCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: kEmpleadosMetricCardPaddingH, vertical: kEmpleadosMetricCardPaddingV),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(kEmpleadosMetricCardRadius),
         boxShadow: [
           BoxShadow(
-            color: Colors.black12,
-            blurRadius: 12,
+            color: AppColors.black12,
+            blurRadius: kEmpleadosMetricCardShadowBlur,
             offset: Offset(0, 4),
           ),
         ],
@@ -242,7 +270,7 @@ class _EmpleadosMetricCard extends StatelessWidget {
           Text(
             title,
             style: TextStyle(
-              fontSize: 20,
+              fontSize: kEmpleadosMetricTitleFontSize,
               color: Colors.grey[700],
               fontWeight: FontWeight.w400,
             ),
@@ -251,13 +279,13 @@ class _EmpleadosMetricCard extends StatelessWidget {
           Text(
             value,
             style: TextStyle(
-              fontSize: 32,
+              fontSize: kEmpleadosMetricValueFontSize,
               fontWeight: FontWeight.bold,
               color: Colors.black,
             ),
           ),
           SizedBox(width: 8),
-          Icon(icon, color: Colors.black, size: 32),
+          Icon(icon, color: Colors.black, size: kEmpleadosMetricIconSize),
         ],
       ),
     );

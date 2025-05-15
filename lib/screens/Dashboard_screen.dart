@@ -1,7 +1,45 @@
 import 'package:flutter/material.dart';
 import 'Dashboard_content.dart';
 import 'Empleados_content.dart';
-import 'Nomina_screen.dart';
+import 'Nomina_screen.dart' as nomina_screen;
+import '../theme/app_styles.dart';
+
+// === Constantes de estilo globales ===
+const double kSidebarWidth = 260;
+const double kSidebarLogoHeight = 120;
+const double kSidebarLogoIconSize = 48;
+const double kSidebarLogoFontSize = 24;
+const double kSidebarLogoSubFontSize = 14;
+const double kSidebarItemRadius = 8;
+const double kSidebarItemActiveWidth = 6;
+const double kSidebarItemIconSize = 24;
+const double kSidebarItemFontSize = 16;
+const double kSidebarItemVerticalMargin = 4;
+const double kDashboardPaddingTop = 8;
+const double kDashboardPaddingSide = 32;
+const double kDashboardPaddingBottom = 32;
+const double kDashboardTitleFontSize = 54;
+const double kDashboardTitleHeight = 1.1;
+const double kDashboardSearchWidth = 420;
+const double kDashboardSearchHeight = 48;
+const double kDashboardCardRadius = 20;
+const double kDashboardCardShadowBlur = 12;
+const double kDashboardCardPaddingH = 24;
+const double kDashboardCardPaddingV = 20;
+const double kDashboardMetricFontSize = 32;
+const double kDashboardMetricTitleFontSize = 22;
+const double kDashboardMetricIconSize = 32;
+const Color kSidebarActiveColor = Color(0xFF5BA829);
+const Color kSidebarHoverColor = Color(0xFFF6FBF7);
+const Color kSidebarDefaultColor = Colors.transparent;
+const Color kSidebarActiveTextColor = Color(0xFF5BA829);
+const Color kSidebarDefaultTextColor = Colors.grey;
+const Color kSidebarLogoColor = Color(0xFF6B4F27);
+const Color kSidebarLogoSubColor = Color(0xFF5BA829);
+const Color kDashboardBackground = Color(0xFFF3E9D2);
+const Color kDashboardTitleColor = Color(0xFF1B5E20);
+const Color kDashboardButtonColor = Color(0xFF7BAE2F);
+const Color kDashboardButtonTextColor = Colors.white;
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -13,6 +51,7 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   int selectedIndex = 0;
   int? hoveredIndex;
+  bool showFullTable = false;
   final List<_SidebarItemData> menuItems = [
     _SidebarItemData(icon: Icons.home, label: 'Dashboard'),
     _SidebarItemData(icon: Icons.people, label: 'Empleados'),
@@ -23,6 +62,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _SidebarItemData(icon: Icons.settings, label: 'Configuracion'),
   ];
 
+  // Utilidad para sombra fuerte
+  final BoxShadow strongShadow = BoxShadow(
+    color: Colors.black26,
+    blurRadius: 18,
+    offset: Offset(0, 8),
+  );
+
   Widget _getBodyContent() {
     switch (selectedIndex) {
       case 0:
@@ -30,7 +76,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
       case 1:
         return EmpleadosContent();
       case 4:
-        return NominaScreen();
+        return nomina_screen.NominaScreen(
+          showFullTable: showFullTable,
+          onCloseFullTable: () {
+            setState(() {
+              showFullTable = false;
+            });
+          },
+          onOpenFullTable: () {
+            setState(() {
+              showFullTable = true;
+            });
+          },
+        );
       // Puedes agregar más casos para otras pantallas
       default:
         return Center(child: Text('Próximamente...'));
@@ -45,13 +103,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
         children: [
           // Sidebar
           Container(
-            width: 260,
+            width: 260.0,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppColors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black12,
-                  blurRadius: 12,
+                  color: AppColors.black12,
+                  blurRadius: AppDimens.cardShadowBlur,
                   offset: Offset(2, 0),
                 ),
               ],
@@ -60,15 +118,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
               children: [
                 // Logo
                 Container(
-                  height: 120,
+                  height: kSidebarLogoHeight,
                   padding: const EdgeInsets.all(16),
                   alignment: Alignment.centerLeft,
                   child: Row(
                     children: [
                       Icon(
                         Icons.agriculture,
-                        size: 48,
-                        color: Color(0xFF5BA829),
+                        size: kSidebarLogoIconSize,
+                        color: kSidebarLogoColor,
                       ),
                       SizedBox(width: 12),
                       Column(
@@ -78,16 +136,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           Text(
                             'AGRIBAR',
                             style: TextStyle(
-                              fontSize: 24,
+                              fontSize: kSidebarLogoFontSize,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFF6B4F27),
+                              color: kSidebarLogoColor,
                             ),
                           ),
                           Text(
                             'S. de R.L. de C.V.',
                             style: TextStyle(
-                              fontSize: 14,
-                              color: Color(0xFF5BA829),
+                              fontSize: kSidebarLogoSubFontSize,
+                              color: kSidebarLogoSubColor,
                             ),
                           ),
                         ],
@@ -133,28 +191,128 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Expanded(
             child: Column(
               children: [
-                // Top bar with title
-                Container(
-                  height: 80,
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 40),
-                  color: Color(0xFFF5F5F5),
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    menuItems[selectedIndex].label,
-                    style: TextStyle(
-                      fontSize: 44,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                    ),
-                  ),
-                ),
                 // Main scrollable content
                 Expanded(
                   child: Container(
-                    color: const Color(0xFFF3E9D2),
-                    padding: const EdgeInsets.all(32),
-                    child: _getBodyContent(),
+                    color: kDashboardBackground,
+                    padding: const EdgeInsets.only(top: kDashboardPaddingTop, left: kDashboardPaddingSide, right: kDashboardPaddingSide, bottom: kDashboardPaddingBottom),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(top: 0, bottom: 20),
+                          child: (selectedIndex == 4 && showFullTable)
+                              ? Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      menuItems[selectedIndex].label,
+                                      style: TextStyle(
+                                        fontSize: 54,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.greenDark,
+                                        height: 1.1,
+                                      ),
+                                    ),
+                                    Spacer(),
+                                    Container(
+                                      width: kDashboardSearchWidth,
+                                      height: kDashboardSearchHeight,
+                                      decoration: BoxDecoration(
+                                        boxShadow: [strongShadow],
+                                        borderRadius: BorderRadius.circular(kDashboardCardRadius),
+                                      ),
+                                      child: TextField(
+                                        decoration: InputDecoration(
+                                          hintText: 'Buscar',
+                                          prefixIcon: Icon(Icons.search),
+                                          filled: true,
+                                          fillColor: Color(0xFFF5F5F5),
+                                          border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(kDashboardCardRadius),
+                                            borderSide: BorderSide.none,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    Spacer(),
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        boxShadow: [strongShadow],
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: ElevatedButton(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: AppColors.green,
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppDimens.buttonRadius)),
+                                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                                        ),
+                                        onPressed: () {
+                                          setState(() {
+                                            showFullTable = false;
+                                          });
+                                        },
+                                        child: Text('Volver', style: nomina_screen.AppTextStyles.button),
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      menuItems[selectedIndex].label,
+                                      style: TextStyle(
+                                        fontSize: 54,
+                                        fontWeight: FontWeight.bold,
+                                        color: const Color.fromARGB(255, 23, 139, 29),
+                                        height: 1.1,
+                                      ),
+                                    ),
+                                    if (selectedIndex == 4) ...[
+                                      Spacer(),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.white,
+                                          borderRadius: BorderRadius.circular(12),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: AppColors.black12,
+                                              blurRadius: 8,
+                                              offset: Offset(0, 2),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.end,
+                                          children: [
+                                            Text(
+                                              'Total Semana Acumulado',
+                                              style: TextStyle(
+                                                fontSize: 15,
+                                                color: Colors.black87,
+                                                fontWeight: FontWeight.w400,
+                                              ),
+                                            ),
+                                            Text(
+                                              '460,400',
+                                              style: TextStyle(
+                                                fontSize: 28,
+                                                color: const Color.fromARGB(255, 2, 119, 8),
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                        ),
+                        Expanded(child: _getBodyContent()),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -172,6 +330,7 @@ class _SidebarItemData {
   const _SidebarItemData({required this.icon, required this.label});
 }
 
+// === Widget reutilizable: Sidebar Item ===
 class _SidebarItem extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -187,42 +346,36 @@ class _SidebarItem extends StatelessWidget {
     this.onTap,
     this.onHover,
   });
-
   @override
   Widget build(BuildContext context) {
     final bool active = selected;
-    final Color activeColor = Color(0xFF5BA829);
-    final Color hoverColor = Color(0xFFF6FBF7); // Blanco con matiz verde
-    final Color defaultColor = Colors.transparent;
-    final Color activeTextColor = Color(0xFF5BA829);
-    final Color defaultTextColor = Colors.grey[700]!;
-
     return MouseRegion(
       onEnter: (_) => onHover?.call(true),
       onExit: (_) => onHover?.call(false),
       child: Stack(
         children: [
           Container(
-            margin: const EdgeInsets.symmetric(vertical: 4),
+            margin: const EdgeInsets.symmetric(vertical: kSidebarItemVerticalMargin),
             decoration: BoxDecoration(
-              color:
-                  active
-                      ? hoverColor
-                      : hovered
-                      ? hoverColor
-                      : defaultColor,
-              borderRadius: BorderRadius.circular(8),
+              color: active
+                  ? kSidebarHoverColor
+                  : hovered
+                      ? kSidebarHoverColor
+                      : kSidebarDefaultColor,
+              borderRadius: BorderRadius.circular(kSidebarItemRadius),
             ),
             child: ListTile(
               leading: Icon(
                 icon,
-                color: active ? activeTextColor : Colors.grey[600],
+                color: active ? kSidebarActiveTextColor : Colors.grey[600],
+                size: kSidebarItemIconSize,
               ),
               title: Text(
                 label,
                 style: TextStyle(
-                  color: active ? activeTextColor : defaultTextColor,
+                  color: active ? kSidebarActiveTextColor : Colors.grey[700],
                   fontWeight: active ? FontWeight.bold : FontWeight.normal,
+                  fontSize: kSidebarItemFontSize,
                 ),
               ),
               selected: active,
@@ -235,10 +388,10 @@ class _SidebarItem extends StatelessWidget {
               bottom: 12,
               right: 0,
               child: Container(
-                width: 6,
+                width: kSidebarItemActiveWidth,
                 decoration: BoxDecoration(
-                  color: activeColor,
-                  borderRadius: BorderRadius.circular(8),
+                  color: kSidebarActiveColor,
+                  borderRadius: BorderRadius.circular(kSidebarItemRadius),
                 ),
               ),
             ),
@@ -248,6 +401,7 @@ class _SidebarItem extends StatelessWidget {
   }
 }
 
+// === Widget reutilizable: Métrica Dashboard ===
 class _MetricCard extends StatelessWidget {
   final String title;
   final String value;
@@ -261,21 +415,20 @@ class _MetricCard extends StatelessWidget {
     this.icon,
     this.iconColor,
     this.valueColor,
-    this.fontSize = 32,
+    this.fontSize = kDashboardMetricFontSize,
   });
-
   @override
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      padding: const EdgeInsets.symmetric(horizontal: kDashboardCardPaddingH, vertical: kDashboardCardPaddingV),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(kDashboardCardRadius),
         boxShadow: [
           BoxShadow(
-            color: Colors.black12,
-            blurRadius: 12,
+            color: AppColors.black12,
+            blurRadius: kDashboardCardShadowBlur,
             offset: Offset(0, 4),
           ),
         ],
@@ -286,7 +439,7 @@ class _MetricCard extends StatelessWidget {
           Text(
             title,
             style: TextStyle(
-              fontSize: 22,
+              fontSize: kDashboardMetricTitleFontSize,
               color: Colors.grey[700],
               fontWeight: FontWeight.w400,
             ),
@@ -304,13 +457,13 @@ class _MetricCard extends StatelessWidget {
               ),
               if (icon != null) ...[
                 SizedBox(width: 8),
-                Icon(icon, color: iconColor ?? Colors.black, size: 32),
+                Icon(icon, color: iconColor ?? Colors.black, size: kDashboardMetricIconSize),
               ],
             ],
           ),
         ],
-     ),
-   );
+      ),
+    );
   }
 }
 
@@ -325,11 +478,11 @@ class _ChartCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(kDashboardCardRadius),
         boxShadow: [
           BoxShadow(
-            color: Colors.black12,
+            color: AppColors.black12,
             blurRadius: 12,
             offset: Offset(0, 4),
           ),
@@ -373,11 +526,11 @@ class _AlertCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(kDashboardCardRadius),
         boxShadow: [
           BoxShadow(
-            color: Colors.black12,
+            color: AppColors.black12,
             blurRadius: 12,
             offset: Offset(0, 4),
           ),
