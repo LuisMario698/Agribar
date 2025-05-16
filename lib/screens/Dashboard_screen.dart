@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'Dashboard_content.dart';
 import 'Empleados_content.dart';
 import 'Nomina_screen.dart';
+import 'Actividades_content.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -29,6 +30,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return DashboardHomeContent();
       case 1:
         return EmpleadosContent();
+      case 3:
+        return ActividadesContent();
       case 4:
         return NominaScreen();
       // Puedes agregar más casos para otras pantallas
@@ -309,8 +312,8 @@ class _MetricCard extends StatelessWidget {
             ],
           ),
         ],
-     ),
-   );
+      ),
+    );
   }
 }
 
