@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'Dashboard_content.dart';
-import 'Empleados_content.dart';
+import 'Cuadrilla_Content.dart';
+//import 'Empleados_content.dart';
 import 'Nomina_screen.dart' as nomina_screen;
 import '../theme/app_styles.dart';
 
@@ -73,8 +74,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     switch (selectedIndex) {
       case 0:
         return DashboardHomeContent();
-      case 1:
-        return EmpleadosContent();
+      //case 1:
+       // return EmpleadosContent();
+      case 2:
+        return CuadrillaContent();
       case 4:
         return nomina_screen.NominaScreen(
           showFullTable: showFullTable,
@@ -252,7 +255,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                             showFullTable = false;
                                           });
                                         },
-                                        child: Text('Volver', style: nomina_screen.AppTextStyles.button),
+                                        child: Text('Volver', style: AppTextStyles.button),
                                       ),
                                     ),
                                   ],
@@ -269,44 +272,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                         height: 1.1,
                                       ),
                                     ),
-                                    if (selectedIndex == 4) ...[
-                                      Spacer(),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-                                        decoration: BoxDecoration(
-                                          color: AppColors.white,
-                                          borderRadius: BorderRadius.circular(12),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: AppColors.black12,
-                                              blurRadius: 8,
-                                              offset: Offset(0, 2),
-                                            ),
-                                          ],
-                                        ),
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.end,
-                                          children: [
-                                            Text(
-                                              'Total Semana Acumulado',
-                                              style: TextStyle(
-                                                fontSize: 15,
-                                                color: Colors.black87,
-                                                fontWeight: FontWeight.w400,
-                                              ),
-                                            ),
-                                            Text(
-                                              '460,400',
-                                              style: TextStyle(
-                                                fontSize: 28,
-                                                color: const Color.fromARGB(255, 2, 119, 8),
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
                                   ],
                                 ),
                         ),

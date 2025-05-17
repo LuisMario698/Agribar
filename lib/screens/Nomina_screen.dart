@@ -1,1055 +1,1277 @@
 import 'package:flutter/material.dart';
-import '../theme/app_styles.dart';
-
-// === Constantes de estilo globales ===
-const double kTableCardTopMargin = 50;
-const double kTableCardSideMargin = 0;
-const double kTableCardRadius = 18;
-const double kTableCardShadowBlur = 12;
-const double kTableButtonTop = 12;
-const double kTableButtonRight = 40;
-const double kColumnClaveWidth = 55;
-const double kColumnNombreWidth = 140;
-const double kColumnTotalSemanalWidth = 85;
-const double kColumnComederoWidth = 60;
-const double kColumnObsWidth = 120;
-const double kColumnOtrasPercWidth = 120;
-const double kColumnDeduccionesWidth = 80;
-const double kColumnNetoWidth = 85;
-const double kColumnDiaWidth = 45;
-const double kIndicatorCardWidth = 260;
-const double kIndicatorCardHeight = 80;
-const double kIndicatorIconSize = 22;
-const double kButtonRadius = 12;
-const double kButtonFontSize = 16;
-const double kDataRowHeight = 48;
-const Color kGreen = Color(0xFF7BAE2F);
-const Color kGreenDark = Color(0xFF43A047);
-const Color kTableHeaderColor = Color(0xFFF3F3F3);
-const Color kTableBorderColor = Color(0xFFBDBDBD);
-const Color kBackgroundColor = Color(0xFFF3E9D2);
-
-// Modelo para empleado
-class Empleado {
-  String clave;
-  String nombre;
-  String totalSemanal;
-  String comedero;
-  String observaciones;
-  String otrasPercepciones;
-  String deducciones;
-  String netoPagar;
-  Map<String, String> diasTrabajados;
-
-  Empleado({
-    required this.clave,
-    required this.nombre,
-    required this.totalSemanal,
-    required this.comedero,
-    required this.observaciones,
-    required this.otrasPercepciones,
-    required this.deducciones,
-    required this.netoPagar,
-    required this.diasTrabajados,
-  });
-
-  Empleado copy() {
-    return Empleado(
-      clave: clave,
-      nombre: nombre,
-      totalSemanal: totalSemanal,
-      comedero: comedero,
-      observaciones: observaciones,
-      otrasPercepciones: otrasPercepciones,
-      deducciones: deducciones,
-      netoPagar: netoPagar,
-      diasTrabajados: Map.from(diasTrabajados),
-    );
-  }
-}
+import 'Cuadrilla_Content.dart';
+import 'dart:ui';
+import 'package:flutter/services.dart';
 
 class NominaScreen extends StatefulWidget {
+  const NominaScreen({Key? key, this.showFullTable = false, this.onCloseFullTable, this.onOpenFullTable}) : super(key: key);
   final bool showFullTable;
   final VoidCallback? onCloseFullTable;
   final VoidCallback? onOpenFullTable;
-  const NominaScreen({super.key, this.showFullTable = false, this.onCloseFullTable, this.onOpenFullTable});
 
   @override
   State<NominaScreen> createState() => _NominaScreenState();
 }
 
 class _NominaScreenState extends State<NominaScreen> {
-  bool showFullTable = false;
+  // Simulación de cuadrillas obtenidas del otro módulo
+  List<Map<String, String>> cuadrillas = [
+    {
+      'nombre': 'Indirectos',
+      'clave': '000001+390',
+      'grupo': 'Grupo Baranzini',
+      'actividad': 'Destajo',
+    },
+    {
+      'nombre': 'Linea 1',
+      'clave': '000002+390',
+      'grupo': 'Grupo Baranzini',
+      'actividad': 'Destajo',
+    },
+    {
+      'nombre': 'Linea 3',
+      'clave': '000003+390',
+      'grupo': 'Grupo Baranzini',
+      'actividad': 'Destajo',
+    },
+  ];
+
+  String? cuadrillaSeleccionada;
+  DateTimeRange? semanaSeleccionada;
+  final TextEditingController searchController = TextEditingController();
+  final ScrollController _tableScrollController = ScrollController();
+  final ScrollController _expandedTableScrollController = ScrollController();
+
+  ScrollController get _tableControllerToUse => isFullScreen ? _expandedTableScrollController : _tableScrollController;
+
+  // Datos de nómina (mock, pero dinámicos)
+  List<Map<String, dynamic>> empleados = [
+    {
+      'clave': '1950',
+      'nombre': 'Adela Rodríguez Ramírez',
+      'dias': [0, 0, 0, 0, 0, 0, 0], // Array para los 7 días
+      'total': 0,
+      'debo': 0,
+      'subtotal': 0,
+      'comedor': 0,
+      'neto': 0,
+      'cuadrilla': 'Indirectos',
+    },
+    {
+      'clave': '2340',
+      'nombre': 'Elizabeth Rodríguez Ramírez',
+      'dias': [0, 0, 0, 0, 0, 0, 0],
+      'total': 0,
+      'debo': 0,
+      'subtotal': 0,
+      'comedor': 0,
+      'neto': 0,
+      'cuadrilla': 'Indirectos',
+    },
+    {
+      'clave': '2730',
+      'nombre': 'Pedro Sanchez Velasco',
+      'dias': [0, 0, 0, 0, 0, 0, 0],
+      'total': 0,
+      'debo': 0,
+      'subtotal': 0,
+      'comedor': 0,
+      'neto': 0,
+      'cuadrilla': 'Linea 1',
+    },
+    {
+      'clave': '3120',
+      'nombre': 'Magdalena Bautista Ramírez',
+      'dias': [0, 0, 0, 0, 0, 0, 0],
+      'total': 0,
+      'debo': 0,
+      'subtotal': 0,
+      'comedor': 0,
+      'neto': 0,
+      'cuadrilla': 'Linea 1',
+    },
+    {
+      'clave': '3510',
+      'nombre': 'Leonides Cruz Quiroz',
+      'dias': [0, 0, 0, 0, 0, 0, 0],
+      'total': 0,
+      'debo': 0,
+      'subtotal': 0,
+      'comedor': 0,
+      'neto': 0,
+      'cuadrilla': 'Linea 3',
+    },
+    {
+      'clave': '3900',
+      'nombre': 'Fabian Cruz Quiroz',
+      'dias': [0, 0, 0, 0, 0, 0, 0],
+      'total': 0,
+      'debo': 0,
+      'subtotal': 0,
+      'comedor': 0,
+      'neto': 0,
+      'cuadrilla': 'Linea 3',
+    },
+  ];
+
+  List<Map<String, dynamic>> empleadosFiltrados = [];
+  bool isFullScreen = false; // State variable to track full-screen mode
+  int _tableVersion = 0; // Añadir un contador para forzar la reconstrucción
   bool showDiasTrabajados = false;
-  List<Empleado> empleados = [];
-  final dias = ['01/07/2024', '02/07/2024', '03/07/2024', '04/07/2024', '05/07/2024', '06/07/2024', '07/07/2024'];
+  Map<String, List<List<int>>> diasTrabajadosHPorCuadrilla = {};
+  Map<String, List<List<int>>> diasTrabajadosTTPorCuadrilla = {};
+  List<List<int>>? diasTrabajadosH;
+  List<List<int>>? diasTrabajadosTT;
+  bool showSupervisorLogin = false;
+  final TextEditingController supervisorUserController = TextEditingController();
+  final TextEditingController supervisorPassController = TextEditingController();
+  String? supervisorLoginError;
+  String searchDiasTrabajados = '';
+  List<Map<String, dynamic>> semanasCerradas = [];
+  bool showSemanasCerradas = false;
+  int? semanaCerradaSeleccionada;
+  String? cuadrillaCerradaSeleccionada;
 
   @override
   void initState() {
     super.initState();
-    // Inicializar datos de ejemplo
-    empleados = [
-      Empleado(
-        clave: '1950',
-        nombre: 'Adela Rodriguez Ramirez',
-        totalSemanal: '241,500',
-        comedero: '',
-        observaciones: '',
-        otrasPercepciones: '',
-        deducciones: '',
-        netoPagar: '241,500',
-        diasTrabajados: Map.fromIterables(dias, List.filled(dias.length, '1')),
-      ),
-      // ... Agregar el resto de empleados de ejemplo ...
-    ];
+    cuadrillaSeleccionada = cuadrillas.first['nombre'];
+    _filtrarEmpleados();
   }
 
-  void _openFullTable() {
+  void _filtrarEmpleados() {
+    String query = searchController.text.trim().toLowerCase();
     setState(() {
-      showFullTable = true;
-      showDiasTrabajados = false;
+      empleadosFiltrados = empleados.where((e) {
+        final matchCuadrilla = e['cuadrilla'] == cuadrillaSeleccionada;
+        final matchNombre = e['nombre'].toLowerCase().contains(query);
+        return matchCuadrilla && (query.isEmpty || matchNombre);
+      }).toList();
+      _ajustarLongitudDiasTT();
     });
   }
 
-  void _openDiasTrabajados() {
+  void _ajustarLongitudDiasTT() {
+    int diasCount = semanaSeleccionada != null ? semanaSeleccionada!.duration.inDays + 1 : 7;
+    void ajustar(List<Map<String, dynamic>> lista) {
+      for (var e in lista) {
+        // Ajustar dias
+        if (e['dias'] == null || !(e['dias'] is List)) {
+          e['dias'] = List<int>.filled(diasCount, 0);
+        } else if ((e['dias'] as List).length != diasCount) {
+          List<int> oldDias = List<int>.from(e['dias']);
+          e['dias'] = List<int>.filled(diasCount, 0);
+          for (int i = 0; i < diasCount && i < oldDias.length; i++) {
+            e['dias'][i] = oldDias[i];
+          }
+        }
+        // Ajustar tt
+        if (!e.containsKey('tt') || !(e['tt'] is List)) {
+          e['tt'] = List<int>.filled(diasCount, 0);
+        } else if ((e['tt'] as List).length != diasCount) {
+          List<int> oldTT = List<int>.from(e['tt']);
+          e['tt'] = List<int>.filled(diasCount, 0);
+          for (int i = 0; i < diasCount && i < oldTT.length; i++) {
+            e['tt'][i] = oldTT[i];
+          }
+        }
+      }
+    }
+    ajustar(empleados);
+    ajustar(empleadosFiltrados);
+  }
+
+  Future<void> _seleccionarSemana() async {
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+      initialDateRange: semanaSeleccionada,
+      locale: const Locale('es'),
+      builder: (context, child) {
+        return Center(
+          child: SizedBox(
+            width: 500,
+            height: 420,
+            child: child,
+          ),
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() {
+        semanaSeleccionada = picked;
+        _ajustarLongitudDiasTT();
+      });
+    }
+  }
+
+  void _sincronizarDatos() {
     setState(() {
-      showFullTable = true;
-      showDiasTrabajados = true;
+      // Actualizar empleadosFiltrados con los datos más recientes
+      for (var empleado in empleadosFiltrados) {
+        int mainIndex = empleados.indexWhere((e) => e['clave'] == empleado['clave']);
+        if (mainIndex != -1) {
+          empleados[mainIndex] = Map<String, dynamic>.from(empleado);
+        }
+      }
     });
   }
 
-  void _closeFullTable() {
-    setState(() {
-      showFullTable = false;
-      showDiasTrabajados = false;
-    });
+  void _recalcularTotales(int index) {
+    // Determinar qué lista usar
+    List<Map<String, dynamic>> listaActual = index < empleados.length ? empleados : empleadosFiltrados;
+    
+    // Asegurarnos de que los valores sean enteros
+    int total = 0;
+    for (var dia in listaActual[index]['dias']) {
+      total += (dia as int);
+    }
+    listaActual[index]['total'] = total;
+
+    // Obtener valores como enteros
+    int debo = (listaActual[index]['debo'] as int?) ?? 0;
+    int comedor = (listaActual[index]['comedor'] as int?) ?? 0;
+
+    // Calcular subtotal (total - debo)
+    int subtotal = total - debo;
+    listaActual[index]['subtotal'] = subtotal;
+
+    // Calcular neto (subtotal - comedor)
+    int neto = subtotal - comedor;
+    listaActual[index]['neto'] = neto;
   }
 
-  void _addEmpleado() {
-    setState(() {
-      // Crear nuevo empleado con todos los campos vacíos
-      final nuevoEmpleado = Empleado(
-        clave: '',
-        nombre: '',
-        totalSemanal: '',
-        comedero: '',
-        observaciones: '',
-        otrasPercepciones: '',
-        deducciones: '',
-        netoPagar: '',
-        diasTrabajados: Map.fromIterables(dias, List.filled(dias.length, '')),
-      );
+  void _updateEmpleadoData(int index, String key, dynamic value) {
+    // Convertir el valor a entero
+    int intValue = 0;
+    if (value is String) {
+      intValue = int.tryParse(value) ?? 0;
+    } else if (value is int) {
+      intValue = value;
+    }
+
+    if (key.startsWith('dia_')) {
+      int diaIndex = int.parse(key.split('_')[1]);
+      empleadosFiltrados[index]['dias'][diaIndex] = intValue;
+      _recalcularTotales(index);
       
-      // Insertar al principio de la lista
-      empleados.insert(0, nuevoEmpleado);
-    });
-  }
-
-  // Función auxiliar para ordenar empleados (vacíos primero)
-  List<Empleado> _getSortedEmpleados() {
-    return List.from(empleados)..sort((a, b) {
-      // Si alguno está vacío, va primero
-      bool aVacio = a.clave.isEmpty && a.nombre.isEmpty;
-      bool bVacio = b.clave.isEmpty && b.nombre.isEmpty;
+      // Sincronizar los días con la lista principal
+      int mainIndex = empleados.indexWhere((e) => e['clave'] == empleadosFiltrados[index]['clave']);
+      if (mainIndex != -1) {
+        empleados[mainIndex]['dias'] = List<int>.from(empleadosFiltrados[index]['dias']);
+        _recalcularTotales(mainIndex);
+      }
+    } else if (key == 'debo' || key == 'comedor') {
+      empleadosFiltrados[index][key] = intValue;
+      _recalcularTotales(index);
       
-      if (aVacio && !bVacio) return -1;
-      if (!aVacio && bVacio) return 1;
-      
-      // Si ambos están vacíos o ambos tienen datos, mantener el orden original
-      return 0;
-    });
-  }
+      // Sincronizar cambios con la lista principal
+      int mainIndex = empleados.indexWhere((e) => e['clave'] == empleadosFiltrados[index]['clave']);
+      if (mainIndex != -1) {
+        empleados[mainIndex][key] = intValue;
+        _recalcularTotales(mainIndex);
+      }
+    }
 
-  void _removeEmpleado(int index) {
+    // Forzar la actualización de los totales
     setState(() {
-      empleados.removeAt(index);
-    });
-  }
-
-  void _updateEmpleado(int index, Empleado empleado) {
-    setState(() {
-      empleados[index] = empleado;
+      // Solo actualizar los totales
+      for (var i = 0; i < empleadosFiltrados.length; i++) {
+        _recalcularTotales(i);
+      }
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: AppColors.background,
-      child: Stack(
-        children: [
-          Padding(
-            padding: EdgeInsets.zero,
+    // Indicador superior (total de totales)
+    final int totalDeTotales = empleados.fold<int>(0, (sum, e) => sum + (e['neto'] as int));
+    return Stack(
+      children: [
+        // Indicador superior
+        Positioned(
+          top: 16,
+          left: 32,
+          child: Card(
+            color: Colors.white,
+            elevation: 3,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const Text('Total Semana Acumulado', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+                  SizedBox(
+                    width: 120,
+                    child: Text(
+                      '\$${totalDeTotales}',
+                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.green),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(15.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Row con label 'Nómina' y card de total semana acumulado
-                Padding(
-                  padding: const EdgeInsets.only(top: 0, left: 32, right: 32, bottom: 0),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Spacer(),
-                    ],
-                  ),
-                ),
-                // Card de filtros semana/cuadrilla y botón cargar platilla
-                Padding(
-                  padding: const EdgeInsets.only(top: 20, left: 20, right: 20, bottom: 20),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: AppColors.white,
-                          borderRadius: BorderRadius.circular(24),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.black12,
-                              blurRadius: AppDimens.cardShadowBlur,
-                              offset: Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            // Semana
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text('Semana', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24, color: Colors.green[900])),
-                                SizedBox(height: 4),
-                                Row(
-                                  children: [
-                                    _DateSelector(label: 'Inicio'),
-                                    SizedBox(width: 8),
-                                    Icon(Icons.arrow_forward, color: Colors.grey[600]),
-                                    SizedBox(width: 8),
-                                    _DateSelector(label: 'Final'),
-                                  ],
+                const SizedBox(height: 0),
+                // Filtros centrados
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 300,
+                      child: Card(
+                        color: Colors.white,
+                        elevation: 2,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 13),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Text('Semana', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green[900])),
+                              const SizedBox(height: 8),
+                              OutlinedButton(
+                                onPressed: _seleccionarSemana,
+                                child: Text(
+                                  semanaSeleccionada == null
+                                      ? 'Inicio  →  Final'
+                                      : '${semanaSeleccionada!.start.day}/${semanaSeleccionada!.start.month}/${semanaSeleccionada!.start.year}  →  ${semanaSeleccionada!.end.day}/${semanaSeleccionada!.end.month}/${semanaSeleccionada!.end.year}',
+                                  style: TextStyle(fontSize: 14),
                                 ),
-                              ],
-                            ),
-                            SizedBox(width: 32),
-                            // Cuadrilla
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text('Cuadrilla', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24, color: Colors.green[900])),
-                                SizedBox(height: 4),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: Color(0xFFF5F5F5),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text('JESUS BADILLO CASTILLO', style: TextStyle(fontWeight: FontWeight.w500, fontSize: 16)),
-                                      Icon(Icons.arrow_drop_down),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(width: 24),
-                      // Botón cargar platilla
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.green,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppDimens.buttonRadius)),
-                          padding: const EdgeInsets.symmetric(horizontal: 40),
-                          minimumSize: Size(0, 100),
-                        ),
-                        onPressed: () {},
-                        child: Text('Cargar platilla', style: TextStyle(fontSize: 22, color: AppColors.white)),
-                      ),
-                    ],
-                  ),
-                ),
-                // Buscador y tarjetas indicadores
-                Padding(
-                  padding: const EdgeInsets.only(top: 0, left: 32, right: 32, bottom: 0),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      // Buscador
-                      Container(
-                        width: 420,
-                        height: 48,
-                        child: TextField(
-                          decoration: InputDecoration(
-                            hintText: 'Buscar',
-                            prefixIcon: Icon(Icons.search),
-                            filled: true,
-                            fillColor: Color(0xFFF5F5F5),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide.none,
-                            ),
-                          ),
-                        ),
-                      ),
-                      Spacer(),
-                      // Indicadores
-                      _IndicatorCard(
-                        label: 'Empleados en cuadrilla',
-                        value: '30',
-                        icon: Icons.person,
-                        iconColor: AppColors.green,
-                        valueStyle: AppTextStyles.indicatorValue,
-                        labelStyle: AppTextStyles.indicatorLabel.copyWith(color: Colors.grey[700]),
-                      ),
-                      SizedBox(width: 16),
-                      _IndicatorCard(
-                        label: 'Total Cuadrilla',
-                        value: '15,525',
-                        icon: Icons.attach_money,
-                        iconColor: AppColors.green,
-                        valueStyle: AppTextStyles.indicatorValue,
-                        labelStyle: AppTextStyles.indicatorLabel.copyWith(color: Colors.grey[700]),
-                      ),
-                    ],
-                  ),
-                ),
-                // Tabla de nómina y botón flotante
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8, left: 32, right: 32, bottom: 8),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            _FloatingTableButton(
-                              onPressed: _openDiasTrabajados,
-                              label: 'Ver días trabajados',
-                              icon: Icons.visibility,
-                              color: AppColors.greenDark,
-                            ),
-                            ElevatedButton.icon(
-                              onPressed: _addEmpleado,
-                              icon: Icon(Icons.add),
-                              label: Text('Agregar Empleado'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.green,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                              ),
-                            ),
-                            _FloatingTableButton(
-                              onPressed: _openFullTable,
-                              label: 'Ver tabla completa',
-                              icon: Icons.fullscreen,
-                              color: AppColors.greenDark,
-                            ),
-                          ],
-                        ),
-                      ),
-                      Expanded(
-                        child: Container(
-                          margin: EdgeInsets.only(left: 0, right: 0),
-                          decoration: BoxDecoration(
-                            color: AppColors.white,
-                            borderRadius: BorderRadius.circular(AppDimens.cardRadius),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.black12,
-                                blurRadius: AppDimens.cardShadowBlur,
-                                offset: Offset(0, 4),
                               ),
                             ],
                           ),
-                          padding: EdgeInsets.all(AppDimens.tableCardPadding),
-                          child: SingleChildScrollView(
-                            scrollDirection: Axis.vertical,
-                            child: _DiasTrabajadosTable(
-                              empleados: _getSortedEmpleados(),
-                              dias: dias,
-                              onEmpleadoUpdated: _updateEmpleado,
-                              onEmpleadoRemoved: _removeEmpleado,
-                              onEmpleadoAdded: _addEmpleado,
-                            ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 24),
+                    SizedBox(
+                      width: 300,
+                      child: Card(
+                        color: Colors.white,
+                        elevation: 2,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Text('Cuadrilla', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green[900])),
+                              const SizedBox(height: 4),
+                              SizedBox(
+                                width: 250,
+                                child: DropdownButton<String>(
+                                  value: cuadrillaSeleccionada,
+                                  isExpanded: true,
+                                  items: cuadrillas.map((c) => DropdownMenuItem(
+                                    value: c['nombre'],
+                                    child: Text(c['nombre']!),
+                                  )).toList(),
+                                  onChanged: (value) {
+                                    setState(() {
+                                      // Guardar los datos actuales en el mapa antes de cambiar
+                                      if (cuadrillaSeleccionada != null) {
+                                        diasTrabajadosHPorCuadrilla[cuadrillaSeleccionada!] = diasTrabajadosH ?? [];
+                                        diasTrabajadosTTPorCuadrilla[cuadrillaSeleccionada!] = diasTrabajadosTT ?? [];
+                                      }
+                                      cuadrillaSeleccionada = value;
+                                      empleadosFiltrados = empleados
+                                          .where((e) => e['cuadrilla'] == cuadrillaSeleccionada)
+                                          .toList();
+                                      // Restaurar o inicializar los datos para la nueva cuadrilla
+                                      int diasCount = semanaSeleccionada != null ? semanaSeleccionada!.duration.inDays + 1 : 7;
+                                      diasTrabajadosH = diasTrabajadosHPorCuadrilla[cuadrillaSeleccionada!] != null && diasTrabajadosHPorCuadrilla[cuadrillaSeleccionada!]!.length == empleadosFiltrados.length && diasTrabajadosHPorCuadrilla[cuadrillaSeleccionada!]!.every((l) => l.length == diasCount)
+                                        ? diasTrabajadosHPorCuadrilla[cuadrillaSeleccionada!]!.map((l) => List<int>.from(l)).toList()
+                                        : List.generate(empleadosFiltrados.length, (_) => List<int>.filled(diasCount, 0));
+                                      diasTrabajadosTT = diasTrabajadosTTPorCuadrilla[cuadrillaSeleccionada!] != null && diasTrabajadosTTPorCuadrilla[cuadrillaSeleccionada!]!.length == empleadosFiltrados.length && diasTrabajadosTTPorCuadrilla[cuadrillaSeleccionada!]!.every((l) => l.length == diasCount)
+                                        ? diasTrabajadosTTPorCuadrilla[cuadrillaSeleccionada!]!.map((l) => List<int>.from(l)).toList()
+                                        : List.generate(empleadosFiltrados.length, (_) => List<int>.filled(diasCount, 0));
+                                    });
+                                  },
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
-                    ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                // Indicadores a la derecha (sin el Total Semana Acumulado de abajo)
+                Row(
+                  children: [
+                    SizedBox(
+                      width: 400,
+                      height: 50,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: searchController,
+                              onChanged: (value) => _filtrarEmpleados(),
+                              decoration: InputDecoration(
+                                hintText: 'Buscar',
+                                filled: true,
+                                fillColor: Colors.white,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.all(Radius.circular(10)),
+                                  borderSide: BorderSide(color: const Color.fromARGB(255, 158, 158, 158)),
+                                ),
+                                suffixIcon: Icon(Icons.search, color: Colors.grey),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 260),
+                    Row(
+                      children: [
+                        Card(
+                          color: Colors.white,
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                            child: Column(
+                              children: [
+                                Text('Empleados en cuadrilla', style: TextStyle(fontSize: 14)),
+                                Text('${empleadosFiltrados.length}', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Card(
+                          color: Colors.white,
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                            child: Column(
+                              children: [
+                                Text('Total Acumulado Cuadrilla', style: TextStyle(fontSize: 14)),
+                                Text(
+                                  '\$${empleadosFiltrados.fold<int>(0, (sum, e) => sum + (e['neto'] as int))}',
+                                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.green[700]),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 25),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Botón nuevo a la izquierda
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          showDiasTrabajados = true;
+                        });
+                      },
+                      icon: const Icon(Icons.calendar_today, color: Colors.blue),
+                      label: const Text('Ver días trabajados', style: TextStyle(fontSize: 14, color: Colors.blue)),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white, // White background
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        isFullScreen = !isFullScreen; // Toggle full-screen mode
+                      });
+                    },
+                    icon: const Icon(Icons.fullscreen, color: Colors.green), // Expand icon with green color
+                    label: const Text('Expandir Tabla', style: TextStyle(fontSize: 14, color: Colors.green)), // Green text
+                  ),
+                  ],
+                ),
+                const SizedBox(height: 1),
+                Center(
+                  child: Card(
+                    color: Colors.white,
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      child: SizedBox(
+                        height: 350,
+                        child: ScrollableDataTable(
+                          key: ValueKey('normal'),
+                          data: List<Map<String, dynamic>>.from(empleadosFiltrados),
+                          selectedWeek: semanaSeleccionada,
+                          isExpanded: false,
+                          onUpdate: _updateEmpleadoData,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-                // Botones de acción y botón ver días trabajados
-                Padding(
-                  padding: const EdgeInsets.only(left: 32, right: 32, top: 24, bottom: 16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.green,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-                            ),
-                            onPressed: () {},
-                            child: Text('Confirmar y guardar', style: AppTextStyles.button),
-                          ),
-                        ],
+                const SizedBox(height: 1),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
-                      Row(
-                        children: [
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(
+                      onPressed: () {
+                        setState(() {
+                          showSemanasCerradas = true;
+                        });
+                      },
+                      icon: const Icon(Icons.history, color: Colors.blue),
+                      label: const Text('Semanas cerradas', style: TextStyle(fontSize: 14, color: Colors.blue)),
+                    ),
+                    const SizedBox(width: 16),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Color(0xFF8CB800),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () {
+                        if (semanaSeleccionada == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Debes seleccionar una semana antes de cerrarla'),
                               backgroundColor: Colors.red,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
                             ),
-                            onPressed: () {},
-                            child: Text('PDF', style: AppTextStyles.button),
-                          ),
-                          SizedBox(width: 16),
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.green,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-                            ),
-                            onPressed: () {},
-                            child: Text('EXCEL', style: AppTextStyles.button),
-                          ),
-                        ],
+                          );
+                          return;
+                        }
+                        setState(() {
+                          showSupervisorLogin = true;
+                          supervisorLoginError = null;
+                          supervisorUserController.clear();
+                          supervisorPassController.clear();
+                        });
+                      },
+                      child: const Text('Cerrar semana', style: TextStyle(fontSize: 16, color: Colors.white)),
+                    ),
+                    const SizedBox(width: 16),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red[700],
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
-                    ],
-                  ),
+                      onPressed: () {},
+                      child: const Text('PDF', style: TextStyle(fontSize: 16, color: Colors.white)),
+                    ),
+                    const SizedBox(width: 16),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green[700],
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () {},
+                      child: const Text('EXCEL', style: TextStyle(fontSize: 16, color: Colors.white)),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-          // Dialogo de tabla completa o días trabajados
-          if (showFullTable)
-            Positioned.fill(
+        ),
+        if (showDiasTrabajados)
+          Positioned.fill(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
               child: Container(
-                padding: EdgeInsets.zero,
-                child: Container(
-                  width: double.infinity,
-                  height: double.infinity,
-                  padding: EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppColors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.black26,
-                        blurRadius: 18,
-                        offset: Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
+                child: Center(
+                  child: Card(
+                    color: Colors.white,
+                    elevation: 8,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                    child: Container(
+                      width: MediaQuery.of(context).size.width * 0.95,
+                      height: MediaQuery.of(context).size.height * 0.95,
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
                         children: [
-                          Expanded(
-                            child: Container(
-                              width: 420,
-                              height: 48,
-                              decoration: BoxDecoration(
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppColors.black26,
-                                    blurRadius: 18,
-                                    offset: Offset(0, 8),
-                                  ),
-                                ],
-                                borderRadius: BorderRadius.circular(12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Tabla de días trabajados', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                              IconButton(
+                                icon: const Icon(Icons.close, color: Colors.red),
+                                onPressed: () {
+                                  setState(() {
+                                    showDiasTrabajados = false;
+                                  });
+                                },
                               ),
-                              child: TextField(
-                                decoration: InputDecoration(
-                                  hintText: 'Buscar',
-                                  prefixIcon: Icon(Icons.search),
-                                  filled: true,
-                                  fillColor: Color(0xFFF5F5F5),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide.none,
-                                  ),
-                                ),
-                              ),
-                            ),
+                            ],
                           ),
-                          SizedBox(width: 16),
-                          Container(
-                            decoration: BoxDecoration(
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppColors.black26,
-                                  blurRadius: 18,
-                                  offset: Offset(0, 8),
-                                ),
-                              ],
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.green,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                                minimumSize: Size(0, 0),
-                                shadowColor: Colors.transparent,
+                          const SizedBox(height: 16),
+                          // Barra de búsqueda
+                          TextField(
+                            decoration: InputDecoration(
+                              hintText: 'Buscar por nombre',
+                              filled: true,
+                              fillColor: Colors.grey[200],
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
                               ),
-                              onPressed: _closeFullTable,
-                              child: Text('Volver', style: AppTextStyles.button),
+                              prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                            ),
+                            onChanged: (value) {
+                              setState(() {
+                                searchDiasTrabajados = value.trim().toLowerCase();
+                              });
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          Expanded(
+                            child: DiasTrabajadosTable(
+                              empleados: empleadosFiltrados.where((e) => searchDiasTrabajados.isEmpty || e['nombre'].toLowerCase().contains(searchDiasTrabajados)).toList(),
+                              selectedWeek: semanaSeleccionada,
+                              diasH: diasTrabajadosH,
+                              diasTT: diasTrabajadosTT,
+                              onChanged: (h, tt) {
+                                setState(() {
+                                  diasTrabajadosH = h;
+                                  diasTrabajadosTT = tt;
+                                });
+                              },
                             ),
                           ),
                         ],
                       ),
-                      SizedBox(height: 16),
-                      Padding(
-                        padding: const EdgeInsets.only(left: 32, right: 32, bottom: 16),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            ElevatedButton.icon(
-                              onPressed: _addEmpleado,
-                              icon: Icon(Icons.add),
-                              label: Text('Agregar Empleado'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.green,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+            ),
+          ),
+        ),
+        if (isFullScreen)
+          Positioned.fill(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4), // Blur effect for the background
+              child: Container(
+                child: Center(
+                  child: Card(
+                    color: Colors.white,
+                    elevation: 8,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                    child: Container(
+                      width: MediaQuery.of(context).size.width * 0.95, // Cover 95% of the screen width
+                      height: MediaQuery.of(context).size.height * 0.95, // Cover 95% of the screen height
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: searchController,
+                                  onChanged: (value) => _filtrarEmpleados(),
+                                  decoration: InputDecoration(
+                                    hintText: 'Buscar por nombre',
+                                    filled: true,
+                                    fillColor: Colors.grey[200],
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                    suffixIcon: const Icon(Icons.search, color: Colors.grey),
+                                  ),
                                 ),
-                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                               ),
+                              IconButton(
+                                icon: const Icon(Icons.close, color: Colors.red),
+                                onPressed: () {
+                                  _sincronizarDatos(); // Sincronizar datos antes de cerrar
+                                  setState(() {
+                                    isFullScreen = false; // Close full-screen mode
+                                  });
+                                },
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Expanded(
+                            child: ScrollableDataTable(
+                              key: ValueKey('expanded'),
+                              data: List<Map<String, dynamic>>.from(empleadosFiltrados),
+                              selectedWeek: semanaSeleccionada,
+                              isExpanded: true,
+                              onUpdate: _updateEmpleadoData,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        if (showSupervisorLogin)
+          Positioned.fill(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+              child: Center(
+                child: Card(
+                  color: Colors.white,
+                  elevation: 8,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                  child: Container(
+                    width: 400,
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Autorización Supervisor', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                            IconButton(
+                              icon: const Icon(Icons.close, color: Colors.red),
+                              onPressed: () {
+                                setState(() {
+                                  showSupervisorLogin = false;
+                                });
+                              },
                             ),
                           ],
                         ),
-                      ),
-                      Expanded(
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.vertical,
-                          child: showDiasTrabajados ? _NominaTable(
-                            empleados: _getSortedEmpleados(),
-                            onEmpleadoUpdated: _updateEmpleado,
-                            onEmpleadoRemoved: _removeEmpleado,
-                            onEmpleadoAdded: _addEmpleado,
-                          ) : _DiasTrabajadosTable(
-                            empleados: _getSortedEmpleados(),
-                            dias: dias,
-                            onEmpleadoUpdated: _updateEmpleado,
-                            onEmpleadoRemoved: _removeEmpleado,
-                            onEmpleadoAdded: _addEmpleado,
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: supervisorUserController,
+                          decoration: const InputDecoration(
+                            labelText: 'Usuario o correo',
+                            border: OutlineInputBorder(),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DateSelector extends StatelessWidget {
-  final String label;
-  const _DateSelector({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: Color(0xFFF5F5F5),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          Text(label, style: TextStyle(fontWeight: FontWeight.w500)),
-          SizedBox(width: 6),
-          Icon(Icons.calendar_today, size: 18, color: Colors.grey[700]),
-        ],
-      ),
-    );
-  }
-}
-
-class _FloatingTableButton extends StatelessWidget {
-  final VoidCallback? onPressed;
-  final String label;
-  final IconData icon;
-  final Color color;
-  const _FloatingTableButton({this.onPressed, required this.label, required this.icon, required this.color});
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: TextButton.icon(
-        style: TextButton.styleFrom(
-          backgroundColor: AppColors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-          elevation: 4,
-          shadowColor: AppColors.black26,
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        ),
-        onPressed: onPressed,
-        icon: Icon(icon, color: color),
-        label: Text(label, style: TextStyle(color: color, fontWeight: FontWeight.bold)),
-      ),
-    );
-  }
-}
-
-class _EditableCell extends StatelessWidget {
-  final String initialValue;
-  final double width;
-  final int? minLines;
-  final Function(String) onChanged;
-
-  const _EditableCell(
-    this.initialValue,
-    this.width, {
-    this.minLines,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-      width: width,
-      child: TextField(
-        controller: TextEditingController(text: initialValue),
-        decoration: InputDecoration(
-          isDense: true,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-          border: InputBorder.none,
-        ),
-        style: AppTextStyles.tableCell,
-        textAlign: TextAlign.center,
-        minLines: minLines ?? 1,
-        maxLines: minLines ?? 1,
-        onChanged: onChanged,
-      ),
-    );
-  }
-}
-
-class _IndicatorCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color iconColor;
-  final TextStyle? valueStyle;
-  final TextStyle? labelStyle;
-  const _IndicatorCard({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.iconColor,
-    this.valueStyle,
-    this.labelStyle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: AppDimens.indicatorCardWidth,
-      height: AppDimens.indicatorCardHeight,
-      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.black12,
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Text(
-            label,
-            style: labelStyle ?? AppTextStyles.indicatorLabel.copyWith(color: Colors.grey[800]),
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text(
-                value,
-                style: valueStyle ?? AppTextStyles.indicatorValue.copyWith(color: Colors.black),
-                textAlign: TextAlign.center,
-              ),
-              SizedBox(width: 8),
-              Icon(icon, color: iconColor, size: AppDimens.indicatorIconSize),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _NominaTable extends StatelessWidget {
-  final List<Empleado> empleados;
-  final Function(int, Empleado) onEmpleadoUpdated;
-  final Function(int) onEmpleadoRemoved;
-  final VoidCallback onEmpleadoAdded;
-
-  static const List<String> diasSemana = [
-    'jue', 'vie', 'sab', 'dom', 'lun', 'mar', 'mier'
-  ];
-
-  const _NominaTable({
-    required this.empleados,
-    required this.onEmpleadoUpdated,
-    required this.onEmpleadoRemoved,
-    required this.onEmpleadoAdded,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.vertical,
-        child: Table(
-          border: TableBorder.all(color: AppColors.tableBorder, width: 1),
-          defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-          columnWidths: {
-            0: const FixedColumnWidth(50),  // Clave
-            1: const FixedColumnWidth(120), // Nombre
-            for (int i = 0; i < diasSemana.length * 2; i++)
-              i + 2: const FixedColumnWidth(35), // H y TT columns
-            diasSemana.length * 2 + 2: const FixedColumnWidth(60), // Total
-          },
-          children: [
-            // Primera fila: Encabezados de días que abarcan dos columnas
-            TableRow(
-              decoration: BoxDecoration(
-                color: AppColors.tableHeader,
-              ),
-              children: [
-                _buildHeaderCell('Clave', height: 40),
-                _buildHeaderCell('Nombre', height: 40),
-                for (var dia in diasSemana)
-                  ...[
-                    _buildHeaderCell(dia.toUpperCase(), height: 40, fontSize: 12),
-                    Container(), // Placeholder to ensure consistent column count
-                  ],
-                _buildHeaderCell('Total', height: 40),
-              ],
-            ),
-            // Segunda fila: Subencabezados H y TT
-            TableRow(
-              decoration: BoxDecoration(
-                color: AppColors.tableHeader,
-              ),
-              children: [
-                Container(height: 30),  // Clave
-                Container(height: 30),  // Nombre
-                for (var _ in diasSemana)
-                  ...[
-                    _buildHeaderCell('H', height: 30, fontSize: 10),
-                    _buildHeaderCell('TT', height: 30, fontSize: 10),
-                  ],
-                Container(height: 30),  // Total
-              ],
-            ),
-            // Filas de datos
-            for (var entry in empleados.asMap().entries)
-              TableRow(
-                children: [
-                  _buildDataCell(
-                    entry.value.clave,
-                    width: 50,
-                    onChanged: (value) {
-                      final updated = entry.value.copy();
-                      updated.clave = value;
-                      onEmpleadoUpdated(entry.key, updated);
-                    },
-                  ),
-                  _buildDataCell(
-                    entry.value.nombre,
-                    width: 120,
-                    maxLines: 2,
-                    onChanged: (value) {
-                      final updated = entry.value.copy();
-                      updated.nombre = value;
-                      onEmpleadoUpdated(entry.key, updated);
-                    },
-                  ),
-                  ...diasSemana.expand((dia) => [
-                    _buildDataCell(
-                      entry.value.diasTrabajados['${dia}_H'] ?? '',
-                      width: 35,
-                      onChanged: (value) {
-                        final updated = entry.value.copy();
-                        updated.diasTrabajados['${dia}_H'] = value;
-                        onEmpleadoUpdated(entry.key, updated);
-                      },
-                    ),
-                    _buildDataCell(
-                      entry.value.diasTrabajados['${dia}_TT'] ?? '',
-                      width: 35,
-                      onChanged: (value) {
-                        final updated = entry.value.copy();
-                        updated.diasTrabajados['${dia}_TT'] = value;
-                        onEmpleadoUpdated(entry.key, updated);
-                      },
-                    ),
-                  ]),
-                  Container(
-                    width: 60,
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                    alignment: Alignment.center,
-                    child: Text(
-                      entry.value.diasTrabajados.entries
-                        .where((e) => e.key.contains('_H') || e.key.contains('_TT'))
-                        .map((e) => int.tryParse(e.value) ?? 0)
-                        .fold(0, (a, b) => a + b)
-                        .toString(),
-                      style: AppTextStyles.tableCell.copyWith(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeaderCell(String text, {double? height, double fontSize = 12}) {
-    return Container(
-      height: height,
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-      alignment: Alignment.center,
-      child: Text(
-        text,
-        style: AppTextStyles.tableHeader.copyWith(fontSize: fontSize),
-        textAlign: TextAlign.center,
-        overflow: TextOverflow.ellipsis,
-      ),
-    );
-  }
-
-  Widget _buildDataCell(String text, {
-    double? width,
-    int maxLines = 1,
-    required Function(String) onChanged,
-  }) {
-    return Container(
-      width: width,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      child: TextField(
-        key: ValueKey(text), // Add key to maintain focus
-        controller: TextEditingController(text: text),
-        decoration: const InputDecoration(
-          isDense: true,
-          border: InputBorder.none,
-          contentPadding: EdgeInsets.zero,
-        ),
-        style: AppTextStyles.tableCell.copyWith(fontSize: 13),
-        textAlign: TextAlign.center,
-        textDirection: TextDirection.ltr, // Fix backwards text
-        maxLines: maxLines,
-        onChanged: onChanged,
-      ),
-    );
-  }
-}
-
-class _DiasTrabajadosTable extends StatelessWidget {
-  final List<Empleado> empleados;
-  final List<String> dias;
-  final Function(int, Empleado) onEmpleadoUpdated;
-  final Function(int) onEmpleadoRemoved;
-  final VoidCallback onEmpleadoAdded;
-
-  const _DiasTrabajadosTable({
-    required this.empleados,
-    required this.dias,
-    required this.onEmpleadoUpdated,
-    required this.onEmpleadoRemoved,
-    required this.onEmpleadoAdded,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.vertical,
-        child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: Table(
-            border: TableBorder.all(color: AppColors.tableBorder, width: 1),
-            defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-            columnWidths: {
-              0: const FixedColumnWidth(60),  // Clave
-              1: const FixedColumnWidth(180), // Nombre
-              for (int i = 0; i < dias.length; i++)
-                i + 2: const FixedColumnWidth(80), // Días
-              dias.length + 2: const FixedColumnWidth(70),   // Total días
-              dias.length + 3: const FixedColumnWidth(80),   // Debo
-              dias.length + 4: const FixedColumnWidth(80),   // Total
-              dias.length + 5: const FixedColumnWidth(80),   // Comedero
-              dias.length + 6: const FixedColumnWidth(80),   // Total Neto
-            },
-            children: [
-              // Primera fila - Encabezados principales
-              TableRow(
-                decoration: BoxDecoration(
-                  color: AppColors.tableHeader,
-                ),
-                children: [
-                  _buildHeaderCell('Clave'),
-                  _buildHeaderCell('Nombre'),
-                  for (var dia in dias) _buildHeaderCell(dia),
-                  _buildHeaderCell('Total'),
-                  _buildHeaderCell('Debo'),
-                  _buildHeaderCell('Total'),
-                  _buildHeaderCell('Comedero'),
-                  _buildHeaderCell('Total Neto'),
-                ],
-              ),
-              // Segunda fila - TT
-              TableRow(
-                decoration: BoxDecoration(
-                  color: AppColors.tableHeader,
-                ),
-                children: [
-                  Container(height: 30),  // Clave
-                  Container(height: 30),  // Nombre
-                  for (var _ in dias) _buildHeaderCell('TT', fontSize: 12),
-                  Container(height: 30),  // Total
-                  Container(height: 30),  // Debo
-                  Container(height: 30),  // Total
-                  Container(height: 30),  // Comedero
-                  Container(height: 30),  // Total Neto
-                ],
-              ),
-              // Filas de datos
-              for (var entry in empleados.asMap().entries)
-                TableRow(
-                  children: [
-                    _buildDataCell(
-                      entry.value.clave,
-                      width: 60,
-                      onChanged: (value) {
-                        final updated = entry.value.copy();
-                        updated.clave = value;
-                        onEmpleadoUpdated(entry.key, updated);
-                      },
-                    ),
-                    _buildDataCell(
-                      entry.value.nombre,
-                      width: 180,
-                      maxLines: 2,
-                      onChanged: (value) {
-                        final updated = entry.value.copy();
-                        updated.nombre = value;
-                        onEmpleadoUpdated(entry.key, updated);
-                      },
-                    ),
-                    for (var dia in dias)
-                      _buildDataCell(
-                        entry.value.diasTrabajados[dia] ?? '',
-                        width: 80,
-                        onChanged: (value) {
-                          final updated = entry.value.copy();
-                          updated.diasTrabajados[dia] = value;
-                          onEmpleadoUpdated(entry.key, updated);
-                        },
-                      ),
-                    // Total días
-                    Container(
-                      width: 70,
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                      alignment: Alignment.center,
-                      child: Text(
-                        (entry.value.diasTrabajados.values
-                            .map((v) => int.tryParse(v) ?? 0)
-                            .fold(0, (a, b) => a + b))
-                            .toString(),
-                        style: AppTextStyles.tableCell.copyWith(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: supervisorPassController,
+                          obscureText: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Contraseña',
+                            border: OutlineInputBorder(),
+                          ),
                         ),
+                        if (supervisorLoginError != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 12),
+                            child: Text(
+                              supervisorLoginError!,
+                              style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        const SizedBox(height: 24),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Color(0xFF8CB800),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            onPressed: () {
+                              // Validación local de ejemplo
+                              if (supervisorUserController.text == 'supervisor' && supervisorPassController.text == '1234') {
+                                setState(() {
+                                  showSupervisorLogin = false;
+                                  // Guardar snapshot de todas las cuadrillas
+                                  semanasCerradas.add({
+                                    'fecha': DateTime.now(),
+                                    'semanaSeleccionada': semanaSeleccionada,
+                                    'empleados': empleados.map((e) => Map<String, dynamic>.from(e)).toList(),
+                                    'diasTrabajadosH': Map<String, List<List<int>>>.from(diasTrabajadosHPorCuadrilla),
+                                    'diasTrabajadosTT': Map<String, List<List<int>>>.from(diasTrabajadosTTPorCuadrilla),
+                                  });
+                                  // Resetear todos los datos
+                                  for (var e in empleados) {
+                                    e['dias'] = List<int>.filled(e['dias'].length, 0);
+                                    e['total'] = 0;
+                                    e['debo'] = 0;
+                                    e['subtotal'] = 0;
+                                    e['comedor'] = 0;
+                                    e['neto'] = 0;
+                                    if (e.containsKey('tt')) e['tt'] = List<int>.filled(e['tt'].length, 0);
+                                  }
+                                  diasTrabajadosHPorCuadrilla.clear();
+                                  diasTrabajadosTTPorCuadrilla.clear();
+                                  diasTrabajadosH = null;
+                                  diasTrabajadosTT = null;
+                                  _filtrarEmpleados();
+                                });
+                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Semana cerrada correctamente.')));
+                              } else {
+                                setState(() {
+                                  supervisorLoginError = 'Credenciales incorrectas';
+                                });
+                              }
+                            },
+                            child: const Text('Autorizar', style: TextStyle(fontSize: 16, color: Colors.white)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        if (showSemanasCerradas)
+          Positioned.fill(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+              child: Center(
+                child: Card(
+                  color: Colors.white,
+                  elevation: 8,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                  child: Container(
+                    width: 900,
+                    height: 600,
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Semanas cerradas', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                              IconButton(
+                                icon: const Icon(Icons.close, color: Colors.red),
+                                onPressed: () {
+                                  setState(() {
+                                    showSemanasCerradas = false;
+                                    semanaCerradaSeleccionada = null;
+                                    cuadrillaCerradaSeleccionada = null;
+                                  });
+                                },
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          if (semanasCerradas.isEmpty)
+                            const Text('No hay semanas cerradas.'),
+                          if (semanasCerradas.isNotEmpty)
+                            ...semanasCerradas.asMap().entries.map((entry) {
+                              final i = entry.key;
+                              final semana = entry.value;
+                              final fechaCierre = semana['fecha'] as DateTime;
+                              final DateTimeRange? rango = semana['semanaSeleccionada'] as DateTimeRange?;
+                              String? fechaInicio = rango != null ? '${rango.start.day}/${rango.start.month}/${rango.start.year}' : null;
+                              String? fechaFin = rango != null ? '${rango.end.day}/${rango.end.month}/${rango.end.year}' : null;
+                              final empleadosSemana = semana['empleados'] as List;
+                              String? cuadrillaEjemplo;
+                              if (empleadosSemana.isNotEmpty) {
+                                cuadrillaEjemplo = empleadosSemana.first['cuadrilla'];
+                              }
+                              return ListTile(
+                                leading: const Icon(Icons.calendar_today, color: Colors.green),
+                                title: Text(
+                                  'Semana: ${fechaInicio ?? '-'} → ${fechaFin ?? '-'}',
+                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                subtitle: Text('Cerrada el ${fechaCierre.day}/${fechaCierre.month}/${fechaCierre.year} a las ${fechaCierre.hour.toString().padLeft(2, '0')}:${fechaCierre.minute.toString().padLeft(2, '0')}'),
+                                onTap: () {
+                                  setState(() {
+                                    semanaCerradaSeleccionada = i;
+                                    cuadrillaCerradaSeleccionada = cuadrillaEjemplo;
+                                  });
+                                },
+                                selected: semanaCerradaSeleccionada == i,
+                              );
+                            }),
+                          if (semanaCerradaSeleccionada != null)
+                            _buildDetalleSemanaCerrada(context),
+                        ],
                       ),
                     ),
-                    // Debo
-                    _buildDataCell(
-                      entry.value.totalSemanal,
-                      width: 80,
-                      onChanged: (value) {
-                        final updated = entry.value.copy();
-                        updated.totalSemanal = value;
-                        onEmpleadoUpdated(entry.key, updated);
-                      },
-                    ),
-                    // Total
-                    _buildDataCell(
-                      entry.value.otrasPercepciones,
-                      width: 80,
-                      onChanged: (value) {
-                        final updated = entry.value.copy();
-                        updated.otrasPercepciones = value;
-                        onEmpleadoUpdated(entry.key, updated);
-                      },
-                    ),
-                    // Comedero
-                    _buildDataCell(
-                      entry.value.comedero,
-                      width: 80,
-                      onChanged: (value) {
-                        final updated = entry.value.copy();
-                        updated.comedero = value;
-                        onEmpleadoUpdated(entry.key, updated);
-                      },
-                    ),
-                    // Total Neto
-                    _buildDataCell(
-                      entry.value.netoPagar,
-                      width: 80,
-                      onChanged: (value) {
-                        final updated = entry.value.copy();
-                        updated.netoPagar = value;
-                        onEmpleadoUpdated(entry.key, updated);
-                      },
-                    ),
-                  ],
+                  ),
                 ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildDetalleSemanaCerrada(BuildContext context) {
+    final semana = semanasCerradas[semanaCerradaSeleccionada!];
+    final empleadosSemana = semana['empleados'] as List<Map<String, dynamic>>;
+    final diasH = semana['diasTrabajadosH'] as Map<String, List<List<int>>>?;
+    final diasTT = semana['diasTrabajadosTT'] as Map<String, List<List<int>>>?;
+    final cuadrillasSemana = empleadosSemana.map((e) => e['cuadrilla'] as String).toSet().toList();
+    final empleadosCuadrilla = empleadosSemana.where((e) => e['cuadrilla'] == cuadrillaCerradaSeleccionada).toList();
+    final totalSemana = empleadosSemana.fold<int>(0, (sum, e) => sum + (e['neto'] as int));
+    final totalCuadrilla = empleadosCuadrilla.fold<int>(0, (sum, e) => sum + (e['neto'] as int));
+    return Card(
+      color: Colors.grey[50],
+      elevation: 2,
+      margin: const EdgeInsets.only(top: 24),
+      child: Container(
+        width: 900,
+        height: 600,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Text('Cuadrilla:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(width: 12),
+                  DropdownButton<String>(
+                    value: cuadrillaCerradaSeleccionada,
+                    items: cuadrillasSemana.map((c) => DropdownMenuItem(
+                      value: c,
+                      child: Text(c),
+                    )).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        cuadrillaCerradaSeleccionada = value;
+                      });
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Text('Total acumulado semana: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text('\$$totalSemana', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+                  const SizedBox(width: 24),
+                  Text('Total acumulado cuadrilla: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text('\$$totalCuadrilla', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+                ],
+              ),
+              const SizedBox(height: 18),
+              Text('Tabla de nómina guardada:', style: TextStyle(fontWeight: FontWeight.bold)),
+              ScrollableDataTable(
+                data: empleadosCuadrilla,
+                selectedWeek: null,
+                isExpanded: true,
+                readOnly: true,
+                onUpdate: (a, b, c) {}, // Solo visualización
+              ),
+              const SizedBox(height: 18),
+              Text('Tabla de días trabajados guardada:', style: TextStyle(fontWeight: FontWeight.bold)),
+              DiasTrabajadosTable(
+                empleados: empleadosCuadrilla,
+                selectedWeek: null,
+                readOnly: true,
+                diasH: diasH != null ? diasH[cuadrillaCerradaSeleccionada] : null,
+                diasTT: diasTT != null ? diasTT[cuadrillaCerradaSeleccionada] : null,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class ScrollableDataTable extends StatefulWidget {
+  final List<Map<String, dynamic>> data;
+  final DateTimeRange? selectedWeek;
+  final bool isExpanded;
+  final Function(int, String, dynamic) onUpdate;
+  final bool readOnly;
+
+  const ScrollableDataTable({
+    Key? key,
+    required this.data,
+    this.selectedWeek,
+    this.isExpanded = false,
+    required this.onUpdate,
+    this.readOnly = false,
+  }) : super(key: key);
+
+  @override
+  _ScrollableDataTableState createState() => _ScrollableDataTableState();
+}
+
+class _ScrollableDataTableState extends State<ScrollableDataTable> {
+  final ScrollController _horizontalController = ScrollController();
+  final ScrollController _verticalController = ScrollController();
+  final Map<String, TextEditingController> _controllers = {};
+  final Map<String, FocusNode> _focusNodes = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeControllers();
+  }
+
+  @override
+  void didUpdateWidget(ScrollableDataTable oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Actualizar los controladores cuando los datos cambian
+    for (var empleado in widget.data) {
+      for (int i = 0; i < 7; i++) {
+        String key = '${empleado['clave']}_dia_$i';
+        if (_controllers.containsKey(key) && !_focusNodes[key]!.hasFocus) {
+          _controllers[key]?.text = empleado['dias'][i].toString();
+        }
+      }
+      String deboKey = '${empleado['clave']}_debo';
+      String comedorKey = '${empleado['clave']}_comedor';
+      if (_controllers.containsKey(deboKey) && !_focusNodes[deboKey]!.hasFocus) {
+        _controllers[deboKey]?.text = empleado['debo'].toString();
+      }
+      if (_controllers.containsKey(comedorKey) && !_focusNodes[comedorKey]!.hasFocus) {
+        _controllers[comedorKey]?.text = empleado['comedor'].toString();
+      }
+    }
+  }
+
+  void _initializeControllers() {
+    for (var empleado in widget.data) {
+      for (int i = 0; i < 7; i++) {
+        String key = '${empleado['clave']}_dia_$i';
+        if (!_controllers.containsKey(key)) {
+          _controllers[key] = TextEditingController(text: empleado['dias'][i].toString());
+          _focusNodes[key] = FocusNode();
+        }
+      }
+      String deboKey = '${empleado['clave']}_debo';
+      String comedorKey = '${empleado['clave']}_comedor';
+      if (!_controllers.containsKey(deboKey)) {
+        _controllers[deboKey] = TextEditingController(text: empleado['debo'].toString());
+        _focusNodes[deboKey] = FocusNode();
+      }
+      if (!_controllers.containsKey(comedorKey)) {
+        _controllers[comedorKey] = TextEditingController(text: empleado['comedor'].toString());
+        _focusNodes[comedorKey] = FocusNode();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _horizontalController.dispose();
+    _verticalController.dispose();
+    _controllers.values.forEach((controller) => controller.dispose());
+    _focusNodes.values.forEach((node) => node.dispose());
+    super.dispose();
+  }
+
+  Widget _buildEditableCell(String value, String key, Function(String) onChanged) {
+    if (widget.readOnly) {
+      return Text(
+        value,
+        style: const TextStyle(fontSize: 10),
+        textAlign: TextAlign.center,
+      );
+    }
+
+    if (!_controllers.containsKey(key)) {
+      _controllers[key] = TextEditingController(text: value);
+      _focusNodes[key] = FocusNode();
+    }
+
+    return TextField(
+      controller: _controllers[key],
+      focusNode: _focusNodes[key],
+      keyboardType: TextInputType.number,
+      style: const TextStyle(fontSize: 10),
+      decoration: const InputDecoration(
+        isDense: true,
+        contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+        border: InputBorder.none,
+      ),
+      inputFormatters: [
+        FilteringTextInputFormatter.digitsOnly,
+      ],
+      onChanged: (value) {
+        if (value.isEmpty) {
+          onChanged('0');
+        } else {
+          onChanged(value);
+        }
+      },
+      onTap: () {
+        _controllers[key]?.selection = TextSelection(
+          baseOffset: 0,
+          extentOffset: _controllers[key]!.text.length,
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scrollbar(
+      controller: _horizontalController,
+      thumbVisibility: true,
+      child: SingleChildScrollView(
+        controller: _horizontalController,
+        scrollDirection: Axis.horizontal,
+        child: SingleChildScrollView(
+          controller: _verticalController,
+          scrollDirection: Axis.vertical,
+          child: DataTable(
+            headingRowColor: MaterialStateProperty.all(Color(0xFFE0E0E0)),
+            dataRowColor: MaterialStateProperty.resolveWith((states) {
+              if (states.contains(MaterialState.selected)) {
+                return Colors.grey.shade300;
+              }
+              return Colors.white;
+            }),
+            border: TableBorder.all(
+              color: Colors.grey.shade400,
+              width: 1,
+              style: BorderStyle.solid,
+            ),
+            columnSpacing: 36,
+            columns: [
+              const DataColumn(label: Text('Clave', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+              const DataColumn(label: Text('Nombre', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+              if (widget.selectedWeek != null)
+                ...List.generate(widget.selectedWeek!.duration.inDays + 1, (index) {
+                  final date = widget.selectedWeek!.start.add(Duration(days: index));
+                  final dayNames = ['dom', 'lun', 'mar', 'mie', 'jue', 'vie', 'sab'];
+                  return DataColumn(
+                    label: Text(
+                      dayNames[date.weekday % 7],
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10),
+                    ),
+                  );
+                })
+              else
+                ...List.generate(7, (index) {
+                  return DataColumn(
+                    label: Text(
+                      'Día',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10),
+                    ),
+                  );
+                }),
+              const DataColumn(label: Text('Total', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10))),
+              const DataColumn(label: Text('Debo', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10))),
+              const DataColumn(label: Text('Subtotal', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10))),
+              const DataColumn(label: Text('Comedor', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10))),
+              const DataColumn(label: Text('Total neto', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10))),
+            ],
+            rows: [
+              DataRow(
+                cells: [
+                  const DataCell(Text('')),
+                  const DataCell(Text('')),
+                  if (widget.selectedWeek != null)
+                    ...List.generate(widget.selectedWeek!.duration.inDays + 1, (index) {
+                      return const DataCell(
+                        Padding(
+                          padding: EdgeInsets.symmetric(vertical: 1),
+                          child: Text('TT', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+                        ),
+                        placeholder: true,
+                      );
+                    })
+                  else
+                    ...List.generate(7, (index) {
+                      return const DataCell(
+                        Padding(
+                          padding: EdgeInsets.symmetric(vertical: 1),
+                          child: Text('TT', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+                        ),
+                        placeholder: true,
+                      );
+                    }),
+                  const DataCell(Text('')),
+                  const DataCell(Text('')),
+                  const DataCell(Text('')),
+                  const DataCell(Text('')),
+                  const DataCell(Text('')),
+                ],
+                color: MaterialStateProperty.all(Colors.grey.shade200),
+              ),
+              ...widget.data.asMap().entries.map((entry) {
+                final index = entry.key;
+                final e = entry.value;
+                return DataRow(cells: [
+                  DataCell(Text(e['clave'].toString(), style: TextStyle(fontSize: widget.isExpanded ? 9 : 12))),
+                  DataCell(Text(e['nombre'].toString(), style: TextStyle(fontSize: widget.isExpanded ? 9 : 12))),
+                  if (widget.selectedWeek != null)
+                    ...List.generate(widget.selectedWeek!.duration.inDays + 1, (diaIndex) {
+                      return DataCell(
+                        _buildEditableCell(
+                          e['dias'][diaIndex].toString(),
+                          '${e['clave']}_dia_$diaIndex',
+                          (value) {
+                            int? newValue = int.tryParse(value);
+                            if (newValue != null) {
+                              widget.onUpdate(index, 'dia_$diaIndex', newValue);
+                            }
+                          },
+                        ),
+                      );
+                    })
+                  else
+                    ...List.generate(7, (diaIndex) {
+                      return DataCell(
+                        _buildEditableCell(
+                          e['dias'][diaIndex].toString(),
+                          '${e['clave']}_dia_$diaIndex',
+                          (value) {
+                            int? newValue = int.tryParse(value);
+                            if (newValue != null) {
+                              widget.onUpdate(index, 'dia_$diaIndex', newValue);
+                            }
+                          },
+                        ),
+                      );
+                    }),
+                  DataCell(Text('\$${e['total']}', style: const TextStyle(fontSize: 10))),
+                  DataCell(
+                    _buildEditableCell(
+                      e['debo'].toString(),
+                      '${e['clave']}_debo',
+                      (value) {
+                        int? newValue = int.tryParse(value);
+                        if (newValue != null) {
+                          widget.onUpdate(index, 'debo', newValue);
+                        }
+                      },
+                    ),
+                  ),
+                  DataCell(Text('\$${e['subtotal']}', style: const TextStyle(fontSize: 10))),
+                  DataCell(
+                    _buildComedorCell(index, e, '${e['clave']}_comedor'),
+                  ),
+                  DataCell(Text('\$${e['neto']}', style: const TextStyle(fontSize: 10))),
+                ]);
+              }).toList(),
             ],
           ),
         ),
@@ -1057,51 +1279,275 @@ class _DiasTrabajadosTable extends StatelessWidget {
     );
   }
 
-  Widget _buildHeaderCell(String text, {double? height, double fontSize = 14}) {
-    return Container(
-      height: height,
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-      alignment: Alignment.center,
-      child: Text(
-        text,
-        style: AppTextStyles.tableHeader.copyWith(fontSize: fontSize),
+  Widget _buildComedorCell(int index, Map<String, dynamic> e, String key) {
+    bool checked = e['comedor'] == 400;
+    if (widget.readOnly) {
+      return Text(
+        '${e['comedor']}',
+        style: const TextStyle(fontSize: 10),
         textAlign: TextAlign.center,
-        overflow: TextOverflow.ellipsis,
-      ),
-    );
-  }
-
-  Widget _buildDataCell(String text, {
-    double? width,
-    int maxLines = 1,
-    required Function(String) onChanged,
-  }) {
-    return Container(
-      width: width,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      child: TextField(
-        key: ValueKey(text),
-        controller: TextEditingController(text: text),
-        decoration: const InputDecoration(
-          isDense: true,
-          border: InputBorder.none,
-          contentPadding: EdgeInsets.zero,
+      );
+    }
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Checkbox(
+          value: checked,
+          onChanged: (val) {
+            int newValue = val == true ? 400 : 0;
+            widget.onUpdate(index, 'comedor', newValue);
+          },
         ),
-        style: AppTextStyles.tableCell.copyWith(fontSize: 13),
-        textAlign: TextAlign.center,
-        textDirection: TextDirection.ltr,
-        maxLines: maxLines,
-        onChanged: onChanged,
-      ),
+        Text(
+          '${e['comedor']}',
+          style: const TextStyle(fontSize: 10),
+        ),
+      ],
     );
   }
 }
 
-// Ajustar estilos de texto
-class AppTextStyles {
-  static const tableHeader = TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black);
-  static const tableCell = TextStyle(fontSize: 13, color: Colors.black);
-  static const indicatorValue = TextStyle(fontWeight: FontWeight.bold, fontSize: 22);
-  static const indicatorLabel = TextStyle(fontWeight: FontWeight.w500, fontSize: 14);
-  static const button = TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white);
+class DiasTrabajadosTable extends StatefulWidget {
+  final List<Map<String, dynamic>> empleados;
+  final DateTimeRange? selectedWeek;
+  final List<List<int>>? diasH;
+  final List<List<int>>? diasTT;
+  final void Function(List<List<int>> h, List<List<int>> tt)? onChanged;
+  final bool readOnly;
+
+  const DiasTrabajadosTable({
+    required this.empleados,
+    required this.selectedWeek,
+    this.diasH,
+    this.diasTT,
+    this.onChanged,
+    this.readOnly = false,
+    Key? key
+  }) : super(key: key);
+
+  @override
+  State<DiasTrabajadosTable> createState() => _DiasTrabajadosTableState();
 }
+
+class _DiasTrabajadosTableState extends State<DiasTrabajadosTable> {
+  late List<List<int>> hValues;
+  late List<List<int>> ttValues;
+  final Map<String, TextEditingController> _controllersH = {};
+  final Map<String, TextEditingController> _controllersTT = {};
+  final Map<String, FocusNode> _focusNodesH = {};
+  final Map<String, FocusNode> _focusNodesTT = {};
+  final ScrollController _horizontalController = ScrollController();
+  final ScrollController _verticalController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _initLocalData();
+  }
+
+  @override
+  void didUpdateWidget(DiasTrabajadosTable oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _initLocalData();
+  }
+
+  void _initLocalData() {
+    final diasSemana = widget.selectedWeek != null
+        ? List.generate(widget.selectedWeek!.duration.inDays + 1, (i) => widget.selectedWeek!.start.add(Duration(days: i)))
+        : List.generate(7, (i) => DateTime(2023, 1, i + 1));
+    int diasCount = diasSemana.length;
+    hValues = widget.diasH != null && widget.diasH!.length == widget.empleados.length && widget.diasH!.every((l) => l.length == diasCount)
+        ? widget.diasH!.map((l) => List<int>.from(l)).toList()
+        : List.generate(widget.empleados.length, (i) => List<int>.filled(diasCount, 0));
+    ttValues = widget.diasTT != null && widget.diasTT!.length == widget.empleados.length && widget.diasTT!.every((l) => l.length == diasCount)
+        ? widget.diasTT!.map((l) => List<int>.from(l)).toList()
+        : List.generate(widget.empleados.length, (i) => List<int>.filled(diasCount, 0));
+    for (int eIdx = 0; eIdx < widget.empleados.length; eIdx++) {
+      for (int i = 0; i < diasCount; i++) {
+        String keyH = '${eIdx}_h_$i';
+        String keyTT = '${eIdx}_tt_$i';
+        _controllersH[keyH] = TextEditingController(text: hValues[eIdx][i].toString());
+        _controllersTT[keyTT] = TextEditingController(text: ttValues[eIdx][i].toString());
+        _focusNodesH[keyH] = FocusNode();
+        _focusNodesTT[keyTT] = FocusNode();
+        _controllersH[keyH]?.addListener(() {
+          int v = int.tryParse(_controllersH[keyH]?.text ?? '0') ?? 0;
+          hValues[eIdx][i] = v;
+          widget.onChanged?.call(hValues, ttValues);
+          setState(() {});
+        });
+        _controllersTT[keyTT] = TextEditingController(text: ttValues[eIdx][i].toString());
+        _controllersTT[keyTT]?.addListener(() {
+          int v = int.tryParse(_controllersTT[keyTT]?.text ?? '0') ?? 0;
+          ttValues[eIdx][i] = v;
+          widget.onChanged?.call(hValues, ttValues);
+          setState(() {});
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _horizontalController.dispose();
+    _verticalController.dispose();
+    _controllersH.values.forEach((c) => c.dispose());
+    _controllersTT.values.forEach((c) => c.dispose());
+    _focusNodesH.values.forEach((f) => f.dispose());
+    _focusNodesTT.values.forEach((f) => f.dispose());
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final diasSemana = widget.selectedWeek != null
+        ? List.generate(widget.selectedWeek!.duration.inDays + 1, (i) => widget.selectedWeek!.start.add(Duration(days: i)))
+        : List.generate(7, (i) => DateTime(2023, 1, i + 1));
+    final dayNames = ['dom', 'lun', 'mar', 'mie', 'jue', 'vie', 'sab'];
+    int diasCount = diasSemana.length;
+    int totalCols = 2 + diasCount * 2 + 1; // Clave, Nombre, (TT+H)*dias, Total
+
+    // Definir los anchos personalizados
+    Map<int, TableColumnWidth> columnWidths = {
+      0: const FixedColumnWidth(60), // Clave
+      1: const FixedColumnWidth(200), // Nombre
+    };
+    for (int i = 0; i < diasCount * 2; i++) {
+      columnWidths[2 + i] = const FixedColumnWidth(48); // TT y H
+    }
+    columnWidths[totalCols - 1] = const FixedColumnWidth(60); // Total
+
+    return Scrollbar(
+      controller: _horizontalController,
+      thumbVisibility: true,
+      child: SingleChildScrollView(
+        controller: _horizontalController,
+        scrollDirection: Axis.horizontal,
+        child: SingleChildScrollView(
+          controller: _verticalController,
+          scrollDirection: Axis.vertical,
+          child: Table(
+            border: TableBorder.all(color: Colors.grey.shade500, width: 1),
+            columnWidths: columnWidths,
+            children: [
+              TableRow(
+                decoration: const BoxDecoration(color: Color(0xFFE0E0E0)),
+                children: [
+                  _headerCell('Clave'),
+                  _headerCell('Nombre'),
+                  ...diasSemana.expand((date) => [
+                    _headerCell(dayNames[date.weekday % 7].toUpperCase()),
+                    _headerCell(''),
+                  ]),
+                  _headerCell('Total'),
+                ],
+              ),
+              TableRow(
+                decoration: const BoxDecoration(color: Color(0xFFF5F5F5)),
+                children: [
+                  const TableCell(child: SizedBox()),
+                  const TableCell(child: SizedBox()),
+                  ...List.generate(diasCount, (i) => [
+                    _headerCell('TT'),
+                    _headerCell('H'),
+                  ]).expand((x) => x),
+                  const TableCell(child: SizedBox()),
+                ],
+              ),
+              ...List.generate(widget.empleados.length, (eIdx) {
+                int total = 0;
+                for (int i = 0; i < diasCount; i++) {
+                  total += hValues[eIdx][i] + ttValues[eIdx][i];
+                }
+                return TableRow(
+                  children: [
+                    _bodyCell(widget.empleados[eIdx]['clave'].toString()),
+                    _bodyCell(widget.empleados[eIdx]['nombre'].toString()),
+                    ...List.generate(diasCount, (i) => [
+                      _editableCell(ttValues[eIdx][i].toString(), 'tt_${eIdx}_$i', (val) {
+                        int? newValue = int.tryParse(val);
+                        if (newValue != null) {
+                          ttValues[eIdx][i] = newValue;
+                          widget.onChanged?.call(hValues, ttValues);
+                          setState(() {});
+                        }
+                      }, _controllersTT, _focusNodesTT),
+                      _editableCell(hValues[eIdx][i].toString(), 'h_${eIdx}_$i', (val) {
+                        int? newValue = int.tryParse(val);
+                        if (newValue != null) {
+                          hValues[eIdx][i] = newValue;
+                          widget.onChanged?.call(hValues, ttValues);
+                          setState(() {});
+                        }
+                      }, _controllersH, _focusNodesH),
+                    ]).expand((x) => x),
+                    _bodyCell(total.toString(), bold: true),
+                  ],
+                );
+              }),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _headerCell(String text) => TableCell(
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+          alignment: Alignment.center,
+          child: Text(text, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+        ),
+      );
+
+  Widget _bodyCell(String text, {bool bold = false}) => TableCell(
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+          alignment: Alignment.center,
+          child: Text(text, style: TextStyle(fontWeight: bold ? FontWeight.bold : FontWeight.normal, fontSize: 12)),
+        ),
+      );
+
+  Widget _editableCell(String value, String key, void Function(String) onChanged, Map<String, TextEditingController> controllers, Map<String, FocusNode> focusNodes) {
+    if (widget.readOnly) {
+      return Text(
+        value,
+        style: const TextStyle(fontSize: 12),
+        textAlign: TextAlign.center,
+      );
+    }
+
+    if (!controllers.containsKey(key)) {
+      controllers[key] = TextEditingController(text: value);
+      focusNodes[key] = FocusNode();
+    }
+    return TextField(
+      controller: controllers[key],
+      focusNode: focusNodes[key],
+      keyboardType: TextInputType.number,
+      style: const TextStyle(fontSize: 12),
+      decoration: const InputDecoration(
+        isDense: true,
+        contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+        border: InputBorder.none,
+      ),
+      inputFormatters: [
+        FilteringTextInputFormatter.digitsOnly,
+      ],
+      onChanged: (value) {
+        if (value.isEmpty) {
+          onChanged('0');
+        } else {
+          onChanged(value);
+        }
+      },
+      onTap: () {
+        controllers[key]?.selection = TextSelection(
+          baseOffset: 0,
+          extentOffset: controllers[key]!.text.length,
+        );
+      },
+    );
+  }
+}
+
