@@ -4,6 +4,7 @@ import 'Cuadrilla_Content.dart';
 //import 'Empleados_content.dart';
 import 'Nomina_screen.dart' as nomina_screen;
 import '../theme/app_styles.dart';
+import 'Reportes_screen.dart';
 
 // === Constantes de estilo globales ===
 const double kSidebarWidth = 260;
@@ -92,7 +93,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             });
           },
         );
-      // Puedes agregar más casos para otras pantallas
+      case 5:
+        return ReportesScreen();
       default:
         return Center(child: Text('Próximamente...'));
     }

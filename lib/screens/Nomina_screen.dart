@@ -605,7 +605,7 @@ class _NominaScreenState extends State<NominaScreen> {
         if (showDiasTrabajados)
           Positioned.fill(
             child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+              filter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
               child: Container(
                 child: Center(
                   child: Card(
@@ -677,7 +677,7 @@ class _NominaScreenState extends State<NominaScreen> {
         if (isFullScreen)
           Positioned.fill(
             child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4), // Blur effect for the background
+              filter: ImageFilter.blur(sigmaX: 3, sigmaY: 3), // Blur effect for the background
               child: Container(
                 child: Center(
                   child: Card(
@@ -741,7 +741,7 @@ class _NominaScreenState extends State<NominaScreen> {
         if (showSupervisorLogin)
           Positioned.fill(
             child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+              filter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
               child: Center(
                 child: Card(
                   color: Colors.white,
@@ -850,7 +850,7 @@ class _NominaScreenState extends State<NominaScreen> {
         if (showSemanasCerradas)
           Positioned.fill(
             child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+              filter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
               child: Center(
                 child: Card(
                   color: Colors.white,
@@ -1550,4 +1550,3 @@ class _DiasTrabajadosTableState extends State<DiasTrabajadosTable> {
     );
   }
 }
-
