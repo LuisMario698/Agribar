@@ -1,6 +1,7 @@
 import 'package:agribar/screens/Login_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:agribar/theme/app_styles.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 void main() {
   runApp(MainApp());
@@ -30,8 +31,21 @@ class _MainAppState extends State<MainApp> {
       darkTheme: AppThemes.dark,
       themeMode: _themeMode,
       home: const LoginScreen(),
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('es'), // Españo
+      ],
       builder: (context, child) {
-        return Center(child: SizedBox(width: 1920, height: 1080, child: child));
+        return Scaffold(
+          backgroundColor: Color(0xFFF5EDD8), // Fondo cremita global
+          body: Center(
+            child: SizedBox(width: 1920, height: 1080, child: child),
+          ),
+        );
       },
     );
   }

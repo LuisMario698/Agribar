@@ -5,6 +5,8 @@ import 'Nomina_screen.dart';
 import 'Actividades_content.dart';
 import 'Configuracion_content.dart';
 import 'AppTheme.dart';
+import 'Cuadrilla_Content.dart';
+import 'Reportes_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final AppTheme appTheme;
@@ -33,22 +35,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
   ];
 
   Widget _getBodyContent() {
-    if (selectedIndex == 6) {
-      return ConfiguracionContent(
-        appTheme: widget.appTheme,
-        onThemeChanged: widget.onThemeChanged,
-      );
-    }
     switch (selectedIndex) {
       case 0:
         return DashboardHomeContent();
       case 1:
         return EmpleadosContent();
+      case 2:
+        return CuadrillaContent();
       case 3:
         return ActividadesContent();
       case 4:
         return NominaScreen();
-      // Puedes agregar más casos para otras pantallas
+      case 5:
+        return ReportesScreen();
+      case 6:
+        return ConfiguracionContent(
+          appTheme: widget.appTheme,
+          onThemeChanged: widget.onThemeChanged,
+        );
       default:
         return Center(
           child: Text(
