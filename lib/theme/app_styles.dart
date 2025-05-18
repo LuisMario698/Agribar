@@ -10,6 +10,10 @@ class AppColors {
   static const white = Colors.white;
   static const black12 = Colors.black12;
   static const black26 = Colors.black26;
+  static const darkBackground = Color(0xFF232323);
+  static const darkCard = Color(0xFF2D2D2D);
+  static const darkTableHeader = Color(0xFF333333);
+  static const darkText = Color(0xFFEFEFEF);
 }
 
 // Dimensiones globales
@@ -36,9 +40,93 @@ class AppDimens {
 
 // Estilos de texto globales
 class AppTextStyles {
-  static const tableHeader = TextStyle(fontWeight: FontWeight.bold, fontSize: 15);
+  static const tableHeader = TextStyle(
+    fontWeight: FontWeight.bold,
+    fontSize: 15,
+  );
   static const tableCell = TextStyle(fontSize: 14);
-  static const indicatorLabel = TextStyle(fontSize: 15, fontWeight: FontWeight.w600);
-  static const indicatorValue = TextStyle(fontSize: 30, fontWeight: FontWeight.bold);
+  static const indicatorLabel = TextStyle(
+    fontSize: 15,
+    fontWeight: FontWeight.w600,
+  );
+  static const indicatorValue = TextStyle(
+    fontSize: 30,
+    fontWeight: FontWeight.bold,
+  );
   static const button = TextStyle(fontSize: 16, color: Colors.white);
+}
+
+class AppThemes {
+  static final light = ThemeData(
+    brightness: Brightness.light,
+    primaryColor: AppColors.green,
+    scaffoldBackgroundColor: AppColors.background,
+    colorScheme: ColorScheme.light(
+      primary: AppColors.green,
+      secondary: AppColors.greenDark,
+      background: AppColors.background,
+      surface: Colors.white,
+      onPrimary: Colors.white,
+      onSecondary: Colors.white,
+      onBackground: Colors.black,
+      onSurface: Colors.black,
+    ),
+    appBarTheme: AppBarTheme(
+      backgroundColor: AppColors.background,
+      foregroundColor: Colors.black,
+      elevation: 0,
+    ),
+    cardColor: Colors.white,
+    textTheme: const TextTheme(
+      bodyLarge: TextStyle(color: Colors.black),
+      bodyMedium: TextStyle(color: Colors.black87),
+      titleLarge: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+    ),
+    iconTheme: IconThemeData(color: AppColors.green),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: AppColors.green,
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    ),
+  );
+
+  static final dark = ThemeData(
+    brightness: Brightness.dark,
+    primaryColor: AppColors.green,
+    scaffoldBackgroundColor: AppColors.darkBackground,
+    colorScheme: ColorScheme.dark(
+      primary: AppColors.green,
+      secondary: AppColors.greenDark,
+      background: AppColors.darkBackground,
+      surface: AppColors.darkCard,
+      onPrimary: Colors.white,
+      onSecondary: Colors.white,
+      onBackground: AppColors.darkText,
+      onSurface: AppColors.darkText,
+    ),
+    appBarTheme: AppBarTheme(
+      backgroundColor: AppColors.darkBackground,
+      foregroundColor: AppColors.darkText,
+      elevation: 0,
+    ),
+    cardColor: AppColors.darkCard,
+    textTheme: const TextTheme(
+      bodyLarge: TextStyle(color: AppColors.darkText),
+      bodyMedium: TextStyle(color: AppColors.darkText),
+      titleLarge: TextStyle(
+        color: AppColors.darkText,
+        fontWeight: FontWeight.bold,
+      ),
+    ),
+    iconTheme: IconThemeData(color: AppColors.green),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: AppColors.green,
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    ),
+  );
 }
