@@ -112,7 +112,19 @@ class _ConfiguracionContentState extends State<ConfiguracionContent> {
     final screenSize = MediaQuery.of(context).size;
 
     return Container(
-      color: bgColor,
+      width: double.infinity,
+      margin: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Color(0xFFF8F8F8),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 24,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
       child: Stack(
         children: [
           SingleChildScrollView(

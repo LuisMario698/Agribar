@@ -512,21 +512,27 @@ class _ReportesScreenState extends State<ReportesScreen> {
     if (selectedFilter == 0) {
       // Empleados
       if (query.isEmpty) return empleadosData;
-      return empleadosData.where((row) =>
-        row.values.any((v) => v.toLowerCase().contains(query))
-      ).toList();
+      return empleadosData
+          .where(
+            (row) => row.values.any((v) => v.toLowerCase().contains(query)),
+          )
+          .toList();
     } else if (selectedFilter == 1) {
       // Cuadrillas
       if (query.isEmpty) return cuadrillasData;
-      return cuadrillasData.where((row) =>
-        row.values.any((v) => v.toLowerCase().contains(query))
-      ).toList();
+      return cuadrillasData
+          .where(
+            (row) => row.values.any((v) => v.toLowerCase().contains(query)),
+          )
+          .toList();
     } else {
       // Actividades
       if (query.isEmpty) return actividadesData;
-      return actividadesData.where((row) =>
-        row.values.any((v) => v.toLowerCase().contains(query))
-      ).toList();
+      return actividadesData
+          .where(
+            (row) => row.values.any((v) => v.toLowerCase().contains(query)),
+          )
+          .toList();
     }
   }
 
@@ -558,8 +564,19 @@ class _ReportesScreenState extends State<ReportesScreen> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFFE5E5E5),
       width: double.infinity,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F8F8),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 24,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      margin: const EdgeInsets.all(8),
       child: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
@@ -583,7 +600,10 @@ class _ReportesScreenState extends State<ReportesScreen> {
                         decoration: const InputDecoration(
                           hintText: 'Buscar',
                           border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 14,
+                          ),
                         ),
                         style: const TextStyle(fontSize: 18),
                       ),
@@ -600,14 +620,19 @@ class _ReportesScreenState extends State<ReportesScreen> {
                       child: const SizedBox(
                         width: 48,
                         height: 48,
-                        child: Icon(Icons.search, color: Colors.white, size: 28),
+                        child: Icon(
+                          Icons.search,
+                          color: Colors.white,
+                          size: 28,
+                        ),
                       ),
                     ),
                   ),
                   const SizedBox(width: 8),
                   // Botón de información
                   Tooltip(
-                    message: 'Enter para buscar en uno de los tres apartados, importante, establecer el rango de fechas',
+                    message:
+                        'Enter para buscar en uno de los tres apartados, importante, establecer el rango de fechas',
                     child: Material(
                       color: const Color(0xFF2CA14C),
                       shape: const CircleBorder(),
@@ -617,7 +642,11 @@ class _ReportesScreenState extends State<ReportesScreen> {
                         child: const SizedBox(
                           width: 44,
                           height: 44,
-                          child: Icon(Icons.info, color: Colors.white, size: 26),
+                          child: Icon(
+                            Icons.info,
+                            color: Colors.white,
+                            size: 26,
+                          ),
                         ),
                       ),
                     ),
@@ -642,7 +671,10 @@ class _ReportesScreenState extends State<ReportesScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         _buildDateSelector(context, true),
-                        const Text('  →  ', style: TextStyle(fontSize: 18, color: Colors.grey)),
+                        const Text(
+                          '  →  ',
+                          style: TextStyle(fontSize: 18, color: Colors.grey),
+                        ),
                         _buildDateSelector(context, false),
                       ],
                     ),
@@ -655,26 +687,38 @@ class _ReportesScreenState extends State<ReportesScreen> {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.fullscreen, color: Colors.green, size: 28),
+                    icon: const Icon(
+                      Icons.fullscreen,
+                      color: Colors.green,
+                      size: 28,
+                    ),
                     tooltip: 'Expandir tabla',
                     onPressed: () {
                       showDialog(
                         context: context,
                         barrierColor: Colors.black.withOpacity(0.2),
                         builder: (context) {
-                          final ScrollController _modalHorizontal = ScrollController();
-                          final ScrollController _modalVertical = ScrollController();
+                          final ScrollController _modalHorizontal =
+                              ScrollController();
+                          final ScrollController _modalVertical =
+                              ScrollController();
                           return Stack(
                             children: [
                               BackdropFilter(
                                 filter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
-                                child: Container(color: Colors.black.withOpacity(0)),
+                                child: Container(
+                                  color: Colors.black.withOpacity(0),
+                                ),
                               ),
                               Center(
                                 child: ConstrainedBox(
                                   constraints: BoxConstraints(
-                                    maxWidth: MediaQuery.of(context).size.width * 0.98,
-                                    maxHeight: MediaQuery.of(context).size.height * 0.95,
+                                    maxWidth:
+                                        MediaQuery.of(context).size.width *
+                                        0.98,
+                                    maxHeight:
+                                        MediaQuery.of(context).size.height *
+                                        0.95,
                                   ),
                                   child: Material(
                                     color: Colors.transparent,
@@ -682,7 +726,11 @@ class _ReportesScreenState extends State<ReportesScreen> {
                                       children: [
                                         Card(
                                           elevation: 8,
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              18,
+                                            ),
+                                          ),
                                           child: Padding(
                                             padding: const EdgeInsets.all(32),
                                             child: SizedBox(
@@ -692,16 +740,24 @@ class _ReportesScreenState extends State<ReportesScreen> {
                                                 thumbVisibility: true,
                                                 child: SingleChildScrollView(
                                                   controller: _modalHorizontal,
-                                                  scrollDirection: Axis.horizontal,
+                                                  scrollDirection:
+                                                      Axis.horizontal,
                                                   child: ConstrainedBox(
-                                                    constraints: const BoxConstraints(minWidth: 1100),
+                                                    constraints:
+                                                        const BoxConstraints(
+                                                          minWidth: 1100,
+                                                        ),
                                                     child: Scrollbar(
-                                                      controller: _modalVertical,
+                                                      controller:
+                                                          _modalVertical,
                                                       thumbVisibility: true,
                                                       child: SingleChildScrollView(
-                                                        controller: _modalVertical,
-                                                        scrollDirection: Axis.vertical,
-                                                        child: _buildTableWithBorders(),
+                                                        controller:
+                                                            _modalVertical,
+                                                        scrollDirection:
+                                                            Axis.vertical,
+                                                        child:
+                                                            _buildTableWithBorders(),
                                                       ),
                                                     ),
                                                   ),
@@ -714,9 +770,15 @@ class _ReportesScreenState extends State<ReportesScreen> {
                                           top: 8,
                                           right: 8,
                                           child: IconButton(
-                                            icon: const Icon(Icons.close, color: Colors.red, size: 32),
+                                            icon: const Icon(
+                                              Icons.close,
+                                              color: Colors.red,
+                                              size: 32,
+                                            ),
                                             tooltip: 'Cerrar',
-                                            onPressed: () => Navigator.of(context).pop(),
+                                            onPressed:
+                                                () =>
+                                                    Navigator.of(context).pop(),
                                           ),
                                         ),
                                       ],
@@ -733,7 +795,11 @@ class _ReportesScreenState extends State<ReportesScreen> {
                   const SizedBox(width: 8),
                   // Botón para mostrar gráficas
                   IconButton(
-                    icon: const Icon(Icons.bar_chart, color: Colors.blue, size: 28),
+                    icon: const Icon(
+                      Icons.bar_chart,
+                      color: Colors.blue,
+                      size: 28,
+                    ),
                     tooltip: 'Ver gráficas',
                     onPressed: () {
                       setState(() {
@@ -746,13 +812,15 @@ class _ReportesScreenState extends State<ReportesScreen> {
               Center(
                 child: Card(
                   elevation: 2,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                   margin: const EdgeInsets.symmetric(vertical: 0),
                   child: Padding(
                     padding: const EdgeInsets.all(18),
                     child: SizedBox(
-                      width: 900,
-                      height: 340,
+                      width: 1224,
+                      height: 500,
                       child: Scrollbar(
                         controller: _horizontalController,
                         thumbVisibility: true,
@@ -760,7 +828,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
                           controller: _horizontalController,
                           scrollDirection: Axis.horizontal,
                           child: ConstrainedBox(
-                            constraints: const BoxConstraints(minWidth: 900),
+                            constraints: const BoxConstraints(minWidth: 1224),
                             child: Scrollbar(
                               controller: _verticalController,
                               thumbVisibility: true,
@@ -788,13 +856,21 @@ class _ReportesScreenState extends State<ReportesScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.end,
                             children: [
-                              Text('Mostrar: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                              Text(
+                                'Mostrar: ',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
                               Switch(
                                 value: showPercentages,
-                                onChanged: (val) => setState(() => showPercentages = val),
+                                onChanged:
+                                    (val) =>
+                                        setState(() => showPercentages = val),
                                 activeColor: Colors.green,
                               ),
-                              Text(showPercentages ? 'Porcentajes' : 'Datos', style: TextStyle(fontWeight: FontWeight.bold)),
+                              Text(
+                                showPercentages ? 'Porcentajes' : 'Datos',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
                             ],
                           ),
                           Row(
@@ -804,27 +880,47 @@ class _ReportesScreenState extends State<ReportesScreen> {
                               Expanded(
                                 child: Card(
                                   elevation: 2,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
                                   margin: const EdgeInsets.all(12),
                                   child: Padding(
                                     padding: const EdgeInsets.all(24),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.center,
-                                      children: [
-                                        Row(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            const Text('Pago por cuadrilla', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                                            const SizedBox(width: 6),
-                                            Tooltip(
-                                              message: 'Distribución del pago total semanal entre las cuadrillas.',
-                                              child: Icon(Icons.info_outline, color: Colors.grey[600], size: 18),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 12),
-                                        _buildPieChartSection(),
-                                      ],
+                                    child: SizedBox(
+                                      height: 220, // Altura igualada
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.center,
+                                        children: [
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              const Text(
+                                                'Pago por cuadrilla',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 18,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Tooltip(
+                                                message:
+                                                    'Distribución del pago total semanal entre las cuadrillas.',
+                                                child: Icon(
+                                                  Icons.info_outline,
+                                                  color: Colors.grey[600],
+                                                  size: 18,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 12),
+                                          Expanded(
+                                            child: _buildPieChartSection(),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -833,27 +929,47 @@ class _ReportesScreenState extends State<ReportesScreen> {
                               Expanded(
                                 child: Card(
                                   elevation: 2,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
                                   margin: const EdgeInsets.all(12),
                                   child: Padding(
                                     padding: const EdgeInsets.all(24),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.center,
-                                      children: [
-                                        Row(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            const Text('Pagos semanales', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                                            const SizedBox(width: 6),
-                                            Tooltip(
-                                              message: 'Distribución del pago total semanal entre las cuadrillas.',
-                                              child: Icon(Icons.info_outline, color: Colors.grey[600], size: 18),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 12),
-                                        _buildBarChartSection(),
-                                      ],
+                                    child: SizedBox(
+                                      height: 220, // Altura igualada
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.center,
+                                        children: [
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              const Text(
+                                                'Pagos semanales',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 18,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Tooltip(
+                                                message:
+                                                    'Distribución del pago total semanal entre las cuadrillas.',
+                                                child: Icon(
+                                                  Icons.info_outline,
+                                                  color: Colors.grey[600],
+                                                  size: 18,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 12),
+                                          Expanded(
+                                            child: _buildBarChartSection(),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -863,7 +979,9 @@ class _ReportesScreenState extends State<ReportesScreen> {
                           // Card: Actividades por cuadrilla
                           Card(
                             elevation: 2,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
                             margin: const EdgeInsets.all(12),
                             child: Padding(
                               padding: const EdgeInsets.all(24),
@@ -873,11 +991,22 @@ class _ReportesScreenState extends State<ReportesScreen> {
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      const Text('Actividades por cuadrilla', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                                      const Text(
+                                        'Actividades por cuadrilla',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 18,
+                                        ),
+                                      ),
                                       const SizedBox(width: 6),
                                       Tooltip(
-                                        message: 'Distribución de las actividades entre las cuadrillas.',
-                                        child: Icon(Icons.info_outline, color: Colors.grey[600], size: 18),
+                                        message:
+                                            'Distribución de las actividades entre las cuadrillas.',
+                                        child: Icon(
+                                          Icons.info_outline,
+                                          color: Colors.grey[600],
+                                          size: 18,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -897,7 +1026,10 @@ class _ReportesScreenState extends State<ReportesScreen> {
               Center(
                 child: Column(
                   children: [
-                    const Text('EXPORTAR A', style: TextStyle(fontSize: 16, color: Colors.grey)),
+                    const Text(
+                      'EXPORTAR A',
+                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                    ),
                     const SizedBox(height: 8),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -905,21 +1037,37 @@ class _ReportesScreenState extends State<ReportesScreen> {
                         ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.red[700],
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 10,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                           ),
                           onPressed: () {},
-                          child: const Text('PDF', style: TextStyle(fontSize: 14, color: Colors.white)),
+                          child: const Text(
+                            'PDF',
+                            style: TextStyle(fontSize: 14, color: Colors.white),
+                          ),
                         ),
                         const SizedBox(width: 16),
                         ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.green[700],
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 10,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                           ),
                           onPressed: () {},
-                          child: const Text('EXCEL', style: TextStyle(fontSize: 14, color: Colors.white)),
+                          child: const Text(
+                            'EXCEL',
+                            style: TextStyle(fontSize: 14, color: Colors.white),
+                          ),
                         ),
                       ],
                     ),
@@ -987,7 +1135,9 @@ class _ReportesScreenState extends State<ReportesScreen> {
         child: Row(
           children: [
             Text(
-              date == null ? 'DD/MM/YYYY' : '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}',
+              date == null
+                  ? 'DD/MM/YYYY'
+                  : '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}',
               style: const TextStyle(fontSize: 16, color: Colors.black),
             ),
             const SizedBox(width: 6),
@@ -1003,61 +1153,105 @@ class _ReportesScreenState extends State<ReportesScreen> {
     List<String> columns;
     List<List<String>> rows;
     if (selectedFilter == 0) {
-      columns = ['Clave', 'Nombre', 'Apellido Paterno', 'Apellido Materno', 'Cuadrilla', 'Sueldo', 'Tipo'];
-      rows = filteredData.map((row) => [
-        row['clave'] ?? '',
-        row['nombre'] ?? '',
-        row['apPaterno'] ?? '',
-        row['apMaterno'] ?? '',
-        row['cuadrilla'] ?? '',
-        row['sueldo'] ?? '',
-        row['tipo'] ?? '',
-      ]).toList();
+      columns = [
+        'Clave',
+        'Nombre',
+        'Apellido Paterno',
+        'Apellido Materno',
+        'Cuadrilla',
+        'Sueldo',
+        'Tipo',
+      ];
+      rows =
+          filteredData
+              .map(
+                (row) => [
+                  row['clave'] ?? '',
+                  row['nombre'] ?? '',
+                  row['apPaterno'] ?? '',
+                  row['apMaterno'] ?? '',
+                  row['cuadrilla'] ?? '',
+                  row['sueldo'] ?? '',
+                  row['tipo'] ?? '',
+                ],
+              )
+              .toList();
     } else if (selectedFilter == 1) {
       columns = ['Clave', 'Nombre', 'Responsable', 'Miembros', 'Actividad'];
-      rows = filteredData.map((row) => [
-        row['clave'] ?? '',
-        row['nombre'] ?? '',
-        row['responsable'] ?? '',
-        row['miembros'] ?? '',
-        row['actividad'] ?? '',
-      ]).toList();
+      rows =
+          filteredData
+              .map(
+                (row) => [
+                  row['clave'] ?? '',
+                  row['nombre'] ?? '',
+                  row['responsable'] ?? '',
+                  row['miembros'] ?? '',
+                  row['actividad'] ?? '',
+                ],
+              )
+              .toList();
     } else {
       columns = ['Código', 'Nombre', 'Fecha', 'Responsable', 'Cuadrilla'];
-      rows = filteredData.map((row) => [
-        row['codigo'] ?? '',
-        row['nombre'] ?? '',
-        row['fecha'] ?? '',
-        row['responsable'] ?? '',
-        row['cuadrilla'] ?? '',
-      ]).toList();
+      rows =
+          filteredData
+              .map(
+                (row) => [
+                  row['codigo'] ?? '',
+                  row['nombre'] ?? '',
+                  row['fecha'] ?? '',
+                  row['responsable'] ?? '',
+                  row['cuadrilla'] ?? '',
+                ],
+              )
+              .toList();
     }
     return Table(
       border: TableBorder.all(color: Colors.grey.shade500, width: 1),
       defaultVerticalAlignment: TableCellVerticalAlignment.middle,
       columnWidths: {
-        for (int i = 0; i < columns.length; i++) i: const IntrinsicColumnWidth(),
+        for (int i = 0; i < columns.length; i++)
+          i: const IntrinsicColumnWidth(),
       },
       children: [
         TableRow(
           decoration: const BoxDecoration(color: Color(0xFFD3D3D3)),
-          children: columns.map((col) =>
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-              alignment: Alignment.center,
-              child: Text(col, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-            )
-          ).toList(),
+          children:
+              columns
+                  .map(
+                    (col) => Container(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 8,
+                        horizontal: 8,
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        col,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  )
+                  .toList(),
         ),
-        ...rows.map((row) => TableRow(
-          children: row.map((cell) =>
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-              alignment: Alignment.center,
-              child: Text(cell, style: const TextStyle(fontSize: 13)),
-            )
-          ).toList(),
-        )),
+        ...rows.map(
+          (row) => TableRow(
+            children:
+                row
+                    .map(
+                      (cell) => Container(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 8,
+                          horizontal: 8,
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(cell, style: const TextStyle(fontSize: 13)),
+                      ),
+                    )
+                    .toList(),
+          ),
+        ),
       ],
     );
   }
@@ -1087,30 +1281,41 @@ class _ReportesScreenState extends State<ReportesScreen> {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
-          children: cuadrillaRanking.map((e) => Padding(
-            padding: const EdgeInsets.symmetric(vertical: 2),
-            child: Row(
-              children: [
-                Container(
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    color: e['color'] as Color,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Text('${e['label']}', style: const TextStyle(fontSize: 13)),
-                const SizedBox(width: 6),
-                Text(
-                  showPercentages
-                    ? '${e['value']}%' 
-                    : '(24${((e['value'] as double) * 1000).toStringAsFixed(0)})',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                ),
-              ],
-            ),
-          )).toList(),
+          children:
+              cuadrillaRanking
+                  .map(
+                    (e) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 10,
+                            height: 10,
+                            decoration: BoxDecoration(
+                              color: e['color'] as Color,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${e['label']}',
+                            style: const TextStyle(fontSize: 13),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            showPercentages
+                                ? '${e['value']}%'
+                                : '(24${((e['value'] as double) * 1000).toStringAsFixed(0)})',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                  .toList(),
         ),
       ],
     );
@@ -1118,20 +1323,28 @@ class _ReportesScreenState extends State<ReportesScreen> {
 
   Widget _buildBarChartSection() {
     final pagosSemanales = [300, 600, 350, 700, 200, 400];
-    final dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    final dias = [
+      'Lunes',
+      'Martes',
+      'Miércoles',
+      'Jueves',
+      'Viernes',
+      'Sábado',
+    ];
     final maxPago = pagosSemanales.reduce((a, b) => a > b ? a : b);
     return SizedBox(
       height: 160,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: List.generate(pagosSemanales.length, (i) {
-          final color = i == 2
-              ? Colors.black
-              : i == 1
+          final color =
+              i == 2
+                  ? Colors.black
+                  : i == 1
                   ? Colors.green[300]
                   : i == 3
-                      ? Colors.green[700]
-                      : Colors.grey[400];
+                  ? Colors.green[700]
+                  : Colors.grey[400];
           return Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 2),
@@ -1140,9 +1353,12 @@ class _ReportesScreenState extends State<ReportesScreen> {
                 children: [
                   Text(
                     showPercentages
-                      ? '${((pagosSemanales[i] / maxPago) * 100).toStringAsFixed(0)}%'
-                      : '24${pagosSemanales[i]}',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                        ? '${((pagosSemanales[i] / maxPago) * 100).toStringAsFixed(0)}%'
+                        : '24${pagosSemanales[i]}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 500),
@@ -1174,44 +1390,55 @@ class _ReportesScreenState extends State<ReportesScreen> {
     final max = 4;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: actividadesPorCuadrilla.map((e) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 120,
-              child: Text(e['label'] as String, style: const TextStyle(fontSize: 13)),
-            ),
-            Expanded(
-              child: Container(
-                height: 16,
-                decoration: BoxDecoration(
-                  color: Colors.green[100],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Container(
-                    width: 220 * ((e['cuadrillas'] as int) / max),
-                    height: 16,
-                    decoration: BoxDecoration(
-                      color: Colors.green[700],
-                      borderRadius: BorderRadius.circular(8),
-                    ),
+      children:
+          actividadesPorCuadrilla
+              .map(
+                (e) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 120,
+                        child: Text(
+                          e['label'] as String,
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ),
+                      Expanded(
+                        child: Container(
+                          height: 16,
+                          decoration: BoxDecoration(
+                            color: Colors.green[100],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Container(
+                              width: 220 * ((e['cuadrillas'] as int) / max),
+                              height: 16,
+                              decoration: BoxDecoration(
+                                color: Colors.green[700],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        showPercentages
+                            ? '${((e['cuadrillas'] as int) / max * 100).toStringAsFixed(0)}%'
+                            : '${e['cuadrillas']}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              showPercentages
-                ? '${((e['cuadrillas'] as int) / max * 100).toStringAsFixed(0)}%'
-                : '${e['cuadrillas']}',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-            ),
-          ],
-        ),
-      )).toList(),
+              )
+              .toList(),
     );
   }
 }
@@ -1227,11 +1454,13 @@ class _SolidPieChartPainter extends CustomPainter {
     final Offset center = Offset(size.width / 2, size.height / 2);
     double startRadian = -3.14 / 2;
     const double gapRadian = 0.06; // Separación entre segmentos
-    final paint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 24;
+    final paint =
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 24;
     for (var e in data) {
-      final sweepRadian = (e['value'] as double) / total * (2 * 3.141592653589793) - gapRadian;
+      final sweepRadian =
+          (e['value'] as double) / total * (2 * 3.141592653589793) - gapRadian;
       paint.color = e['color'] as Color;
       canvas.drawArc(
         Rect.fromCircle(center: center, radius: radius - 12),
@@ -1243,9 +1472,10 @@ class _SolidPieChartPainter extends CustomPainter {
       startRadian += sweepRadian + gapRadian;
     }
     // Círculo blanco central
-    final innerPaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
+    final innerPaint =
+        Paint()
+          ..color = Colors.white
+          ..style = PaintingStyle.fill;
     canvas.drawCircle(center, radius - 24, innerPaint);
   }
 

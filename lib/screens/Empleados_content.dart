@@ -126,31 +126,49 @@ class _EmpleadosContentState extends State<EmpleadosContent> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // TabBar visual mejorado con barrita verde bajo la pestaña activa
-        Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: Color(0xFFF3F1EA),
-            borderRadius: BorderRadius.circular(16),
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Color(0xFFF8F8F8),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 24,
+            offset: Offset(0, 8),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-          child: Row(
-            children: List.generate(tabTitles.length, (i) {
-              return _EmpleadosTab(
-                text: tabTitles[i],
-                selected: _selectedTabIndex == i,
-                onTap: () => _onTabSelected(i),
-              );
-            }),
-          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // TabBar visual mejorado con barrita verde bajo la pestaña activa
+            Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Color(0xFFF3F1EA),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+              child: Row(
+                children: List.generate(tabTitles.length, (i) {
+                  return _EmpleadosTab(
+                    text: tabTitles[i],
+                    selected: _selectedTabIndex == i,
+                    onTap: () => _onTabSelected(i),
+                  );
+                }),
+              ),
+            ),
+            SizedBox(height: 16),
+            // Contenido según la pestaña seleccionada
+            Expanded(child: _buildTabContent()),
+          ],
         ),
-        SizedBox(height: 16),
-        // Contenido según la pestaña seleccionada
-        Expanded(child: _buildTabContent()),
-      ],
+      ),
     );
   }
 

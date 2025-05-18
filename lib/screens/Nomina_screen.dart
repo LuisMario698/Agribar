@@ -63,6 +63,72 @@ class _NominaScreenState extends State<NominaScreen> {
       'cuadrilla': 'Indirectos',
     },
     {
+      'clave': '1950',
+      'nombre': 'Adela Rodríguez Ramírez',
+      'dias': [0, 0, 0, 0, 0, 0, 0], // Array para los 7 días
+      'total': 0,
+      'debo': 0,
+      'subtotal': 0,
+      'comedor': 0,
+      'neto': 0,
+      'cuadrilla': 'Indirectos',
+    },
+    {
+      'clave': '1950',
+      'nombre': 'Adela Rodríguez Ramírez',
+      'dias': [0, 0, 0, 0, 0, 0, 0], // Array para los 7 días
+      'total': 0,
+      'debo': 0,
+      'subtotal': 0,
+      'comedor': 0,
+      'neto': 0,
+      'cuadrilla': 'Indirectos',
+    },
+    {
+      'clave': '1950',
+      'nombre': 'Adela Rodríguez Ramírez',
+      'dias': [0, 0, 0, 0, 0, 0, 0], // Array para los 7 días
+      'total': 0,
+      'debo': 0,
+      'subtotal': 0,
+      'comedor': 0,
+      'neto': 0,
+      'cuadrilla': 'Indirectos',
+    },
+    {
+      'clave': '1950',
+      'nombre': 'Adela Rodríguez Ramírez',
+      'dias': [0, 0, 0, 0, 0, 0, 0], // Array para los 7 días
+      'total': 0,
+      'debo': 0,
+      'subtotal': 0,
+      'comedor': 0,
+      'neto': 0,
+      'cuadrilla': 'Indirectos',
+    },
+    {
+      'clave': '1950',
+      'nombre': 'Adela Rodríguez Ramírez',
+      'dias': [0, 0, 0, 0, 0, 0, 0], // Array para los 7 días
+      'total': 0,
+      'debo': 0,
+      'subtotal': 0,
+      'comedor': 0,
+      'neto': 0,
+      'cuadrilla': 'Indirectos',
+    },
+    {
+      'clave': '1950',
+      'nombre': 'Adela Rodríguez Ramírez',
+      'dias': [0, 0, 0, 0, 0, 0, 0], // Array para los 7 días
+      'total': 0,
+      'debo': 0,
+      'subtotal': 0,
+      'comedor': 0,
+      'neto': 0,
+      'cuadrilla': 'Indirectos',
+    },
+    {
       'clave': '2340',
       'nombre': 'Elizabeth Rodríguez Ramírez',
       'dias': [0, 0, 0, 0, 0, 0, 0],
@@ -308,494 +374,525 @@ class _NominaScreenState extends State<NominaScreen> {
         // Contenido principal centrado y con ancho máximo
         Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1200),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const SizedBox(height: 40),
-                // Indicadores superiores centrados y alineados
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Card 1: Total Semana Acumulado
-                    Card(
-                      color: Colors.white,
-                      elevation: 4,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      child: Container(
-                        width: 280,
-                        height: 140,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 18,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(
-                              'Total Semana Acumulado',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              '$totalDeTotales',
-                              textAlign: TextAlign.right,
-                              style: const TextStyle(
-                                fontSize: 36,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.green,
-                              ),
-                            ),
-                            const SizedBox(
-                              height: 18,
-                            ), // Espaciador para igualar altura
-                          ],
-                        ),
-                      ),
-                    ),
-                    // Card 2: Semana
-                    Card(
-                      color: Colors.white,
-                      elevation: 4,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      child: Container(
-                        width: 400,
-                        height: 140,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 18,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Semana',
-                              style: TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.green[900],
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            OutlinedButton(
-                              onPressed: _seleccionarSemana,
-                              style: OutlinedButton.styleFrom(
-                                side: const BorderSide(
-                                  color: Colors.black54,
-                                  width: 1.2,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(22),
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 28,
-                                  vertical: 8,
-                                ),
-                              ),
-                              child: Text(
-                                semanaSeleccionada == null
-                                    ? 'Inicio  →  Final'
-                                    : '${semanaSeleccionada!.start.day}/${semanaSeleccionada!.start.month}/${semanaSeleccionada!.start.year}  →  ${semanaSeleccionada!.end.day}/${semanaSeleccionada!.end.month}/${semanaSeleccionada!.end.year}',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  color: Colors.green[900],
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(
-                              height: 18,
-                            ), // Espaciador para igualar altura
-                          ],
-                        ),
-                      ),
-                    ),
-                    // Card 3: Cuadrilla
-                    Card(
-                      color: Colors.white,
-                      elevation: 4,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      child: Container(
-                        width: 400,
-                        height: 140,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 18,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Cuadrilla',
-                              style: TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.green[900],
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            SizedBox(
-                              width: 380,
-                              child: DropdownButton<String>(
-                                value: cuadrillaSeleccionada,
-                                isExpanded: true,
-                                items:
-                                    cuadrillas
-                                        .map(
-                                          (c) => DropdownMenuItem(
-                                            value: c['nombre'],
-                                            child: Text(c['nombre']!),
-                                          ),
-                                        )
-                                        .toList(),
-                                onChanged: (value) {
-                                  setState(() {
-                                    cuadrillaSeleccionada = value;
-                                    empleadosFiltrados =
-                                        empleados
-                                            .where(
-                                              (e) =>
-                                                  e['cuadrilla'] ==
-                                                  cuadrillaSeleccionada,
-                                            )
-                                            .toList();
-                                  });
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                SingleChildScrollView(
-                  child: Padding(
-                    padding: const EdgeInsets.all(15.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 24),
-                        // Indicadores a la derecha (sin el Total Semana Acumulado de abajo)
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            // Buscador
-                            SizedBox(
-                              width: 600,
-                              child: TextField(
-                                controller: searchController,
-                                onChanged: (value) => _filtrarEmpleados(),
-                                decoration: InputDecoration(
-                                  hintText: 'Buscar',
-                                  filled: true,
-                                  fillColor: Colors.grey[100],
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.all(
-                                      Radius.circular(10),
-                                    ),
-                                    borderSide: BorderSide(
-                                      color: const Color.fromARGB(
-                                        255,
-                                        158,
-                                        158,
-                                        158,
-                                      ),
-                                    ),
-                                  ),
-                                  suffixIcon: Icon(
-                                    Icons.search,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            // Card: Empleados en cuadrilla
-                            Card(
-                              color: Colors.white,
-                              elevation: 2,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: SizedBox(
-                                width: 260,
-                                height: 100,
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      'Empleados en cuadrilla',
-                                      style: TextStyle(fontSize: 16),
-                                    ),
-                                    Text(
-                                      '${empleadosFiltrados.length}',
-                                      style: TextStyle(
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            // Card: Total Acumulado Cuadrilla
-                            Card(
-                              color: Colors.white,
-                              elevation: 2,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: SizedBox(
-                                width: 260,
-                                height: 100,
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      'Total Acumulado Cuadrilla',
-                                      style: TextStyle(fontSize: 16),
-                                    ),
-                                    Text(
-                                      '${empleadosFiltrados.fold<int>(0, (sum, e) => sum + (e['neto'] as int))}',
-                                      style: TextStyle(
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.green[700],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 25),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            // Botón nuevo a la izquierda
-                            ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  showDiasTrabajados = true;
-                                });
-                              },
-                              icon: const Icon(
-                                Icons.calendar_today,
-                                color: Colors.blue,
-                              ),
-                              label: const Text(
-                                'Ver días trabajados',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.blue,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor:
-                                    Colors.white, // White background
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  isFullScreen =
-                                      !isFullScreen; // Toggle full-screen mode
-                                });
-                              },
-                              icon: const Icon(
-                                Icons.fullscreen,
-                                color: Colors.green,
-                              ), // Expand icon with green color
-                              label: const Text(
-                                'Expandir Tabla',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.green,
-                                ),
-                              ), // Green text
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 1),
-                        Center(
-                          child: Card(
+            constraints: const BoxConstraints(maxWidth: 1400),
+            child: Card(
+              color: Color(0xFFF8F8F8),
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(32),
+              ),
+              child: SingleChildScrollView(
+                child: Container(
+                  constraints: BoxConstraints(
+                    minHeight: MediaQuery.of(context).size.height * 0.7 + 58,
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 14,
+                    horizontal: 48,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      const SizedBox(height: 40),
+                      // Indicadores superiores centrados y alineados
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Card 1: Total Semana Acumulado
+                          Card(
                             color: Colors.white,
-                            elevation: 2,
+                            elevation: 4,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(18),
                             ),
                             child: Container(
-                              padding: const EdgeInsets.all(8),
-                              child: SizedBox(
-                                width: 1200,
-                                height: 440,
-                                child: ScrollableDataTable(
-                                  key: ValueKey('normal'),
-                                  data: List<Map<String, dynamic>>.from(
-                                    empleadosFiltrados,
+                              width: 280,
+                              height: 140,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 18,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text(
+                                    'Total Semana Acumulado',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
-                                  selectedWeek: semanaSeleccionada,
-                                  isExpanded: false,
-                                  onUpdate: _updateEmpleadoData,
-                                ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    '$totalDeTotales',
+                                    textAlign: TextAlign.right,
+                                    style: const TextStyle(
+                                      fontSize: 36,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.green,
+                                    ),
+                                  ),
+                                  const SizedBox(
+                                    height: 18,
+                                  ), // Espaciador para igualar altura
+                                ],
                               ),
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 1),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  showSemanasCerradas = true;
-                                });
-                              },
-                              icon: const Icon(
-                                Icons.history,
-                                color: Colors.blue,
-                              ),
-                              label: const Text(
-                                'Semanas cerradas',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.blue,
-                                ),
-                              ),
+                          // Card 2: Semana
+                          Card(
+                            color: Colors.white,
+                            elevation: 4,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18),
                             ),
-                            const SizedBox(width: 16),
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Color(0xFF8CB800),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 24,
-                                  vertical: 12,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
+                            child: Container(
+                              width: 400,
+                              height: 140,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 18,
                               ),
-                              onPressed: () {
-                                if (semanaSeleccionada == null) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Debes seleccionar una semana antes de cerrarla',
-                                      ),
-                                      backgroundColor: Colors.red,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'Semana',
+                                    style: TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.green[900],
                                     ),
-                                  );
-                                  return;
-                                }
-                                setState(() {
-                                  showSupervisorLogin = true;
-                                  supervisorLoginError = null;
-                                  supervisorUserController.clear();
-                                  supervisorPassController.clear();
-                                });
-                              },
-                              child: const Text(
-                                'Cerrar semana',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.white,
-                                ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  OutlinedButton(
+                                    onPressed: _seleccionarSemana,
+                                    style: OutlinedButton.styleFrom(
+                                      side: const BorderSide(
+                                        color: Colors.black54,
+                                        width: 1.2,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(22),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 28,
+                                        vertical: 8,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      semanaSeleccionada == null
+                                          ? 'Inicio  →  Final'
+                                          : '${semanaSeleccionada!.start.day}/${semanaSeleccionada!.start.month}/${semanaSeleccionada!.start.year}  →  ${semanaSeleccionada!.end.day}/${semanaSeleccionada!.end.month}/${semanaSeleccionada!.end.year}',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        color: Colors.green[900],
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(
+                                    height: 18,
+                                  ), // Espaciador para igualar altura
+                                ],
                               ),
                             ),
-                            const SizedBox(width: 16),
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red[700],
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 24,
-                                  vertical: 12,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
+                          ),
+                          // Card 3: Cuadrilla
+                          Card(
+                            color: Colors.white,
+                            elevation: 4,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                            child: Container(
+                              width: 400,
+                              height: 140,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 18,
                               ),
-                              onPressed: () {},
-                              child: const Text(
-                                'PDF',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.white,
-                                ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'Cuadrilla',
+                                    style: TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.green[900],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  SizedBox(
+                                    width: 380,
+                                    child: DropdownButton<String>(
+                                      value: cuadrillaSeleccionada,
+                                      isExpanded: true,
+                                      items:
+                                          cuadrillas
+                                              .map(
+                                                (c) => DropdownMenuItem(
+                                                  value: c['nombre'],
+                                                  child: Text(c['nombre']!),
+                                                ),
+                                              )
+                                              .toList(),
+                                      onChanged: (value) {
+                                        setState(() {
+                                          cuadrillaSeleccionada = value;
+                                          empleadosFiltrados =
+                                              empleados
+                                                  .where(
+                                                    (e) =>
+                                                        e['cuadrilla'] ==
+                                                        cuadrillaSeleccionada,
+                                                  )
+                                                  .toList();
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            const SizedBox(width: 16),
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.green[700],
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 24,
-                                  vertical: 12,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
+                          ),
+                        ],
+                      ),
+                      SingleChildScrollView(
+                        child: Padding(
+                          padding: const EdgeInsets.all(15.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 24),
+                              // Indicadores a la derecha (sin el Total Semana Acumulado de abajo)
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  // Buscador
+                                  SizedBox(
+                                    width: 600,
+                                    child: TextField(
+                                      controller: searchController,
+                                      onChanged: (value) => _filtrarEmpleados(),
+                                      decoration: InputDecoration(
+                                        hintText: 'Buscar',
+                                        filled: true,
+                                        fillColor: Colors.grey[100],
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.all(
+                                            Radius.circular(10),
+                                          ),
+                                          borderSide: BorderSide(
+                                            color: const Color.fromARGB(
+                                              255,
+                                              158,
+                                              158,
+                                              158,
+                                            ),
+                                          ),
+                                        ),
+                                        suffixIcon: Icon(
+                                          Icons.search,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  // Card: Empleados en cuadrilla
+                                  Card(
+                                    color: Colors.white,
+                                    elevation: 2,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: SizedBox(
+                                      width: 260,
+                                      height: 100,
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            'Empleados en cuadrilla',
+                                            style: TextStyle(fontSize: 16),
+                                          ),
+                                          Text(
+                                            '${empleadosFiltrados.length}',
+                                            style: TextStyle(
+                                              fontSize: 24,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  // Card: Total Acumulado Cuadrilla
+                                  Card(
+                                    color: Colors.white,
+                                    elevation: 2,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: SizedBox(
+                                      width: 260,
+                                      height: 100,
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            'Total Acumulado Cuadrilla',
+                                            style: TextStyle(fontSize: 16),
+                                          ),
+                                          Text(
+                                            '${empleadosFiltrados.fold<int>(0, (sum, e) => sum + (e['neto'] as int))}',
+                                            style: TextStyle(
+                                              fontSize: 24,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.green[700],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                              onPressed: () {},
-                              child: const Text(
-                                'EXCEL',
-                                style: TextStyle(
-                                  fontSize: 16,
+                              const SizedBox(height: 25),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  // Botón nuevo a la izquierda
+                                  ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 8,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                    onPressed: () {
+                                      setState(() {
+                                        showDiasTrabajados = true;
+                                      });
+                                    },
+                                    icon: const Icon(
+                                      Icons.calendar_today,
+                                      color: Colors.blue,
+                                    ),
+                                    label: const Text(
+                                      'Ver días trabajados',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.blue,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor:
+                                          Colors.white, // White background
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 8,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                    onPressed: () {
+                                      setState(() {
+                                        isFullScreen =
+                                            !isFullScreen; // Toggle full-screen mode
+                                      });
+                                    },
+                                    icon: const Icon(
+                                      Icons.fullscreen,
+                                      color: Colors.green,
+                                    ), // Expand icon with green color
+                                    label: const Text(
+                                      'Expandir Tabla',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.green,
+                                      ),
+                                    ), // Green text
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 1),
+                              Center(
+                                child: Card(
                                   color: Colors.white,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(18),
+                                  ),
+                                  child: Container(
+                                    width: 1200,
+                                    height: 440,
+                                    padding: const EdgeInsets.all(16),
+                                    child: Column(
+                                      children: [
+                                        Expanded(
+                                          child: ScrollableDataTable(
+                                            key: ValueKey('expanded'),
+                                            data:
+                                                List<Map<String, dynamic>>.from(
+                                                  empleadosFiltrados,
+                                                ),
+                                            selectedWeek: semanaSeleccionada,
+                                            onUpdate: _updateEmpleadoData,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
+
+                              const SizedBox(height: 1),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 8,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                    onPressed: () {
+                                      setState(() {
+                                        showSemanasCerradas = true;
+                                      });
+                                    },
+                                    icon: const Icon(
+                                      Icons.history,
+                                      color: Colors.blue,
+                                    ),
+                                    label: const Text(
+                                      'Semanas cerradas',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.blue,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Color(0xFF8CB800),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 24,
+                                        vertical: 12,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                    onPressed: () {
+                                      if (semanaSeleccionada == null) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'Debes seleccionar una semana antes de cerrarla',
+                                            ),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                        return;
+                                      }
+                                      setState(() {
+                                        showSupervisorLogin = true;
+                                        supervisorLoginError = null;
+                                        supervisorUserController.clear();
+                                        supervisorPassController.clear();
+                                      });
+                                    },
+                                    child: const Text(
+                                      'Cerrar semana',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.red[700],
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 24,
+                                        vertical: 12,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                    onPressed: () {},
+                                    child: const Text(
+                                      'PDF',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.green[700],
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 24,
+                                        vertical: 12,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                    onPressed: () {},
+                                    child: const Text(
+                                      'EXCEL',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
+              ),
             ),
           ),
         ),
@@ -806,12 +903,12 @@ class _NominaScreenState extends State<NominaScreen> {
               children: [
                 BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
-                  child: Container(color: Colors.black.withOpacity(0.15)),
+                  child: Container(),
                 ),
                 Center(
                   child: Card(
                     color: Colors.white,
-                    elevation: 8,
+                    elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(18),
                     ),
@@ -889,6 +986,7 @@ class _NominaScreenState extends State<NominaScreen> {
                                   diasTrabajadosTT = tt;
                                 });
                               },
+                              isExpanded: true,
                             ),
                           ),
                         ],
@@ -902,63 +1000,64 @@ class _NominaScreenState extends State<NominaScreen> {
         // Overlay: Expandir Tabla
         if (isFullScreen)
           Positioned.fill(
-            child: Stack(
-              children: [
-                BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
-                  child: Container(color: Colors.black.withOpacity(0.15)),
-                ),
-                Center(
-                  child: Card(
-                    color: Colors.white,
-                    elevation: 8,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    child: Container(
-                      width: MediaQuery.of(context).size.width * 0.95,
-                      height: MediaQuery.of(context).size.height * 0.95,
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: TextField(
-                                  controller: searchController,
-                                  onChanged: (value) => _filtrarEmpleados(),
-                                  decoration: InputDecoration(
-                                    hintText: 'Buscar por nombre',
-                                    filled: true,
-                                    fillColor: Colors.grey[200],
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: BorderSide.none,
-                                    ),
-                                    suffixIcon: const Icon(
-                                      Icons.search,
-                                      color: Colors.grey,
-                                    ),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
+              child: Center(
+                child: Card(
+                  color: Colors.white,
+                  elevation: 8,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Container(
+                    width:
+                        MediaQuery.of(context).size.width *
+                        0.95, // Cover 95% of the screen width
+                    height:
+                        MediaQuery.of(context).size.height *
+                        0.95, // Cover 95% of the screen height
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: searchController,
+                                onChanged: (value) => _filtrarEmpleados(),
+                                decoration: InputDecoration(
+                                  hintText: 'Buscar por nombre',
+                                  filled: true,
+                                  fillColor: Colors.grey[200],
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  suffixIcon: const Icon(
+                                    Icons.search,
+                                    color: Colors.grey,
                                   ),
                                 ),
                               ),
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.close,
-                                  color: Colors.red,
-                                ),
-                                onPressed: () {
-                                  _sincronizarDatos();
-                                  setState(() {
-                                    isFullScreen = false;
-                                  });
-                                },
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          Expanded(
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close, color: Colors.red),
+                              onPressed: () {
+                                _sincronizarDatos(); // Sincronizar datos antes de cerrar
+                                setState(() {
+                                  isFullScreen =
+                                      false; // Close full-screen mode
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        // Aquí la tabla debe ocupar todo el ancho disponible
+                        Expanded(
+                          child: SizedBox(
+                            width: double.infinity,
                             child: ScrollableDataTable(
                               key: ValueKey('expanded'),
                               data: List<Map<String, dynamic>>.from(
@@ -969,15 +1068,310 @@ class _NominaScreenState extends State<NominaScreen> {
                               onUpdate: _updateEmpleadoData,
                             ),
                           ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        // Overlay: Semanas cerradas
+        if (showSemanasCerradas)
+          Positioned.fill(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+              child: Center(
+                child: Card(
+                  color: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Container(
+                    width: 1200,
+                    height: 800,
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Semanas cerradas',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.close,
+                                  color: Colors.red,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    showSemanasCerradas = false;
+                                    semanaCerradaSeleccionada = null;
+                                    cuadrillaCerradaSeleccionada = null;
+                                  });
+                                },
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          if (semanasCerradas.isEmpty)
+                            const Text('No hay semanas cerradas.'),
+                          if (semanasCerradas.isNotEmpty)
+                            ...semanasCerradas.asMap().entries.map((entry) {
+                              final i = entry.key;
+                              final semana = entry.value;
+                              final fechaCierre = semana['fecha'] as DateTime;
+                              final DateTimeRange? rango =
+                                  semana['semanaSeleccionada']
+                                      as DateTimeRange?;
+                              String? fechaInicio =
+                                  rango != null
+                                      ? '${rango.start.day}/${rango.start.month}/${rango.start.year}'
+                                      : null;
+                              String? fechaFin =
+                                  rango != null
+                                      ? '${rango.end.day}/${rango.end.month}/${rango.end.year}'
+                                      : null;
+                              final empleadosSemana =
+                                  semana['empleados'] as List;
+                              String? cuadrillaEjemplo;
+                              if (empleadosSemana.isNotEmpty) {
+                                cuadrillaEjemplo =
+                                    empleadosSemana.first['cuadrilla'];
+                              }
+                              return ListTile(
+                                leading: const Icon(
+                                  Icons.calendar_today,
+                                  color: Colors.green,
+                                ),
+                                title: Text(
+                                  'Semana: ${fechaInicio ?? '-'} → ${fechaFin ?? '-'}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  'Cerrada el ${fechaCierre.day}/${fechaCierre.month}/${fechaCierre.year} a las ${fechaCierre.hour.toString().padLeft(2, '0')}:${fechaCierre.minute.toString().padLeft(2, '0')}',
+                                ),
+                                onTap: () {
+                                  setState(() {
+                                    semanaCerradaSeleccionada = i;
+                                    cuadrillaCerradaSeleccionada =
+                                        cuadrillaEjemplo;
+                                  });
+                                },
+                                selected: semanaCerradaSeleccionada == i,
+                              );
+                            }),
+                          if (semanaCerradaSeleccionada != null)
+                            _buildDetalleSemanaCerrada(context),
                         ],
                       ),
                     ),
                   ),
                 ),
-              ],
+              ),
             ),
           ),
-        // ... otros overlays si los hay ...
+        // Overlay: Cerrar semana (autorización supervisor)
+        if (showSupervisorLogin)
+          Positioned.fill(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+              child: Center(
+                child: Card(
+                  color: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Container(
+                    width: 370,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 24,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Título y botón de cerrar en la misma fila
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            const Text(
+                              'Autorización Supervisor',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                              ),
+                            ),
+                            Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(20),
+                                onTap: () {
+                                  setState(() {
+                                    showSupervisorLogin = false;
+                                  });
+                                },
+                                child: Container(
+                                  width: 32,
+                                  height: 32,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[200],
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.close,
+                                    color: Colors.red,
+                                    size: 20,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 24),
+                        TextField(
+                          controller: supervisorUserController,
+                          decoration: const InputDecoration(
+                            hintText: 'Usuario o correo',
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 14,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: supervisorPassController,
+                          obscureText: true,
+                          decoration: const InputDecoration(
+                            hintText: 'Contraseña',
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 14,
+                            ),
+                          ),
+                        ),
+                        if (supervisorLoginError != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 10),
+                            child: Text(
+                              supervisorLoginError!,
+                              style: const TextStyle(
+                                color: Colors.red,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        const SizedBox(height: 24),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 44,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF8CB800),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              elevation: 0,
+                            ),
+                            onPressed: () {
+                              final user = supervisorUserController.text.trim();
+                              final pass = supervisorPassController.text.trim();
+                              if (user == 'supervisor' && pass == '1234') {
+                                setState(() {
+                                  showSupervisorLogin = false;
+                                  supervisorLoginError = null;
+                                  // Guardar snapshot profundo de la semana
+                                  semanasCerradas.add({
+                                    'fecha': DateTime.now(),
+                                    'semanaSeleccionada': semanaSeleccionada,
+                                    'empleados':
+                                        empleados
+                                            .map(
+                                              (e) =>
+                                                  Map<String, dynamic>.from(e),
+                                            )
+                                            .toList(),
+                                    'diasTrabajadosH':
+                                        Map<String, List<List<int>>>.from(
+                                          diasTrabajadosHPorCuadrilla,
+                                        ),
+                                    'diasTrabajadosTT':
+                                        Map<String, List<List<int>>>.from(
+                                          diasTrabajadosTTPorCuadrilla,
+                                        ),
+                                  });
+                                  // Limpiar datos
+                                  for (var e in empleados) {
+                                    e['dias'] = List<int>.filled(
+                                      e['dias'].length,
+                                      0,
+                                    );
+                                    e['total'] = 0;
+                                    e['debo'] = 0;
+                                    e['subtotal'] = 0;
+                                    e['comedor'] = 0;
+                                    e['neto'] = 0;
+                                    if (e.containsKey('tt'))
+                                      e['tt'] = List<int>.filled(
+                                        e['tt'].length,
+                                        0,
+                                      );
+                                  }
+                                  diasTrabajadosHPorCuadrilla.clear();
+                                  diasTrabajadosTTPorCuadrilla.clear();
+                                  diasTrabajadosH = null;
+                                  diasTrabajadosTT = null;
+                                  _filtrarEmpleados();
+                                });
+                                supervisorUserController.clear();
+                                supervisorPassController.clear();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Semana cerrada correctamente.',
+                                    ),
+                                  ),
+                                );
+                              } else {
+                                setState(() {
+                                  supervisorLoginError =
+                                      'Credenciales incorrectas';
+                                });
+                              }
+                            },
+                            child: const Text(
+                              'Autorizar',
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -1006,8 +1400,8 @@ class _NominaScreenState extends State<NominaScreen> {
       elevation: 2,
       margin: const EdgeInsets.only(top: 24),
       child: Container(
-        width: 900,
-        height: 600,
+        width: 1100,
+        height: 700,
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -1091,6 +1485,7 @@ class _NominaScreenState extends State<NominaScreen> {
                     diasTT != null
                         ? diasTT[cuadrillaCerradaSeleccionada]
                         : null,
+                isExpanded: true,
               ),
             ],
           ),
@@ -1205,7 +1600,7 @@ class _ScrollableDataTableState extends State<ScrollableDataTable> {
     if (widget.readOnly) {
       return Text(
         value,
-        style: const TextStyle(fontSize: 10),
+        style: TextStyle(fontSize: 12),
         textAlign: TextAlign.center,
       );
     }
@@ -1219,7 +1614,7 @@ class _ScrollableDataTableState extends State<ScrollableDataTable> {
       controller: _controllers[key],
       focusNode: _focusNodes[key],
       keyboardType: TextInputType.number,
-      style: const TextStyle(fontSize: 10),
+      style: TextStyle(fontSize: 12),
       decoration: const InputDecoration(
         isDense: true,
         contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
@@ -1254,23 +1649,27 @@ class _ScrollableDataTableState extends State<ScrollableDataTable> {
           controller: _verticalController,
           scrollDirection: Axis.vertical,
           child: DataTable(
-            headingRowColor: WidgetStateProperty.all(Color(0xFFE0E0E0)),
-            dataRowColor: WidgetStateProperty.resolveWith((states) {
+            headingRowColor: MaterialStateProperty.all(Color(0xFFE0E0E0)),
+            dataRowColor: MaterialStateProperty.resolveWith((states) {
               if (states.contains(MaterialState.selected)) {
                 return Colors.grey.shade300;
               }
               return Colors.white;
             }),
-            border: TableBorder(),
-            columnSpacing: 36,
+            border: TableBorder.all(
+              color: Colors.grey.shade400,
+              width: 1,
+              style: BorderStyle.solid,
+            ),
+            columnSpacing: widget.isExpanded ? 69 : 40,
             columns: [
-              const DataColumn(
+              DataColumn(
                 label: Text(
                   'Clave',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                 ),
               ),
-              const DataColumn(
+              DataColumn(
                 label: Text(
                   'Nombre',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
@@ -1295,9 +1694,9 @@ class _ScrollableDataTableState extends State<ScrollableDataTable> {
                   return DataColumn(
                     label: Text(
                       dayNames[date.weekday % 7],
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 10,
+                        fontSize: 12,
                       ),
                     ),
                   );
@@ -1307,41 +1706,41 @@ class _ScrollableDataTableState extends State<ScrollableDataTable> {
                   return DataColumn(
                     label: Text(
                       'Día',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 10,
+                        fontSize: 12,
                       ),
                     ),
                   );
                 }),
-              const DataColumn(
+              DataColumn(
                 label: Text(
                   'Total',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                 ),
               ),
-              const DataColumn(
+              DataColumn(
                 label: Text(
                   'Debo',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                 ),
               ),
-              const DataColumn(
+              DataColumn(
                 label: Text(
                   'Subtotal',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                 ),
               ),
-              const DataColumn(
+              DataColumn(
                 label: Text(
                   'Comedor',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                 ),
               ),
-              const DataColumn(
+              DataColumn(
                 label: Text(
                   'Total neto',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                 ),
               ),
             ],
@@ -1390,7 +1789,7 @@ class _ScrollableDataTableState extends State<ScrollableDataTable> {
                   const DataCell(Text('')),
                   const DataCell(Text('')),
                 ],
-                color: WidgetStateProperty.all(Colors.grey.shade200),
+                color: MaterialStateProperty.all(Colors.grey.shade200),
               ),
               ...widget.data.asMap().entries.map((entry) {
                 final index = entry.key;
@@ -1400,13 +1799,13 @@ class _ScrollableDataTableState extends State<ScrollableDataTable> {
                     DataCell(
                       Text(
                         e['clave'].toString(),
-                        style: TextStyle(fontSize: widget.isExpanded ? 9 : 12),
+                        style: TextStyle(fontSize: 12),
                       ),
                     ),
                     DataCell(
                       Text(
                         e['nombre'].toString(),
-                        style: TextStyle(fontSize: widget.isExpanded ? 9 : 12),
+                        style: TextStyle(fontSize: 12),
                       ),
                     ),
                     if (widget.selectedWeek != null)
@@ -1453,7 +1852,7 @@ class _ScrollableDataTableState extends State<ScrollableDataTable> {
                     DataCell(
                       Text(
                         '\$${e['total']}',
-                        style: const TextStyle(fontSize: 10),
+                        style: const TextStyle(fontSize: 12),
                       ),
                     ),
                     DataCell(
@@ -1471,7 +1870,7 @@ class _ScrollableDataTableState extends State<ScrollableDataTable> {
                     DataCell(
                       Text(
                         '\$${e['subtotal']}',
-                        style: const TextStyle(fontSize: 10),
+                        style: const TextStyle(fontSize: 12),
                       ),
                     ),
                     DataCell(
@@ -1480,7 +1879,7 @@ class _ScrollableDataTableState extends State<ScrollableDataTable> {
                     DataCell(
                       Text(
                         '\$${e['neto']}',
-                        style: const TextStyle(fontSize: 10),
+                        style: const TextStyle(fontSize: 12),
                       ),
                     ),
                   ],
@@ -1498,7 +1897,7 @@ class _ScrollableDataTableState extends State<ScrollableDataTable> {
     if (widget.readOnly) {
       return Text(
         '${e['comedor']}',
-        style: const TextStyle(fontSize: 10),
+        style: const TextStyle(fontSize: 12),
         textAlign: TextAlign.center,
       );
     }
@@ -1512,7 +1911,7 @@ class _ScrollableDataTableState extends State<ScrollableDataTable> {
             widget.onUpdate(index, 'comedor', newValue);
           },
         ),
-        Text('${e['comedor']}', style: const TextStyle(fontSize: 10)),
+        Text('${e['comedor']}', style: const TextStyle(fontSize: 12)),
       ],
     );
   }
@@ -1525,6 +1924,7 @@ class DiasTrabajadosTable extends StatefulWidget {
   final List<List<int>>? diasTT;
   final void Function(List<List<int>> h, List<List<int>> tt)? onChanged;
   final bool readOnly;
+  final bool isExpanded;
 
   const DiasTrabajadosTable({
     required this.empleados,
@@ -1533,6 +1933,7 @@ class DiasTrabajadosTable extends StatefulWidget {
     this.diasTT,
     this.onChanged,
     this.readOnly = false,
+    this.isExpanded = false,
     Key? key,
   }) : super(key: key);
 
@@ -1651,13 +2052,17 @@ class _DiasTrabajadosTableState extends State<DiasTrabajadosTable> {
 
     // Definir los anchos personalizados
     Map<int, TableColumnWidth> columnWidths = {
-      0: const FixedColumnWidth(60), // Clave
-      1: const FixedColumnWidth(200), // Nombre
+      0: FixedColumnWidth(widget.isExpanded ? 99 : 60), // Clave
+      1: FixedColumnWidth(widget.isExpanded ? 239 : 200), // Nombre
     };
     for (int i = 0; i < diasCount * 2; i++) {
-      columnWidths[2 + i] = const FixedColumnWidth(48); // TT y H
+      columnWidths[2 + i] = FixedColumnWidth(
+        widget.isExpanded ? 79 : 48,
+      ); // TT y H
     }
-    columnWidths[totalCols - 1] = const FixedColumnWidth(60); // Total
+    columnWidths[totalCols - 1] = FixedColumnWidth(
+      widget.isExpanded ? 99 : 60,
+    ); // Total
 
     return Scrollbar(
       controller: _horizontalController,
@@ -1669,21 +2074,24 @@ class _DiasTrabajadosTableState extends State<DiasTrabajadosTable> {
           controller: _verticalController,
           scrollDirection: Axis.vertical,
           child: Table(
-            border: TableBorder(),
+            border: TableBorder.all(color: Colors.grey.shade500, width: 1),
             columnWidths: columnWidths,
             children: [
               TableRow(
                 decoration: const BoxDecoration(color: Color(0xFFE0E0E0)),
                 children: [
-                  _headerCell('Clave'),
-                  _headerCell('Nombre'),
+                  _headerCell('Clave', fontSize: widget.isExpanded ? 14 : 12),
+                  _headerCell('Nombre', fontSize: widget.isExpanded ? 14 : 12),
                   ...diasSemana.expand(
                     (date) => [
-                      _headerCell(dayNames[date.weekday % 7].toUpperCase()),
-                      _headerCell(''),
+                      _headerCell(
+                        dayNames[date.weekday % 7].toUpperCase(),
+                        fontSize: widget.isExpanded ? 14 : 12,
+                      ),
+                      _headerCell('', fontSize: widget.isExpanded ? 14 : 12),
                     ],
                   ),
-                  _headerCell('Total'),
+                  _headerCell('Total', fontSize: widget.isExpanded ? 14 : 12),
                 ],
               ),
               TableRow(
@@ -1693,7 +2101,10 @@ class _DiasTrabajadosTableState extends State<DiasTrabajadosTable> {
                   const TableCell(child: SizedBox()),
                   ...List.generate(
                     diasCount,
-                    (i) => [_headerCell('TT'), _headerCell('H')],
+                    (i) => [
+                      _headerCell('TT', fontSize: widget.isExpanded ? 14 : 12),
+                      _headerCell('H', fontSize: widget.isExpanded ? 14 : 12),
+                    ],
                   ).expand((x) => x),
                   const TableCell(child: SizedBox()),
                 ],
@@ -1705,8 +2116,14 @@ class _DiasTrabajadosTableState extends State<DiasTrabajadosTable> {
                 }
                 return TableRow(
                   children: [
-                    _bodyCell(widget.empleados[eIdx]['clave'].toString()),
-                    _bodyCell(widget.empleados[eIdx]['nombre'].toString()),
+                    _bodyCell(
+                      widget.empleados[eIdx]['clave'].toString(),
+                      fontSize: widget.isExpanded ? 14 : 12,
+                    ),
+                    _bodyCell(
+                      widget.empleados[eIdx]['nombre'].toString(),
+                      fontSize: widget.isExpanded ? 14 : 12,
+                    ),
                     ...List.generate(
                       diasCount,
                       (i) => [
@@ -1723,6 +2140,7 @@ class _DiasTrabajadosTableState extends State<DiasTrabajadosTable> {
                           },
                           _controllersTT,
                           _focusNodesTT,
+                          fontSize: widget.isExpanded ? 14 : 12,
                         ),
                         _editableCell(
                           hValues[eIdx][i].toString(),
@@ -1737,10 +2155,15 @@ class _DiasTrabajadosTableState extends State<DiasTrabajadosTable> {
                           },
                           _controllersH,
                           _focusNodesH,
+                          fontSize: widget.isExpanded ? 14 : 12,
                         ),
                       ],
                     ).expand((x) => x),
-                    _bodyCell(total.toString(), bold: true),
+                    _bodyCell(
+                      total.toString(),
+                      bold: true,
+                      fontSize: widget.isExpanded ? 14 : 12,
+                    ),
                   ],
                 );
               }),
@@ -1751,42 +2174,44 @@ class _DiasTrabajadosTableState extends State<DiasTrabajadosTable> {
     );
   }
 
-  Widget _headerCell(String text) => TableCell(
+  Widget _headerCell(String text, {double fontSize = 12}) => TableCell(
     child: Container(
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
       alignment: Alignment.center,
       child: Text(
         text,
-        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+        style: TextStyle(fontWeight: FontWeight.bold, fontSize: fontSize),
       ),
     ),
   );
 
-  Widget _bodyCell(String text, {bool bold = false}) => TableCell(
-    child: Container(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-      alignment: Alignment.center,
-      child: Text(
-        text,
-        style: TextStyle(
-          fontWeight: bold ? FontWeight.bold : FontWeight.normal,
-          fontSize: 12,
+  Widget _bodyCell(String text, {bool bold = false, double fontSize = 12}) =>
+      TableCell(
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+          alignment: Alignment.center,
+          child: Text(
+            text,
+            style: TextStyle(
+              fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+              fontSize: fontSize,
+            ),
+          ),
         ),
-      ),
-    ),
-  );
+      );
 
   Widget _editableCell(
     String value,
     String key,
     void Function(String) onChanged,
     Map<String, TextEditingController> controllers,
-    Map<String, FocusNode> focusNodes,
-  ) {
+    Map<String, FocusNode> focusNodes, {
+    double fontSize = 12,
+  }) {
     if (widget.readOnly) {
       return Text(
         value,
-        style: const TextStyle(fontSize: 12),
+        style: TextStyle(fontSize: fontSize),
         textAlign: TextAlign.center,
       );
     }
@@ -1799,7 +2224,7 @@ class _DiasTrabajadosTableState extends State<DiasTrabajadosTable> {
       controller: controllers[key],
       focusNode: focusNodes[key],
       keyboardType: TextInputType.number,
-      style: const TextStyle(fontSize: 12),
+      style: TextStyle(fontSize: fontSize),
       decoration: const InputDecoration(
         isDense: true,
         contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),

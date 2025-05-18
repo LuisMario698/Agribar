@@ -1,79 +1,213 @@
 import 'package:flutter/material.dart';
 import 'Dashboard_screen.dart';
 
-class DashboardHomeContent extends StatelessWidget {
+class DashboardHomeContent extends StatefulWidget {
+  final String userName;
+  final String userRole;
+  const DashboardHomeContent({
+    this.userName = 'Juan Pérez',
+    this.userRole = 'Supervisor',
+    Key? key,
+  }) : super(key: key);
+
+  @override
+  State<DashboardHomeContent> createState() => _DashboardHomeContentState();
+}
+
+class _DashboardHomeContentState extends State<DashboardHomeContent> {
+  bool showPercentages = true;
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 8),
-          // Top metrics
-          Row(
-            children: [
-              MetricCard(
-                title: 'Empleados activos',
-                value: '87',
-                icon: Icons.person,
-                iconColor: Color(0xFF6B4F27),
-              ),
-              SizedBox(width: 24),
-              MetricCard(
-                title: 'Cuadrillas activas',
-                value: '7',
-                icon: Icons.agriculture,
-                iconColor: Color(0xFF6B4F27),
-              ),
-              SizedBox(width: 24),
-              MetricCard(
-                title: 'Actividades',
-                value: '35',
-                icon: Icons.assignment,
-                iconColor: Color(0xFF6B4F27),
-              ),
-            ],
+      child: Center(
+        child: Card(
+          elevation: 8,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(32),
           ),
-          const SizedBox(height: 24),
-          // Middle charts
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                flex: 2,
-                child: ChartCard(
-                  title: 'Pagos Semanales',
-                  child: Placeholder(fallbackHeight: 180),
+          margin: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
+          child: Container(
+            constraints: BoxConstraints(maxWidth: 1400),
+            padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 40),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 8),
+                // Top: Usuario y nivel centrado y más grande
+                Center(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircleAvatar(
+                        child: Icon(
+                          Icons.person,
+                          size: 48,
+                          color: Colors.white,
+                        ),
+                        backgroundColor: Color(0xFF5BA829),
+                        radius: 44,
+                      ),
+                      SizedBox(width: 32),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.userName,
+                            style: TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            widget.userRole,
+                            style: TextStyle(
+                              fontSize: 22,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              SizedBox(width: 24),
-              Expanded(
-                flex: 2,
-                child: ChartCard(
-                  title: 'Pago por cuadrilla',
-                  child: Placeholder(fallbackHeight: 180),
+                SizedBox(height: 32),
+                // Indicadores clave
+                Center(
+                  child: SizedBox(
+                    width: 1224,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        SizedBox(
+                          width: 288,
+                          child: MetricCard(
+                            title: 'Empleados activos',
+                            value: '87',
+                            icon: Icons.person,
+                            iconColor: Color(0xFF6B4F27),
+                          ),
+                        ),
+                        SizedBox(width: 24),
+                        SizedBox(
+                          width: 288,
+                          child: MetricCard(
+                            title: 'Cuadrillas activas',
+                            value: '7',
+                            icon: Icons.agriculture,
+                            iconColor: Color(0xFF6B4F27),
+                          ),
+                        ),
+                        SizedBox(width: 24),
+                        SizedBox(
+                          width: 288,
+                          child: MetricCard(
+                            title: 'Nómina semanal',
+                            value: '\u0024120,000',
+                            icon: Icons.attach_money,
+                            iconColor: Colors.orange,
+                          ),
+                        ),
+                        SizedBox(width: 24),
+                        SizedBox(
+                          width: 288,
+                          child: MetricCard(
+                            title: 'Actividades hoy',
+                            value: '5',
+                            icon: Icons.event_note,
+                            iconColor: Colors.purple,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            ],
+                // Switch para porcentajes/datos centrado debajo de los indicadores
+                SizedBox(height: 18),
+                Center(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Mostrar: ',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Switch(
+                        value: showPercentages,
+                        onChanged:
+                            (val) => setState(() => showPercentages = val),
+                        activeColor: Colors.green,
+                      ),
+                      Text(
+                        showPercentages ? 'Porcentajes' : 'Datos',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 18),
+                // Gráficas principales
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 600,
+                      height: 300,
+                      child: ChartCard(
+                        title: 'Pago por cuadrilla',
+                        child: DashboardPieChart(
+                          showPercentages: showPercentages,
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 24),
+                    SizedBox(
+                      width: 600,
+                      height: 300,
+                      child: ChartCard(
+                        title: 'Pagos semanales',
+                        child: DashboardBarChart(
+                          showPercentages: showPercentages,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 24),
+                // Propuesta: más gráficas relevantes
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 600,
+                      height: 300,
+                      child: ChartCard(
+                        title: 'Actividades por cuadrilla',
+                        child: DashboardHorizontalBarChart(
+                          showPercentages: showPercentages,
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 24),
+                    SizedBox(
+                      width: 600,
+                      height: 300,
+                      child: ChartCard(
+                        title: 'Miembros por cuadrilla',
+                        child: DashboardMembersBarChart(
+                          showPercentages: showPercentages,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 24),
+                // Alertas rápidas
+                Center(child: SizedBox(width: 1224, child: AlertCard())),
+              ],
+            ),
           ),
-          const SizedBox(height: 24),
-          // Bottom row
-          Row(
-            children: [
-              Expanded(
-                flex: 2,
-                child: MetricCard(
-                  title: 'Nomina acumulada',
-                  value: '\u00024604,000',
-                  valueColor: Colors.green,
-                  fontSize: 36,
-                ),
-              ),
-              SizedBox(width: 24),
-              Expanded(flex: 2, child: AlertCard()),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -261,4 +395,317 @@ class AlertCard extends StatelessWidget {
       ),
     );
   }
+}
+
+// --- Gráficas reutilizadas del Reportes_screen.dart ---
+class DashboardPieChart extends StatelessWidget {
+  final bool showPercentages;
+  const DashboardPieChart({this.showPercentages = true, Key? key})
+    : super(key: key);
+  @override
+  Widget build(BuildContext context) {
+    final cuadrillaRanking = [
+      {'label': 'Indirectos', 'value': 52.1, 'color': Colors.black},
+      {'label': 'Línea 1', 'value': 22.8, 'color': Colors.green},
+      {'label': 'Línea 3', 'value': 13.9, 'color': Colors.lightGreen},
+      {'label': 'Otras', 'value': 11.2, 'color': Colors.grey},
+    ];
+    return Center(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          CustomPaint(
+            size: const Size(140, 140),
+            painter: _SolidPieChartPainter(cuadrillaRanking),
+          ),
+          const SizedBox(width: 32),
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children:
+                cuadrillaRanking
+                    .map(
+                      (e) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 16,
+                              height: 16,
+                              decoration: BoxDecoration(
+                                color: e['color'] as Color,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              '${e['label']}',
+                              style: const TextStyle(fontSize: 16),
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              showPercentages
+                                  ? '${e['value']}%'
+                                  : '(24${((e['value'] as double) * 1000).toStringAsFixed(0)})',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                    .toList(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class DashboardBarChart extends StatelessWidget {
+  final bool showPercentages;
+  const DashboardBarChart({this.showPercentages = true, Key? key})
+    : super(key: key);
+  @override
+  Widget build(BuildContext context) {
+    final pagosSemanales = [300, 600, 350, 700, 200, 400];
+    final dias = [
+      'Lunes',
+      'Martes',
+      'Miércoles',
+      'Jueves',
+      'Viernes',
+      'Sábado',
+    ];
+    final maxPago = pagosSemanales.reduce((a, b) => a > b ? a : b);
+    return SizedBox(
+      height: 160,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: List.generate(pagosSemanales.length, (i) {
+          final color =
+              i == 2
+                  ? Colors.black
+                  : i == 1
+                  ? Colors.green[300]
+                  : i == 3
+                  ? Colors.green[700]
+                  : Colors.grey[400];
+          return Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text(
+                    showPercentages
+                        ? '${((pagosSemanales[i] / maxPago) * 100).toStringAsFixed(0)}%'
+                        : '24${pagosSemanales[i]}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 500),
+                    height: 120 * (pagosSemanales[i] / maxPago),
+                    width: 18,
+                    decoration: BoxDecoration(
+                      color: color,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(dias[i], style: const TextStyle(fontSize: 11)),
+                ],
+              ),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+}
+
+class DashboardHorizontalBarChart extends StatelessWidget {
+  final bool showPercentages;
+  const DashboardHorizontalBarChart({this.showPercentages = true, Key? key})
+    : super(key: key);
+  @override
+  Widget build(BuildContext context) {
+    final actividadesPorCuadrilla = [
+      {'label': 'Cosecha', 'cuadrillas': 4},
+      {'label': 'Siembra', 'cuadrillas': 3},
+      {'label': 'Riego', 'cuadrillas': 2},
+      {'label': 'Poda', 'cuadrillas': 1},
+    ];
+    final max = 4;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children:
+          actividadesPorCuadrilla
+              .map(
+                (e) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 120,
+                        child: Text(
+                          e['label'] as String,
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ),
+                      Expanded(
+                        child: Container(
+                          height: 16,
+                          decoration: BoxDecoration(
+                            color: Colors.green[100],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Container(
+                              width: 220 * ((e['cuadrillas'] as int) / max),
+                              height: 16,
+                              decoration: BoxDecoration(
+                                color: Colors.green[700],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        showPercentages
+                            ? '${((e['cuadrillas'] as int) / max * 100).toStringAsFixed(0)}%'
+                            : '${e['cuadrillas']}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+              .toList(),
+    );
+  }
+}
+
+// Nueva gráfica: Miembros por cuadrilla
+class DashboardMembersBarChart extends StatelessWidget {
+  final bool showPercentages;
+  const DashboardMembersBarChart({this.showPercentages = true, Key? key})
+    : super(key: key);
+  @override
+  Widget build(BuildContext context) {
+    final cuadrillas = [
+      {'label': 'Norte', 'miembros': 12},
+      {'label': 'Sur', 'miembros': 9},
+      {'label': 'Centro', 'miembros': 15},
+      {'label': 'Este', 'miembros': 10},
+      {'label': 'Oeste', 'miembros': 8},
+    ];
+    final max = cuadrillas
+        .map((e) => e['miembros'] as int)
+        .reduce((a, b) => a > b ? a : b);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children:
+          cuadrillas
+              .map(
+                (e) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 80,
+                        child: Text(
+                          e['label'] as String,
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ),
+                      Expanded(
+                        child: Container(
+                          height: 16,
+                          decoration: BoxDecoration(
+                            color: Colors.blue[100],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Container(
+                              width: 180 * ((e['miembros'] as int) / max),
+                              height: 16,
+                              decoration: BoxDecoration(
+                                color: Colors.blue[700],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        showPercentages
+                            ? '${((e['miembros'] as int) / max * 100).toStringAsFixed(0)}%'
+                            : '${e['miembros']}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+              .toList(),
+    );
+  }
+}
+
+class _SolidPieChartPainter extends CustomPainter {
+  final List<Map<String, dynamic>> data;
+  _SolidPieChartPainter(this.data);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double total = data.fold(0, (sum, e) => sum + (e['value'] as double));
+    final double radius = size.width / 2;
+    final Offset center = Offset(size.width / 2, size.height / 2);
+    double startRadian = -3.14 / 2;
+    const double gapRadian = 0.06; // Separación entre segmentos
+    final paint =
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 24;
+    for (var e in data) {
+      final sweepRadian =
+          (e['value'] as double) / total * (2 * 3.141592653589793) - gapRadian;
+      paint.color = e['color'] as Color;
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius - 12),
+        startRadian,
+        sweepRadian,
+        false,
+        paint,
+      );
+      startRadian += sweepRadian + gapRadian;
+    }
+    // Círculo blanco central
+    final innerPaint =
+        Paint()
+          ..color = Colors.white
+          ..style = PaintingStyle.fill;
+    canvas.drawCircle(center, radius - 24, innerPaint);
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }
