@@ -43,11 +43,6 @@ class _NominaScreenState extends State<NominaScreen> {
   String? cuadrillaSeleccionada;
   DateTimeRange? semanaSeleccionada;
   final TextEditingController searchController = TextEditingController();
-  final ScrollController _tableScrollController = ScrollController();
-  final ScrollController _expandedTableScrollController = ScrollController();
-
-  ScrollController get _tableControllerToUse =>
-      isFullScreen ? _expandedTableScrollController : _tableScrollController;
 
   // Datos de nómina (mock, pero dinámicos)
   List<Map<String, dynamic>> empleados = [
@@ -365,18 +360,22 @@ class _NominaScreenState extends State<NominaScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final int totalDeTotales = empleados.fold<int>(
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 1200;
+    
+    // Calcular el total de la semana
+    final totalSemana = empleadosFiltrados.fold<int>(
       0,
-      (sum, e) => sum + (e['neto'] as int),
+      (sum, e) => sum + (e['neto'] as int? ?? 0),
     );
+
     return Stack(
       children: [
-        // Contenido principal centrado y con ancho máximo
         Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 1400),
             child: Card(
-              color: Color(0xFFF8F8F8),
+              color: const Color(0xFFF8F8F8),
               elevation: 4,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(32),
@@ -384,7 +383,7 @@ class _NominaScreenState extends State<NominaScreen> {
               child: SingleChildScrollView(
                 child: Container(
                   constraints: BoxConstraints(
-                    minHeight: MediaQuery.of(context).size.height * 0.7 + 58,
+                    minHeight: MediaQuery.of(context).size.height * 0.7,
                   ),
                   padding: const EdgeInsets.symmetric(
                     vertical: 14,
@@ -394,174 +393,180 @@ class _NominaScreenState extends State<NominaScreen> {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       const SizedBox(height: 40),
-                      // Indicadores superiores centrados y alineados
-                      Row(
+                      // Contenedor flex para los cards superiores
+                      Flex(
+                        direction: isSmallScreen ? Axis.vertical : Axis.horizontal,
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           // Card 1: Total Semana Acumulado
-                          Card(
-                            color: Colors.white,
-                            elevation: 4,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(18),
-                            ),
+                          Flexible(
+                            flex: isSmallScreen ? 0 : 1,
                             child: Container(
-                              width: 280,
-                              height: 140,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 24,
-                                vertical: 18,
+                              constraints: BoxConstraints(
+                                maxWidth: isSmallScreen ? double.infinity : 280,
+                                minWidth: isSmallScreen ? double.infinity : 200,
                               ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  const Text(
-                                    'Total Semana Acumulado',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w500,
-                                    ),
+                              child: Card(
+                                color: Colors.white,
+                                elevation: 4,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(18),
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 24,
+                                    vertical: 18,
                                   ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    '$totalDeTotales',
-                                    textAlign: TextAlign.right,
-                                    style: const TextStyle(
-                                      fontSize: 36,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.green,
-                                    ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Text(
+                                        'Total Semana Acumulado',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        '\$$totalSemana',
+                                        style: const TextStyle(
+                                          fontSize: 36,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.green,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  const SizedBox(
-                                    height: 18,
-                                  ), // Espaciador para igualar altura
-                                ],
+                                ),
                               ),
                             ),
                           ),
+                          if (!isSmallScreen) const SizedBox(width: 16),
+                          if (isSmallScreen) const SizedBox(height: 16),
                           // Card 2: Semana
-                          Card(
-                            color: Colors.white,
-                            elevation: 4,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(18),
-                            ),
+                          Flexible(
+                            flex: isSmallScreen ? 0 : 2,
                             child: Container(
-                              width: 400,
-                              height: 140,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 24,
-                                vertical: 18,
+                              constraints: BoxConstraints(
+                                maxWidth: isSmallScreen ? double.infinity : 400,
+                                minWidth: isSmallScreen ? double.infinity : 300,
                               ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'Semana',
-                                    style: TextStyle(
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.green[900],
-                                    ),
+                              child: Card(
+                                color: Colors.white,
+                                elevation: 4,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(18),
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 24,
+                                    vertical: 18,
                                   ),
-                                  const SizedBox(height: 10),
-                                  OutlinedButton(
-                                    onPressed: _seleccionarSemana,
-                                    style: OutlinedButton.styleFrom(
-                                      side: const BorderSide(
-                                        color: Colors.black54,
-                                        width: 1.2,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        'Semana',
+                                        style: TextStyle(
+                                          fontSize: 22,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.green[900],
+                                        ),
                                       ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(22),
+                                      const SizedBox(height: 10),
+                                      OutlinedButton(
+                                        onPressed: _seleccionarSemana,
+                                        style: OutlinedButton.styleFrom(
+                                          side: const BorderSide(
+                                            color: Colors.black54,
+                                            width: 1.2,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(22),
+                                          ),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 28,
+                                            vertical: 8,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          semanaSeleccionada == null
+                                              ? 'Inicio → Final'
+                                              : '${semanaSeleccionada!.start.day}/${semanaSeleccionada!.start.month}/${semanaSeleccionada!.start.year} → ${semanaSeleccionada!.end.day}/${semanaSeleccionada!.end.month}/${semanaSeleccionada!.end.year}',
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            color: Colors.green[900],
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
                                       ),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 28,
-                                        vertical: 8,
-                                      ),
-                                    ),
-                                    child: Text(
-                                      semanaSeleccionada == null
-                                          ? 'Inicio  →  Final'
-                                          : '${semanaSeleccionada!.start.day}/${semanaSeleccionada!.start.month}/${semanaSeleccionada!.start.year}  →  ${semanaSeleccionada!.end.day}/${semanaSeleccionada!.end.month}/${semanaSeleccionada!.end.year}',
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        color: Colors.green[900],
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
+                                    ],
                                   ),
-                                  const SizedBox(
-                                    height: 18,
-                                  ), // Espaciador para igualar altura
-                                ],
+                                ),
                               ),
                             ),
                           ),
+                          if (!isSmallScreen) const SizedBox(width: 16),
+                          if (isSmallScreen) const SizedBox(height: 16),
                           // Card 3: Cuadrilla
-                          Card(
-                            color: Colors.white,
-                            elevation: 4,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(18),
-                            ),
+                          Flexible(
+                            flex: isSmallScreen ? 0 : 2,
                             child: Container(
-                              width: 400,
-                              height: 140,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 24,
-                                vertical: 18,
+                              constraints: BoxConstraints(
+                                maxWidth: isSmallScreen ? double.infinity : 400,
+                                minWidth: isSmallScreen ? double.infinity : 300,
                               ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'Cuadrilla',
-                                    style: TextStyle(
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.green[900],
-                                    ),
+                              child: Card(
+                                color: Colors.white,
+                                elevation: 4,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(18),
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 24,
+                                    vertical: 18,
                                   ),
-                                  const SizedBox(height: 10),
-                                  SizedBox(
-                                    width: 380,
-                                    child: DropdownButton<String>(
-                                      value: cuadrillaSeleccionada,
-                                      isExpanded: true,
-                                      items:
-                                          cuadrillas
-                                              .map(
-                                                (c) => DropdownMenuItem(
-                                                  value: c['nombre'],
-                                                  child: Text(c['nombre']!),
-                                                ),
-                                              )
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        'Cuadrilla',
+                                        style: TextStyle(
+                                          fontSize: 22,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.green[900],
+                                        ),
+                                      ),
+                                      const SizedBox(height: 10),
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: DropdownButton<String>(
+                                          value: cuadrillaSeleccionada,
+                                          isExpanded: true,
+                                          items: cuadrillas
+                                              .map((c) => DropdownMenuItem(
+                                                    value: c['nombre'],
+                                                    child: Text(c['nombre'] ?? ''),
+                                                  ))
                                               .toList(),
-                                      onChanged: (value) {
-                                        setState(() {
-                                          cuadrillaSeleccionada = value;
-                                          empleadosFiltrados =
-                                              empleados
-                                                  .where(
-                                                    (e) =>
-                                                        e['cuadrilla'] ==
-                                                        cuadrillaSeleccionada,
-                                                  )
-                                                  .toList();
-                                        });
-                                      },
-                                    ),
+                                          onChanged: (value) {
+                                            setState(() {
+                                              cuadrillaSeleccionada = value;
+                                              _filtrarEmpleados();
+                                            });
+                                          },
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ],
+                                ),
                               ),
                             ),
                           ),
@@ -576,96 +581,122 @@ class _NominaScreenState extends State<NominaScreen> {
                               const SizedBox(height: 24),
                               // Indicadores a la derecha (sin el Total Semana Acumulado de abajo)
                               Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
                                   // Buscador
-                                  SizedBox(
-                                    width: 600,
-                                    child: TextField(
-                                      controller: searchController,
-                                      onChanged: (value) => _filtrarEmpleados(),
-                                      decoration: InputDecoration(
-                                        hintText: 'Buscar',
-                                        filled: true,
-                                        fillColor: Colors.grey[100],
-                                        border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.all(
-                                            Radius.circular(10),
-                                          ),
-                                          borderSide: BorderSide(
-                                            color: const Color.fromARGB(
-                                              255,
-                                              158,
-                                              158,
-                                              158,
+                                  Flexible(
+                                    flex: 2,
+                                    child: Container(
+                                      constraints: BoxConstraints(
+                                        maxWidth: isSmallScreen ? double.infinity : 300,
+                                      ),
+                                      child: TextField(
+                                        controller: searchController,
+                                        onChanged: (value) => _filtrarEmpleados(),
+                                        decoration: InputDecoration(
+                                          hintText: 'Buscar',
+                                          filled: true,
+                                          fillColor: Colors.grey[100],
+                                          border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(10),
+                                            borderSide: BorderSide(
+                                              color: Colors.grey.shade400,
                                             ),
                                           ),
-                                        ),
-                                        suffixIcon: Icon(
-                                          Icons.search,
-                                          color: Colors.grey,
+                                          suffixIcon: Icon(
+                                            Icons.search,
+                                            color: Colors.grey,
+                                          ),
                                         ),
                                       ),
                                     ),
                                   ),
+                                  SizedBox(width: isSmallScreen ? 8 : 16),
                                   // Card: Empleados en cuadrilla
-                                  Card(
-                                    color: Colors.white,
-                                    elevation: 2,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: SizedBox(
-                                      width: 260,
-                                      height: 100,
-                                      child: Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Text(
-                                            'Empleados en cuadrilla',
-                                            style: TextStyle(fontSize: 16),
+                                  Flexible(
+                                    flex: 2,
+                                    child: Card(
+                                      color: Colors.white,
+                                      elevation: 2,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Container(
+                                        constraints: BoxConstraints(
+                                          maxWidth: isSmallScreen ? double.infinity : 260,
+                                          minHeight: 100,
+                                        ),
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                          child: Column(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Text(
+                                                'Empleados en cuadrilla',
+                                                style: TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w500,
+                                                  color: Colors.green[900],
+                                                ),
+                                                textAlign: TextAlign.center,
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Text(
+                                                '${empleadosFiltrados.length}',
+                                                style: const TextStyle(
+                                                  fontSize: 32,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.green,
+                                                ),
+                                              ),
+                                            ],
                                           ),
-                                          Text(
-                                            '${empleadosFiltrados.length}',
-                                            style: TextStyle(
-                                              fontSize: 24,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ],
+                                        ),
                                       ),
                                     ),
                                   ),
+                                  SizedBox(width: isSmallScreen ? 8 : 16),
                                   // Card: Total Acumulado Cuadrilla
-                                  Card(
-                                    color: Colors.white,
-                                    elevation: 2,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: SizedBox(
-                                      width: 260,
-                                      height: 100,
-                                      child: Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Text(
-                                            'Total Acumulado Cuadrilla',
-                                            style: TextStyle(fontSize: 16),
+                                  Flexible(
+                                    flex: 2,
+                                    child: Card(
+                                      color: Colors.white,
+                                      elevation: 2,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Container(
+                                        constraints: BoxConstraints(
+                                          maxWidth: isSmallScreen ? double.infinity : 260,
+                                          minHeight: 100,
+                                        ),
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                          child: Column(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Text(
+                                                'Total Acumulado Cuadrilla',
+                                                style: TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w500,
+                                                  color: Colors.green[900],
+                                                ),
+                                                textAlign: TextAlign.center,
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Text(
+                                                '\$$totalSemana',
+                                                style: const TextStyle(
+                                                  fontSize: 32,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.green,
+                                                ),
+                                              ),
+                                            ],
                                           ),
-                                          Text(
-                                            '${empleadosFiltrados.fold<int>(0, (sum, e) => sum + (e['neto'] as int))}',
-                                            style: TextStyle(
-                                              fontSize: 24,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.green[700],
-                                            ),
-                                          ),
-                                        ],
+                                        ),
                                       ),
                                     ),
                                   ),

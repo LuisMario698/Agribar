@@ -1,3 +1,8 @@
+// Archivo: Dashboard_screen.dart
+// Pantalla principal del sistema Agribar
+// Estructura profesionalizada y documentada en español
+// Esta pantalla gestiona la navegación lateral y el contenido principal
+// No modificar la lógica ni la interfaz visual sin justificación técnica
 import 'package:flutter/material.dart';
 import 'Dashboard_content.dart';
 import 'Empleados_content.dart';
@@ -31,7 +36,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _SidebarItemData(icon: Icons.event_note, label: 'Actividades'),
     _SidebarItemData(icon: Icons.attach_money, label: 'Nomina'),
     _SidebarItemData(icon: Icons.bar_chart, label: 'Reportes'),
-    _SidebarItemData(icon: Icons.settings, label: 'Configuracion'),
   ];
 
   Widget _getBodyContent() {
@@ -78,7 +82,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final sidebarHover = isDark ? Color(0xFF2D2D2D) : Color(0xFFF6FBF7);
     final sidebarIcon = isDark ? Colors.white : Colors.grey[600]!;
     final sidebarActiveText = Color(0xFF5BA829);
-    final sidebarDivider = isDark ? Colors.grey[800]! : Colors.grey[200]!;
 
     return Scaffold(
       backgroundColor: bgColor,

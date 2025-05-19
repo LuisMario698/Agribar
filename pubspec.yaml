@@ -12,6 +12,7 @@ dependencies:
   fl_chart: ^0.64.0
   flutter_localizations:
     sdk: flutter
+  window_manager: ^0.3.8
 
 dev_dependencies:
   flutter_test:

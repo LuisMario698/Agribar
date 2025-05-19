@@ -21,192 +21,202 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       child: Center(
-        child: Card(
-          elevation: 8,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(32),
-          ),
-          margin: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
-          child: Container(
-            constraints: BoxConstraints(maxWidth: 1400),
-            padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 40),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 8),
-                // Top: Usuario y nivel centrado y más grande
-                Center(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      CircleAvatar(
-                        child: Icon(
-                          Icons.person,
-                          size: 48,
-                          color: Colors.white,
-                        ),
-                        backgroundColor: Color(0xFF5BA829),
-                        radius: 44,
-                      ),
-                      SizedBox(width: 32),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isSmallScreen = constraints.maxWidth < 800;
+            final cardWidth = (isSmallScreen ? constraints.maxWidth * 0.9 : 1400).toDouble();
+            final metricCardWidth = (isSmallScreen ? constraints.maxWidth * 0.22 : 288).toDouble();
+            final chartWidth = (isSmallScreen ? constraints.maxWidth * 0.45 : 600).toDouble();
+            final chartHeight = (isSmallScreen ? constraints.maxWidth * 0.45 : 300).toDouble();
+
+            return Card(
+              elevation: 8,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(32),
+              ),
+              margin: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
+              child: Container(
+                constraints: BoxConstraints(maxWidth: cardWidth),
+                padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 40),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 8),
+                    // Top: Usuario y nivel centrado y más grande
+                    Center(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(
-                            widget.userName,
-                            style: TextStyle(
-                              fontSize: 32,
-                              fontWeight: FontWeight.bold,
+                          CircleAvatar(
+                            child: Icon(
+                              Icons.person,
+                              size: 48,
+                              color: Colors.white,
                             ),
+                            backgroundColor: Color(0xFF5BA829),
+                            radius: 44,
                           ),
-                          Text(
-                            widget.userRole,
-                            style: TextStyle(
-                              fontSize: 22,
-                              color: Colors.grey[600],
-                            ),
+                          SizedBox(width: isSmallScreen ? 16 : 32),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                widget.userName,
+                                style: TextStyle(
+                                  fontSize: isSmallScreen ? 24 : 32,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                widget.userRole,
+                                style: TextStyle(
+                                  fontSize: isSmallScreen ? 16 : 22,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    ],
-                  ),
-                ),
-                SizedBox(height: 32),
-                // Indicadores clave
-                Center(
-                  child: SizedBox(
-                    width: 1224,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    ),
+                    SizedBox(height: isSmallScreen ? 16 : 32),
+                    // Indicadores clave
+                    Center(
+                      child: SizedBox(
+                        width: cardWidth,
+                        child: Wrap(
+                          spacing: isSmallScreen ? 16 : 24,
+                          runSpacing: 16,
+                          alignment: WrapAlignment.center,
+                          children: [
+                            SizedBox(
+                              width: metricCardWidth,
+                              child: MetricCard(
+                                title: 'Empleados activos',
+                                value: '87',
+                                icon: Icons.person,
+                                iconColor: Color(0xFF6B4F27),
+                                isSmallScreen: isSmallScreen, // Pasar el estado de pantalla pequeña
+                              ),
+                            ),
+                            SizedBox(
+                              width: metricCardWidth,
+                              child: MetricCard(
+                                title: 'Cuadrillas activas',
+                                value: '7',
+                                icon: Icons.agriculture,
+                                iconColor: Color(0xFF6B4F27),
+                                isSmallScreen: isSmallScreen,
+                              ),
+                            ),
+                            SizedBox(
+                              width: metricCardWidth,
+                              child: MetricCard(
+                                title: 'Nómina semanal',
+                                value: '\u0024120,000',
+                                icon: Icons.attach_money,
+                                iconColor: Colors.orange,
+                                isSmallScreen: isSmallScreen,
+                              ),
+                            ),
+                            SizedBox(
+                              width: metricCardWidth,
+                              child: MetricCard(
+                                title: 'Actividades hoy',
+                                value: '5',
+                                icon: Icons.event_note,
+                                iconColor: Colors.purple,
+                                isSmallScreen: isSmallScreen,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    // Switch para porcentajes/datos centrado debajo de los indicadores
+                    SizedBox(height: isSmallScreen ? 12 : 18),
+                    Center(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Mostrar: ',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          Switch(
+                            value: showPercentages,
+                            onChanged:
+                                (val) => setState(() => showPercentages = val),
+                            activeColor: Colors.green,
+                          ),
+                          Text(
+                            showPercentages ? 'Porcentajes' : 'Datos',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: isSmallScreen ? 12 : 18),
+                    // Gráficas principales
+                    Wrap(
+                      spacing: isSmallScreen ? 16 : 24,
+                      runSpacing: 16,
+                      alignment: WrapAlignment.center,
                       children: [
                         SizedBox(
-                          width: 288,
-                          child: MetricCard(
-                            title: 'Empleados activos',
-                            value: '87',
-                            icon: Icons.person,
-                            iconColor: Color(0xFF6B4F27),
+                          width: chartWidth,
+                          height: chartHeight,
+                          child: ChartCard(
+                            title: 'Pago por cuadrilla',
+                            child: DashboardPieChart(
+                              showPercentages: showPercentages,
+                            ),
+                            isSmallScreen: isSmallScreen, // Pasar el estado de pantalla pequeña
                           ),
                         ),
-                        SizedBox(width: 24),
                         SizedBox(
-                          width: 288,
-                          child: MetricCard(
-                            title: 'Cuadrillas activas',
-                            value: '7',
-                            icon: Icons.agriculture,
-                            iconColor: Color(0xFF6B4F27),
+                          width: chartWidth,
+                          height: chartHeight,
+                          child: ChartCard(
+                            title: 'Pagos semanales',
+                            child: DashboardBarChart(
+                              showPercentages: showPercentages,
+                            ),
+                            isSmallScreen: isSmallScreen,
                           ),
                         ),
-                        SizedBox(width: 24),
                         SizedBox(
-                          width: 288,
-                          child: MetricCard(
-                            title: 'Nómina semanal',
-                            value: '\u0024120,000',
-                            icon: Icons.attach_money,
-                            iconColor: Colors.orange,
+                          width: chartWidth,
+                          height: chartHeight,
+                          child: ChartCard(
+                            title: 'Actividades por cuadrilla',
+                            child: DashboardHorizontalBarChart(
+                              showPercentages: showPercentages,
+                            ),
+                            isSmallScreen: isSmallScreen,
                           ),
                         ),
-                        SizedBox(width: 24),
                         SizedBox(
-                          width: 288,
-                          child: MetricCard(
-                            title: 'Actividades hoy',
-                            value: '5',
-                            icon: Icons.event_note,
-                            iconColor: Colors.purple,
+                          width: chartWidth,
+                          height: chartHeight,
+                          child: ChartCard(
+                            title: 'Miembros por cuadrilla',
+                            child: DashboardMembersBarChart(
+                              showPercentages: showPercentages,
+                            ),
+                            isSmallScreen: isSmallScreen,
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ),
-                // Switch para porcentajes/datos centrado debajo de los indicadores
-                SizedBox(height: 18),
-                Center(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Mostrar: ',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      Switch(
-                        value: showPercentages,
-                        onChanged:
-                            (val) => setState(() => showPercentages = val),
-                        activeColor: Colors.green,
-                      ),
-                      Text(
-                        showPercentages ? 'Porcentajes' : 'Datos',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(height: 18),
-                // Gráficas principales
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    SizedBox(
-                      width: 600,
-                      height: 300,
-                      child: ChartCard(
-                        title: 'Pago por cuadrilla',
-                        child: DashboardPieChart(
-                          showPercentages: showPercentages,
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: 24),
-                    SizedBox(
-                      width: 600,
-                      height: 300,
-                      child: ChartCard(
-                        title: 'Pagos semanales',
-                        child: DashboardBarChart(
-                          showPercentages: showPercentages,
-                        ),
-                      ),
-                    ),
+                    SizedBox(height: isSmallScreen ? 16 : 24),
+                    // Alertas rápidas
+                    Center(child: SizedBox(width: cardWidth, child: AlertCard())),
                   ],
                 ),
-                SizedBox(height: 24),
-                // Propuesta: más gráficas relevantes
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    SizedBox(
-                      width: 600,
-                      height: 300,
-                      child: ChartCard(
-                        title: 'Actividades por cuadrilla',
-                        child: DashboardHorizontalBarChart(
-                          showPercentages: showPercentages,
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: 24),
-                    SizedBox(
-                      width: 600,
-                      height: 300,
-                      child: ChartCard(
-                        title: 'Miembros por cuadrilla',
-                        child: DashboardMembersBarChart(
-                          showPercentages: showPercentages,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 24),
-                // Alertas rápidas
-                Center(child: SizedBox(width: 1224, child: AlertCard())),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         ),
       ),
     );
@@ -219,21 +229,27 @@ class MetricCard extends StatelessWidget {
   final IconData? icon;
   final Color? iconColor;
   final Color? valueColor;
-  final double fontSize;
+  final double? fontSize;
+  final bool isSmallScreen; // Nuevo parámetro para ajustar dinámicamente
+
   const MetricCard({
     required this.title,
     required this.value,
     this.icon,
     this.iconColor,
     this.valueColor,
-    this.fontSize = 32,
+    this.fontSize,
+    this.isSmallScreen = false, // Valor predeterminado
   });
 
   @override
   Widget build(BuildContext context) {
+    final adjustedFontSize = fontSize ?? (isSmallScreen ? 24.0 : 32.0);
+    final adjustedPadding = isSmallScreen ? 16.0 : 24.0;
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      margin: EdgeInsets.only(bottom: isSmallScreen ? 12 : 16),
+      padding: EdgeInsets.symmetric(horizontal: adjustedPadding, vertical: adjustedPadding * 0.8),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -251,7 +267,7 @@ class MetricCard extends StatelessWidget {
           Text(
             title,
             style: TextStyle(
-              fontSize: 22,
+              fontSize: isSmallScreen ? 18 : 22,
               color: Colors.grey[700],
               fontWeight: FontWeight.w400,
             ),
@@ -262,14 +278,14 @@ class MetricCard extends StatelessWidget {
               Text(
                 value,
                 style: TextStyle(
-                  fontSize: fontSize,
+                  fontSize: adjustedFontSize,
                   fontWeight: FontWeight.bold,
                   color: valueColor ?? Colors.black,
                 ),
               ),
               if (icon != null) ...[
                 SizedBox(width: 8),
-                Icon(icon, color: iconColor ?? Colors.black, size: 32),
+                Icon(icon, color: iconColor ?? Colors.black, size: isSmallScreen ? 24 : 32),
               ],
             ],
           ),
@@ -282,13 +298,21 @@ class MetricCard extends StatelessWidget {
 class ChartCard extends StatelessWidget {
   final String title;
   final Widget child;
-  const ChartCard({required this.title, required this.child});
+  final bool isSmallScreen; // Nuevo parámetro para ajustar dinámicamente
+
+  const ChartCard({
+    required this.title,
+    required this.child,
+    this.isSmallScreen = false, // Valor predeterminado
+  });
 
   @override
   Widget build(BuildContext context) {
+    final adjustedPadding = isSmallScreen ? 16.0 : 20.0;
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(20),
+      margin: EdgeInsets.only(bottom: isSmallScreen ? 12 : 16),
+      padding: EdgeInsets.all(adjustedPadding),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -303,28 +327,15 @@ class ChartCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-              ),
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text('Abr', style: TextStyle(fontSize: 14)),
-              ),
-            ],
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: isSmallScreen ? 20 : 26,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
           ),
-          SizedBox(height: 16),
+          SizedBox(height: isSmallScreen ? 12 : 16),
           child,
         ],
       ),

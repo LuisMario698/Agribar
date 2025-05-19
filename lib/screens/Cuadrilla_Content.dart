@@ -1,5 +1,9 @@
+// Archivo: Cuadrilla_Content.dart
+// Pantalla para la gestión de cuadrillas en el sistema Agribar
+// Documentación y estructura profesionalizada
 import 'package:flutter/material.dart';
 
+// Widget principal de la pantalla de cuadrillas
 class CuadrillaContent extends StatefulWidget {
   const CuadrillaContent({Key? key}) : super(key: key);
 
@@ -8,6 +12,7 @@ class CuadrillaContent extends StatefulWidget {
 }
 
 class _CuadrillaContentState extends State<CuadrillaContent> {
+  // Controladores para los campos de texto
   final TextEditingController claveController = TextEditingController();
   final TextEditingController nombreController = TextEditingController();
   final TextEditingController grupoController = TextEditingController();
@@ -17,6 +22,7 @@ class _CuadrillaContentState extends State<CuadrillaContent> {
   final TextEditingController searchController = TextEditingController();
   final ScrollController _tableScrollController = ScrollController();
 
+  // Lista de cuadrillas (mock data)
   final List<Map<String, String>> cuadrillas = [
     {
       'nombre': 'Indirectos',
@@ -38,6 +44,7 @@ class _CuadrillaContentState extends State<CuadrillaContent> {
     },
   ];
 
+  // Lista filtrada para mostrar en la tabla
   List<Map<String, String>> cuadrillasFiltradas = [];
 
   @override
@@ -46,6 +53,7 @@ class _CuadrillaContentState extends State<CuadrillaContent> {
     cuadrillasFiltradas = List.from(cuadrillas);
   }
 
+  // Filtra las cuadrillas según el texto de búsqueda
   void _buscarCuadrilla() {
     String query = searchController.text.trim().toLowerCase();
     setState(() {
@@ -57,6 +65,7 @@ class _CuadrillaContentState extends State<CuadrillaContent> {
     });
   }
 
+  // Crea una nueva cuadrilla y la agrega a la lista
   void _crearCuadrilla() {
     if (claveController.text.isEmpty || nombreController.text.isEmpty || grupoController.text.isEmpty || actividadSeleccionada == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -83,7 +92,7 @@ class _CuadrillaContentState extends State<CuadrillaContent> {
   Widget build(BuildContext context) {
     return Center(
       child: Card(
-        color: const Color(0xFFF5F5F5), // gris bajito
+        color: const Color(0xFFF5F5F5), // Fondo gris claro
         elevation: 4,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         child: Padding(
@@ -105,6 +114,7 @@ class _CuadrillaContentState extends State<CuadrillaContent> {
                     ),
                   ),
                   const SizedBox(height: 16),
+                  // Formulario para crear cuadrillas
                   Container(
                     decoration: BoxDecoration(
                       color: Colors.white,
@@ -123,6 +133,7 @@ class _CuadrillaContentState extends State<CuadrillaContent> {
                       children: [
                         Row(
                           children: [
+                            // Campo Clave
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -144,6 +155,7 @@ class _CuadrillaContentState extends State<CuadrillaContent> {
                               ),
                             ),
                             const SizedBox(width: 16),
+                            // Campo Nombre
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -165,6 +177,7 @@ class _CuadrillaContentState extends State<CuadrillaContent> {
                               ),
                             ),
                             const SizedBox(width: 16),
+                            // Campo Grupo
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -186,6 +199,7 @@ class _CuadrillaContentState extends State<CuadrillaContent> {
                               ),
                             ),
                             const SizedBox(width: 16),
+                            // Campo Actividad
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -247,6 +261,7 @@ class _CuadrillaContentState extends State<CuadrillaContent> {
                     ),
                   ),
                   const SizedBox(height: 16),
+                  // Barra de búsqueda
                   Row(
                     children: [
                       Expanded(
@@ -283,6 +298,7 @@ class _CuadrillaContentState extends State<CuadrillaContent> {
                     ],
                   ),
                   const SizedBox(height: 24),
+                  // Tabla de cuadrillas
                   Card(
                     color: Colors.white,
                     elevation: 2,

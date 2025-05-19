@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+// Archivo: Reportes_screen.dart
+// Pantalla para la gestión de reportes en el sistema Agribar
+// Estructura profesionalizada y documentada en español
+// No modificar la lógica ni la interfaz visual sin justificación técnica
 import 'package:flutter/rendering.dart';
 import 'dart:ui';
 
