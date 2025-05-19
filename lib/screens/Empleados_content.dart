@@ -92,8 +92,6 @@ class _EmpleadosContentState extends State<EmpleadosContent> {
 
   // Keys para medir cada tab
   final List<GlobalKey> _tabKeys = List.generate(4, (_) => GlobalKey());
-  double _indicatorLeft = 0;
-  double _indicatorWidth = 0;
 
   @override
   void initState() {
@@ -124,10 +122,8 @@ class _EmpleadosContentState extends State<EmpleadosContent> {
     final RenderBox? box = key.currentContext?.findRenderObject() as RenderBox?;
     final RenderBox? parentBox = context.findRenderObject() as RenderBox?;
     if (box != null && parentBox != null) {
-      final tabPosition = box.localToGlobal(Offset.zero, ancestor: parentBox);
+      box.localToGlobal(Offset.zero, ancestor: parentBox);
       setState(() {
-        _indicatorLeft = tabPosition.dx;
-        _indicatorWidth = box.size.width;
       });
     }
   }
@@ -140,190 +136,181 @@ class _EmpleadosContentState extends State<EmpleadosContent> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: Color(0xFFF8F8F8),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 24,
-            offset: Offset(0, 8),
+Widget build(BuildContext context) {
+  return Center(
+    child: LayoutBuilder(
+      builder: (context, constraints) {
+        final cardWidth = (constraints.maxWidth < 800 ? constraints.maxWidth * 0.9 : 1400).toDouble();
+
+        return Card(
+          elevation: 8,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(32),
+          ),
+          margin: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
+          child: Container(
+            constraints: BoxConstraints(maxWidth: cardWidth),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // TabBar visual mejorado
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Color(0xFFF3F1EA),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                    child: Row(
+                      children: List.generate(tabTitles.length, (i) {
+                        return _EmpleadosTab(
+                          text: tabTitles[i],
+                          selected: _selectedTabIndex == i,
+                          onTap: () => _onTabSelected(i),
+                        );
+                      }),
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  // Contenido según la pestaña seleccionada
+                  Expanded(child: _buildTabContent()),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    ),
+  );
+}
+
+Widget _buildTabContent() {
+  switch (_selectedTabIndex) {
+    case 0:
+      return _buildGeneralTab();
+    case 1:
+      return _buildRegistroTab();
+    default:
+      return _buildGeneralTab();
+  }
+}
+
+Widget _buildGeneralTab() {
+  int minRows = 20;
+  int extraRows = empleadosData.length < minRows ? minRows - empleadosData.length : 0;
+
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      // Métricas
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: 
+        [          _EmpleadosMetricCard(
+            title: 'Empleados activos',
+            value: '87',
+            icon: Icons.person,
+            iconColor: Color(0xFF0B7A2F), // Verde más oscuro para empleados activos
+          ),
+          SizedBox(width: 32),
+          _EmpleadosMetricCard(
+            title: 'Empleados inactivos',
+            value: '87',
+            icon: Icons.person,
+            iconColor: Color(0xFFE53935), // Rojo para empleados inactivos
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // TabBar visual mejorado con barrita verde bajo la pestaña activa
-            Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: Color(0xFFF3F1EA),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-              child: Row(
-                children: List.generate(tabTitles.length, (i) {
-                  return _EmpleadosTab(
-                    text: tabTitles[i],
-                    selected: _selectedTabIndex == i,
-                    onTap: () => _onTabSelected(i),
-                  );
-                }),
-              ),
+      SizedBox(height: 32),
+      // Tabla NO editable y con bordes redondeados
+      Expanded(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black12,
+                  blurRadius: 12,
+                  offset: Offset(0, 4),
+                ),
+              ],
             ),
-            SizedBox(height: 16),
-            // Contenido según la pestaña seleccionada
-            Expanded(child: _buildTabContent()),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTabContent() {
-    switch (_selectedTabIndex) {
-      case 0:
-        return _buildGeneralTab();
-      case 1:
-        return _buildRegistroTab();
-      default:
-        return _buildGeneralTab();
-    }
-  }
-
-  Widget _buildGeneralTab() {
-    // Calcula cuántas filas vacías hay que agregar
-    int minRows = 20;
-    int extraRows =
-        empleadosData.length < minRows ? minRows - empleadosData.length : 0;
-    return Column(
-      children: [
-        // Métricas
-        Row(
-          children: [
-            _EmpleadosMetricCard(
-              title: 'Empleados activos',
-              value: '87',
-              icon: Icons.person,
-            ),
-            SizedBox(width: 32),
-            _EmpleadosMetricCard(
-              title: 'Empleados inactivos',
-              value: '87',
-              icon: Icons.person,
-            ),
-          ],
-        ),
-        SizedBox(height: 32),
-        // Tabla NO editable y con bordes redondeados
-        Expanded(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(18),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 12,
-                    offset: Offset(0, 4),
-                  ),
-                ],
-              ),
-              padding: EdgeInsets.all(0),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  return SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        minWidth: constraints.maxWidth,
-                      ),
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.vertical,
-                        child: DataTable(
-                          border: TableBorder.all(
-                            color: Color(0xFFE5E5E5),
-                            width: 1.2,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          headingRowColor: MaterialStateProperty.all(
-                            Color(0xFFF3F3F3),
-                          ),
-                          columnSpacing: 24,
-                          columns:
-                              empleadosHeaders
-                                  .map(
-                                    (header) => DataColumn(
-                                      label: Text(
-                                        header,
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                  )
-                                  .toList(),
-                          rows: [
-                            ...List.generate(empleadosData.length, (rowIdx) {
-                              return DataRow(
-                                cells: List.generate(empleadosHeaders.length, (
-                                  colIdx,
-                                ) {
-                                  return DataCell(
-                                    Container(
-                                      width: 140,
-                                      child: Text(
-                                        empleadosData[rowIdx][colIdx],
-                                        style: TextStyle(fontSize: 15),
-                                      ),
-                                    ),
-                                  );
-                                }),
-                              );
-                            }),
-                            // Filas vacías
-                            ...List.generate(extraRows, (i) {
-                              return DataRow(
-                                cells: List.generate(empleadosHeaders.length, (
-                                  colIdx,
-                                ) {
-                                  return DataCell(
-                                    Container(
-                                      width: 140,
-                                      child: Text(
-                                        '',
-                                        style: TextStyle(
-                                          fontSize: 15,
-                                          color: Colors.grey[400],
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                }),
-                              );
-                            }),
-                          ],
+            padding: EdgeInsets.all(0),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.vertical,
+                      child: DataTable(
+                        border: TableBorder.all(
+                          color: Color(0xFFE5E5E5),
+                          width: 1.2,
+                          borderRadius: BorderRadius.circular(12),
                         ),
+                        headingRowColor: MaterialStateProperty.all(Color(0xFFF3F3F3)),
+                        columnSpacing: 24,
+                        columns: empleadosHeaders.map((header) {
+                          return DataColumn(
+                            label: Text(
+                              header,
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          );
+                        }).toList(),
+                        rows: [
+                          ...List.generate(empleadosData.length, (rowIdx) {
+                            return DataRow(
+                              cells: List.generate(empleadosHeaders.length, (colIdx) {
+                                return DataCell(
+                                  Container(
+                                    width: 140,
+                                    child: Text(
+                                      empleadosData[rowIdx][colIdx],
+                                      style: TextStyle(fontSize: 15),
+                                    ),
+                                  ),
+                                );
+                              }),
+                            );
+                          }),
+                          // Filas vacías
+                          ...List.generate(extraRows, (i) {
+                            return DataRow(
+                              cells: List.generate(empleadosHeaders.length, (colIdx) {
+                                return DataCell(
+                                  Container(
+                                    width: 140,
+                                    child: Text(
+                                      '',
+                                      style: TextStyle(fontSize: 15, color: Colors.grey[400]),
+                                    ),
+                                  ),
+                                );
+                              }),
+                            );
+                          }),
+                        ],
                       ),
                     ),
-                  );
-                },
-              ),
+                  ),
+                );
+              },
             ),
           ),
         ),
-      ],
-    );
-  }
+      ),
+    ],
+  );
+}
+
 
   Widget _buildRegistroTab() {
     return ClipRRect(
@@ -398,10 +385,12 @@ class _EmpleadosMetricCard extends StatelessWidget {
   final String title;
   final String value;
   final IconData icon;
+  final Color iconColor;
   const _EmpleadosMetricCard({
     required this.title,
     required this.value,
     required this.icon,
+    this.iconColor = const Color(0xFF8AB531),
   });
 
   @override
@@ -422,7 +411,12 @@ class _EmpleadosMetricCard extends StatelessWidget {
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
-        children: [
+        children: [          Icon(
+            icon,
+            size: 24,
+            color: iconColor,
+          ),
+          SizedBox(width: 18),
           Text(
             title,
             style: TextStyle(
@@ -592,10 +586,8 @@ class _RegistroEmpleadoWizardState extends State<RegistroEmpleadoWizard> {
     descuentoInfonavitController.clear();
     setState(() {});
   }
-
   @override
   Widget build(BuildContext context) {
-    double progress = (_currentStep + 1) / totalSteps;
     final Color verde = Color(0xFF8AB531);
     final Color grisFondo = Color(0xFFE5E5E5);
     final Color grisInput = Color(0xFFF3F1EA);

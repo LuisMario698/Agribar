@@ -388,21 +388,20 @@ class _NominaScreenState extends State<NominaScreen> {
       children: [
         Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1400),
-            child: Card(
-              color: const Color(0xFFF8F8F8),
-              elevation: 4,
+            constraints: const BoxConstraints(maxWidth: 1400),            child: Card(
+              elevation: 12,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(32),
               ),
+              margin: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
               child: SingleChildScrollView(
                 child: Container(
                   constraints: BoxConstraints(
-                    minHeight: MediaQuery.of(context).size.height * 0.7,
+                    minHeight: MediaQuery.of(context).size.height * 0.9,
                   ),
                   padding: const EdgeInsets.symmetric(
-                    vertical: 14,
-                    horizontal: 48,
+                    vertical: 0,
+                    horizontal: 50,
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
@@ -412,11 +411,11 @@ class _NominaScreenState extends State<NominaScreen> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          const SizedBox(height: 40),
+                          const SizedBox(height: 8),
                           // Total Semana Acumulado card at top
                           Card(
                             color: Colors.white,
-                            elevation: 4,
+                            elevation: 12,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(18),
                             ),
@@ -454,7 +453,7 @@ class _NominaScreenState extends State<NominaScreen> {
                             height: 24,
                           ), // Container Card for both Semana and Cuadrilla
                           Card(
-                            color: Color(0xFFF5EDD8),
+                            color: Color.fromARGB(255, 219, 219, 219),
                             elevation: 8,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(24),
@@ -474,7 +473,7 @@ class _NominaScreenState extends State<NominaScreen> {
                                       ),
                                       child: Card(
                                         color: Colors.white,
-                                        elevation: 4,
+                                        elevation: 12,
                                         shape: RoundedRectangleBorder(
                                           borderRadius: BorderRadius.circular(
                                             18,
@@ -542,7 +541,7 @@ class _NominaScreenState extends State<NominaScreen> {
                                       ),
                                       child: Card(
                                         color: Colors.white,
-                                        elevation: 4,
+                                        elevation: 12,
                                         shape: RoundedRectangleBorder(
                                           borderRadius: BorderRadius.circular(
                                             18,
@@ -651,7 +650,7 @@ class _NominaScreenState extends State<NominaScreen> {
                                     children: [
                                       Card(
                                         color: Colors.white,
-                                        elevation: 2,
+                                        elevation: 12,
                                         shape: RoundedRectangleBorder(
                                           borderRadius: BorderRadius.circular(
                                             12,
@@ -662,7 +661,7 @@ class _NominaScreenState extends State<NominaScreen> {
                                             maxWidth:
                                                 isSmallScreen
                                                     ? double.infinity
-                                                    : 260,
+                                                    : 220,
                                             minHeight: 100,
                                           ),
                                           child: Padding(
@@ -713,7 +712,7 @@ class _NominaScreenState extends State<NominaScreen> {
                                       const SizedBox(width: 4),
                                       Card(
                                         color: Colors.white,
-                                        elevation: 2,
+                                        elevation: 12,
                                         shape: RoundedRectangleBorder(
                                           borderRadius: BorderRadius.circular(
                                             12,
@@ -724,7 +723,7 @@ class _NominaScreenState extends State<NominaScreen> {
                                             maxWidth:
                                                 isSmallScreen
                                                     ? double.infinity
-                                                    : 260,
+                                                    : 220,
                                             minHeight: 100,
                                           ),
                                           child: Padding(
@@ -739,7 +738,7 @@ class _NominaScreenState extends State<NominaScreen> {
                                                 Text(
                                                   'Total Acumulado Cuadrilla',
                                                   style: TextStyle(
-                                                    fontSize: 16,
+                                                    fontSize: 15,
                                                     fontWeight: FontWeight.w500,
                                                     color: Colors.green[900],
                                                   ),
@@ -1097,7 +1096,7 @@ class _NominaScreenState extends State<NominaScreen> {
               child: Center(
                 child: Card(
                   color: Colors.white,
-                  elevation: 8,
+                  elevation: 12,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(18),
                   ),
@@ -1489,7 +1488,7 @@ class _NominaScreenState extends State<NominaScreen> {
     );
     return Card(
       color: Colors.grey[50],
-      elevation: 2,
+      elevation: 12,
       margin: const EdgeInsets.only(top: 24),
       child: Container(
         width: 1100,
@@ -1634,7 +1633,7 @@ class _ScrollableDataTableState extends State<ScrollableDataTable> {
     super.didUpdateWidget(oldWidget);
     // Actualizar los controladores cuando los datos cambian
     for (var empleado in widget.data) {
-      for (int i = 0; i < 7; i++) {
+      for (int i = 0; i < 1; i++) {
         String key = '${empleado['clave']}_dia_$i';
         if (_controllers.containsKey(key) && !_focusNodes[key]!.hasFocus) {
           _controllers[key]?.text = empleado['dias'][i].toString();

@@ -51,7 +51,7 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
 
             // Contenedor principal con estilo de tarjeta
             return Card(
-              elevation: 8,
+              elevation: 12,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(32),
               ),

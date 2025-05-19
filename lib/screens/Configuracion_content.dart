@@ -38,59 +38,7 @@ class _ConfiguracionContentState extends State<ConfiguracionContent> {
     },
   ];
 
-  /// Simula la carga de datos desde un archivo.
-  /// - Cuadrillas: Información de grupos de trabajo
-  /// - Actividades: Lista de actividades disponibles
-  void _simulateFilePick(String section) {
-    // Simula la selección de un archivo y carga datos de ejemplo según la sección
-    List<List<String>> data;
-    String title;
-    switch (section) {
-      case 'Cuadrillas':
-        title = 'Cuadrillas cargadas';
-        data = [
-          ['ID', 'Nombre', 'Supervisor'], // Encabezados
-          ['1', 'Cuadrilla Norte', 'Juan Pérez'],
-          ['2', 'Cuadrilla Sur', 'Ana López'],
-        ];
-        break;
-      case 'Actividades':
-        title = 'Actividades cargadas';
-        data = [
-          ['ID', 'Actividad', 'Fecha'],
-          ['1', 'Riego', '2024-06-01'],
-          ['2', 'Cosecha', '2024-06-02'],
-        ];
-        break;
-      case 'Empleados':
-        title = 'Empleados cargados';
-        data = [
-          ['ID', 'Nombre', 'Rol'],
-          ['1', 'Carlos Ruiz', 'Supervisor'],
-          ['2', 'María Torres', 'Capturista'],
-        ];
-        break;
-      default:
-        title = 'Datos cargados';
-        data = [
-          ['ID', 'Nombre', 'Rol'],
-          ['1', 'Juan Pérez', 'Admin'],
-        ];
-    }
-    setState(() {
-      loadedData = data;
-      modalTitle = title;
-      showTableModal = true;
-    });
-  }
 
-  void _closeModal() {
-    setState(() {
-      showTableModal = false;
-      loadedData = null;
-      modalTitle = null;
-    });
-  }
 
   void _showUserDialog(BuildContext context) {
     showDialog(
@@ -106,63 +54,94 @@ class _ConfiguracionContentState extends State<ConfiguracionContent> {
     });
   }
 
-  void _handleEditUser(int index, Map<String, dynamic> editedUser) {
-    setState(() {
-      _users[index] = editedUser;
-    });
-  }
 
-  void _handleDeleteUser(int index) {
-    setState(() {
-      _users.removeAt(index);
-    });
-  }
 
-  void _handleLogout() {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Cerrar Sesión'),
-            content: const Text('¿Estás seguro que deseas cerrar sesión?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancelar'),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  AuthUtils.logout(context);
-                },
-                child: const Text('Cerrar Sesión'),
-                style: TextButton.styleFrom(foregroundColor: Colors.red[400]),
-              ),
-            ],
-          ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1200),
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 32),
-                _buildUserSection(),
-                const SizedBox(height: 32),
-                _buildImportSection(),
-                const SizedBox(height: 32),
-                LogoutButton(),
-              ],
-            ),
-          ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isSmallScreen = constraints.maxWidth < 800;
+            
+            return Container(
+              padding: const EdgeInsets.all(32),
+              constraints: BoxConstraints(
+                maxWidth: isSmallScreen ? constraints.maxWidth : 1400,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (!isSmallScreen)
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: _buildImportSection(),
+                        ),
+                        const SizedBox(width: 24),
+                        Expanded(
+                          child: _buildUserSection(),
+                        ),
+                      ],
+                    )
+                  else
+                    Column(
+                      children: [
+                        _buildImportSection(),
+                        const SizedBox(height: 24),
+                        _buildUserSection(),
+                      ],
+                    ),
+                  const SizedBox(height: 32),
+                  Center(
+                    child: SizedBox(
+                      width: 300,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            barrierColor: Colors.black26,
+                            builder: (context) => AlertDialog(
+                              title: const Text('Cerrar sesión'),
+                              content: const Text('¿Estás seguro que deseas cerrar sesión?'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.of(context).pop(),
+                                  child: const Text('Cancelar'),
+                                ),
+                                TextButton(
+                                  onPressed: () {
+                                    Navigator.of(context).pushAndRemoveUntil(
+                                      MaterialPageRoute(
+                                        builder: (context) => const LoginScreen(),
+                                      ),
+                                      (route) => false,
+                                    );
+                                  },
+                                  child: const Text('Cerrar sesión'),
+                                  style: TextButton.styleFrom(foregroundColor: Colors.red),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        child: const Text(
+                          'Cerrar sesión',
+                          style: TextStyle(color: Colors.white, fontSize: 16),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );
@@ -170,68 +149,124 @@ class _ConfiguracionContentState extends State<ConfiguracionContent> {
 
   Widget _buildUserSection() {
     return Card(
-      elevation: 2,
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'Usuarios',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-                ElevatedButton.icon(
-                  onPressed: () => _showUserDialog(context),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Agregar usuario'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0B7A2F),
-                    foregroundColor: Colors.white,
+                Icon(Icons.manage_accounts, color: Colors.grey[700]),
+                const SizedBox(width: 12),
+                Text(
+                  'Administrar Usuarios',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[800],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 400),
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: _users.length,
-                itemBuilder: (context, index) {
-                  final user = _users[index];
-                  return Card(
-                    margin: const EdgeInsets.symmetric(vertical: 8),
-                    child: ListTile(
-                      leading: CircleAvatar(
+            const SizedBox(height: 24),
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _users.length,
+              itemBuilder: (context, index) {
+                final user = _users[index];
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey[300]!),
+                  ),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
                         backgroundColor: user['color'] as Color,
                         child: Text(
                           user['name'].toString().substring(0, 1).toUpperCase(),
                           style: const TextStyle(color: Colors.white),
                         ),
                       ),
-                      title: Text(user['name'].toString()),
-                      subtitle: Text(user['role'].toString()),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.edit),
-                            onPressed:
-                                () => _showEditUserDialog(context, index),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              user['name'].toString(),
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            Text(
+                              user['role'].toString(),
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      PopupMenuButton(
+                        icon: Icon(Icons.more_vert, color: Colors.grey[600]),
+                        itemBuilder: (context) => [
+                          PopupMenuItem(
+                            value: 'edit',
+                            child: Row(
+                              children: [
+                                const Icon(Icons.edit),
+                                const SizedBox(width: 8),
+                                const Text('Editar'),
+                              ],
+                            ),
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.delete),
-                            onPressed:
-                                () => _showDeleteUserDialog(context, index),
+                          PopupMenuItem(
+                            value: 'delete',
+                            child: Row(
+                              children: [
+                                const Icon(Icons.delete, color: Colors.red),
+                                const SizedBox(width: 8),
+                                const Text('Eliminar', style: TextStyle(color: Colors.red)),
+                              ],
+                            ),
                           ),
                         ],
+                        onSelected: (value) {
+                          if (value == 'edit') {
+                            _showEditUserDialog(context, index);
+                          } else if (value == 'delete') {
+                            _showDeleteUserDialog(context, index);
+                          }
+                        },
                       ),
-                    ),
-                  );
-                },
+                    ],
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: () => _showUserDialog(context),
+              icon: const Icon(Icons.add),
+              label: const Text('Agregar usuario'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0B7A2F),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
             ),
           ],
@@ -300,26 +335,35 @@ class _ConfiguracionContentState extends State<ConfiguracionContent> {
 
   Widget _buildImportSection() {
     return Card(
-      elevation: 2,
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Importar datos',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 16,
-              runSpacing: 16,
+            Row(
               children: [
-                _buildImportButton('Cuadrillas', Icons.groups),
-                _buildImportButton('Actividades', Icons.work),
-                _buildImportButton('Empleados', Icons.person),
+                Icon(Icons.file_upload, color: Colors.grey[700]),
+                const SizedBox(width: 12),
+                Text(
+                  'Cargar desde excel',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[800],
+                  ),
+                ),
               ],
             ),
+            const SizedBox(height: 24),
+            _buildImportButton('Cuadrillas', Icons.groups),
+            const SizedBox(height: 12),
+            _buildImportButton('Actividades', Icons.work),
+            const SizedBox(height: 12),
+            _buildImportButton('Empleados', Icons.person),
           ],
         ),
       ),
@@ -327,15 +371,28 @@ class _ConfiguracionContentState extends State<ConfiguracionContent> {
   }
 
   Widget _buildImportButton(String text, IconData icon) {
-    return ElevatedButton.icon(
-      onPressed: () => _importFile(text),
-      icon: Icon(icon),
-      label: Text('Importar $text'),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-        side: const BorderSide(color: Colors.black12),
+    return InkWell(
+      onTap: () => _importFile(text),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey[300]!),
+        ),
+        child: Row(
+          children: [
+            Text(
+              text,
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[800],
+              ),
+            ),
+            const Spacer(),
+            Icon(Icons.download, color: Colors.grey[600]),
+          ],
+        ),
       ),
     );
   }
