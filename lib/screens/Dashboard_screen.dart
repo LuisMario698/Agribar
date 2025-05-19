@@ -1,8 +1,13 @@
-// Archivo: Dashboard_screen.dart
-// Pantalla principal del sistema Agribar
-// Estructura profesionalizada y documentada en español
-// Esta pantalla gestiona la navegación lateral y el contenido principal
-// No modificar la lógica ni la interfaz visual sin justificación técnica
+/// Archivo: Dashboard_screen.dart
+/// Pantalla principal del sistema Agribar que implementa el panel de control
+/// y la navegación principal de la aplicación.
+///
+/// Esta pantalla es responsable de:
+/// - Gestionar la barra lateral de navegación
+/// - Controlar el cambio entre diferentes secciones
+/// - Mantener el estado del tema de la aplicación
+/// - Mostrar el contenido correspondiente a cada sección
+
 import 'package:flutter/material.dart';
 import 'Dashboard_content.dart';
 import 'Empleados_content.dart';
@@ -13,12 +18,18 @@ import 'AppTheme.dart';
 import 'Cuadrilla_Content.dart';
 import 'Reportes_screen.dart';
 
+/// Widget principal del panel de control.
+///
+/// Maneja el estado del tema y la navegación entre diferentes secciones
+/// de la aplicación a través de una barra lateral.
 class DashboardScreen extends StatefulWidget {
-  final AppTheme appTheme;
-  final void Function(AppTheme)? onThemeChanged;
+  final AppTheme appTheme; // Tema actual de la aplicación
+  final void Function(AppTheme)?
+  onThemeChanged; // Callback para cambiar el tema
+
   const DashboardScreen({
     super.key,
-    this.appTheme = AppTheme.light,
+    this.appTheme = AppTheme.light, // Por defecto usa el tema claro
     this.onThemeChanged,
   });
 
@@ -26,18 +37,51 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
+/// Estado del DashboardScreen que mantiene la lógica de navegación
+/// y la interacción con el menú lateral.
 class _DashboardScreenState extends State<DashboardScreen> {
-  int selectedIndex = 0;
-  int? hoveredIndex;
+  int selectedIndex = 0; // Índice del elemento seleccionado en el menú
+  int? hoveredIndex; // Índice del elemento sobre el que está el cursor
+  final ScrollController _scrollController = ScrollController();
+
+  /// Lista de elementos del menú lateral
+  /// Cada elemento contiene un ícono y una etiqueta
   final List<_SidebarItemData> menuItems = [
-    _SidebarItemData(icon: Icons.home, label: 'Dashboard'),
-    _SidebarItemData(icon: Icons.people, label: 'Empleados'),
-    _SidebarItemData(icon: Icons.groups, label: 'Cuadrillas'),
-    _SidebarItemData(icon: Icons.event_note, label: 'Actividades'),
-    _SidebarItemData(icon: Icons.attach_money, label: 'Nomina'),
-    _SidebarItemData(icon: Icons.bar_chart, label: 'Reportes'),
+    _SidebarItemData(icon: Icons.home, label: 'Dashboard'), // Panel principal
+    _SidebarItemData(
+      icon: Icons.people,
+      label: 'Empleados',
+    ), // Gestión de empleados
+    _SidebarItemData(
+      icon: Icons.groups,
+      label: 'Cuadrillas',
+    ), // Gestión de cuadrillas
+    _SidebarItemData(
+      icon: Icons.event_note,
+      label: 'Actividades',
+    ), // Registro de actividades
+    _SidebarItemData(
+      icon: Icons.attach_money,
+      label: 'Nomina',
+    ), // Gestión de nómina
+    _SidebarItemData(
+      icon: Icons.bar_chart,
+      label: 'Reportes',
+    ), // Generación de reportes
+    _SidebarItemData(
+      icon: Icons.settings,
+      label: 'Configuraciones',
+    ), // Configuración del sistema
   ];
 
+  @override
+  void dispose() {
+    _scrollController.dispose(); // Liberar recursos del controlador de scroll
+    super.dispose();
+  }
+
+  /// Retorna el widget correspondiente a la sección seleccionada
+  /// basado en el índice actual del menú.
   Widget _getBodyContent() {
     switch (selectedIndex) {
       case 0:
@@ -53,10 +97,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       case 5:
         return ReportesScreen();
       case 6:
-        return ConfiguracionContent(
-          appTheme: widget.appTheme,
-          onThemeChanged: widget.onThemeChanged,
-        );
+        return ConfiguracionContent();
       default:
         return Center(
           child: Text(
@@ -102,110 +143,55 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             child: Column(
               children: [
-                // Logo
+                // Logo y título
                 Container(
-                  height: 120,
-                  padding: const EdgeInsets.all(16),
-                  alignment: Alignment.centerLeft,
+                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 24),
                   child: Row(
-                    children: [
-                      Icon(Icons.agriculture, size: 48, color: sidebarActive),
-                      SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'AGRIBAR',
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: isDark ? Colors.white : Color(0xFF6B4F27),
-                            ),
-                          ),
-                          Text(
-                            'S. de R.L. de C.V.',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: sidebarActive,
-                            ),
-                          ),
-                        ],
+                    children: [Image.asset('assets/logo.jpg', width: 210)],
+                  ),
+                ),
+                // Menú scrollable
+                Expanded(
+                  child: Scrollbar(
+                    controller: _scrollController,
+                    thumbVisibility: true,
+                    child: SingleChildScrollView(
+                      controller: _scrollController,
+                      child: Column(
+                        children:
+                            menuItems.asMap().entries.map((entry) {
+                              final index = entry.key;
+                              final item = entry.value;
+                              return _SidebarItem(
+                                icon: item.icon,
+                                label: item.label,
+                                selected: selectedIndex == index,
+                                hovered: hoveredIndex == index,
+                                onTap:
+                                    () => setState(() => selectedIndex = index),
+                                onHover:
+                                    (isHovered) => setState(
+                                      () =>
+                                          hoveredIndex =
+                                              isHovered ? index : null,
+                                    ),
+                                isDark: isDark,
+                                sidebarActive: sidebarActive,
+                                sidebarHover: sidebarHover,
+                                sidebarText: sidebarText,
+                                sidebarActiveText: sidebarActiveText,
+                                sidebarIcon: sidebarIcon,
+                              );
+                            }).toList(),
                       ),
-                    ],
-                  ),
-                ),
-                // Menu
-                Expanded(
-                  child: MouseRegion(
-                    onExit: (_) {
-                      setState(() {
-                        hoveredIndex = null;
-                      });
-                    },
-                    child: ListView.builder(
-                      itemCount: menuItems.length,
-                      itemBuilder: (context, index) {
-                        return _SidebarItem(
-                          icon: menuItems[index].icon,
-                          label: menuItems[index].label,
-                          selected: selectedIndex == index,
-                          hovered: hoveredIndex == index,
-                          onHover: (hovering) {
-                            setState(() {
-                              hoveredIndex = hovering ? index : null;
-                            });
-                          },
-                          onTap: () {
-                            setState(() {
-                              selectedIndex = index;
-                            });
-                          },
-                          isDark: isDark,
-                          sidebarActive: sidebarActive,
-                          sidebarHover: sidebarHover,
-                          sidebarText: sidebarText,
-                          sidebarActiveText: sidebarActiveText,
-                          sidebarIcon: sidebarIcon,
-                        );
-                      },
                     ),
                   ),
                 ),
               ],
             ),
           ),
-          // Main content
-          Expanded(
-            child: Column(
-              children: [
-                // Top bar with title
-                Container(
-                  height: 80,
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 40),
-                  color: isDark ? Color(0xFF232323) : Color(0xFFF5F5F5),
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    menuItems[selectedIndex].label,
-                    style: TextStyle(
-                      fontSize: 44,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : Colors.black,
-                    ),
-                  ),
-                ),
-                // Main scrollable content
-                Expanded(
-                  child: Container(
-                    color: Colors.transparent,
-                    padding: const EdgeInsets.all(32),
-                    child: _getBodyContent(),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          // Contenido principal
+          Expanded(child: _getBodyContent()),
         ],
       ),
     );

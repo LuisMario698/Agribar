@@ -6,41 +6,51 @@ import 'package:window_manager/window_manager.dart';
 import 'dart:io';
 
 void main() async {
+  // Asegura que Flutter esté inicializado correctamente
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Configurar el tamaño mínimo de la ventana en desktop
+
+  // Configuración específica para plataformas de escritorio
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
     await windowManager.ensureInitialized();
 
+    // Definir opciones de ventana predeterminadas
     WindowOptions windowOptions = const WindowOptions(
-      size: Size(1440, 768),
-      minimumSize: Size(1440, 768),
-      center: true,
+      size: Size(1920, 1080), // Tamaño inicial de la ventana
+      minimumSize: Size(1200, 768), // Tamaño mínimo permitido
+      center: true, // Centrar la ventana al inicio
       backgroundColor: Colors.transparent,
       skipTaskbar: false,
       titleBarStyle: TitleBarStyle.normal,
     );
-    
+
+    // Mostrar y enfocar la ventana una vez que esté lista
     await windowManager.waitUntilReadyToShow(windowOptions, () async {
       await windowManager.show();
       await windowManager.focus();
     });
   }
-  
+
   runApp(MainApp());
 }
 
+/// Widget principal que representa la aplicación.
+/// Maneja el estado global del tema de la aplicación.
 class MainApp extends StatefulWidget {
+  /// Método estático para acceder al estado de MainApp desde cualquier parte de la app
   static _MainAppState? of(BuildContext context) =>
       context.findAncestorStateOfType<_MainAppState>();
   @override
   State<MainApp> createState() => _MainAppState();
 }
 
+/// Estado del widget MainApp que mantiene la configuración del tema
 class _MainAppState extends State<MainApp> {
+  // Estado actual del tema de la aplicación
   ThemeMode _themeMode = ThemeMode.light;
   ThemeMode get themeMode => _themeMode;
 
+  /// Método para cambiar el tema de la aplicación
+  /// [mode] - El nuevo modo de tema a aplicar
   void setThemeMode(ThemeMode mode) {
     setState(() {
       _themeMode = mode;
@@ -63,12 +73,7 @@ class _MainAppState extends State<MainApp> {
         Locale('es'), // Españo
       ],
       builder: (context, child) {
-        return Scaffold(
-          backgroundColor: Color(0xFFF5EDD8), // Fondo cremita global
-          body: Center(
-            child: SizedBox(width: 1920, height: 1080, child: child),
-          ),
-        );
+        return Container(color: const Color(0xFFF5EDD8), child: child);
       },
     );
   }

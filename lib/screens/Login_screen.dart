@@ -1,6 +1,12 @@
+/// Pantalla de inicio de sesión
+/// Proporciona la interfaz de autenticación para acceder al sistema.
+/// Incluye un formulario de login y una imagen de fondo decorativa.
+
 import 'package:flutter/material.dart';
 import 'Dashboard_screen.dart';
 
+/// Widget que representa la pantalla de inicio de sesión.
+/// Maneja el estado del formulario de autenticación.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -8,6 +14,7 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
+/// Estado de la pantalla de inicio de sesión
 class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
@@ -15,16 +22,18 @@ class _LoginScreenState extends State<LoginScreen> {
       backgroundColor: Colors.black87,
       body: Row(
         children: [
-          // Left: Login Form
+          // Panel izquierdo: Formulario de inicio de sesión
           Expanded(
+            flex: 1,
             child: Container(
-              color: Colors.white, // Fondo blanco puro
+              color: Colors.white, // Fondo blanco para el formulario
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 40.0),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Título de la pantalla
                     Text(
                       'INICIAR SESIÓN',
                       style: TextStyle(
@@ -34,12 +43,15 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     SizedBox(height: 40),
+                    // Campo de usuario con diseño personalizado
                     TextField(
                       decoration: InputDecoration(
                         prefixIcon: Icon(Icons.person_outline),
                         hintText: 'Usuario',
                         filled: true,
-                        fillColor: Color(0xFFF2F3EC),
+                        fillColor: Color(
+                          0xFFF2F3EC,
+                        ), // Color de fondo del campo
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
                           borderSide: BorderSide.none,
@@ -47,13 +59,16 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     SizedBox(height: 20),
+                    // Campo de contraseña con diseño personalizado
                     TextField(
                       obscureText: true,
                       decoration: InputDecoration(
                         prefixIcon: Icon(Icons.lock_outline),
                         hintText: 'Contraseña',
                         filled: true,
-                        fillColor: Color(0xFFF2F3EC),
+                        fillColor: Color(
+                          0xFFF2F3EC,
+                        ), // Color de fondo del campo
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
                           borderSide: BorderSide.none,
@@ -61,6 +76,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     SizedBox(height: 10),
+                    // Enlace para recuperar contraseña
                     Align(
                       alignment: Alignment.centerRight,
                       child: Text(
@@ -69,6 +85,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     SizedBox(height: 40),
+                    // Botón de inicio de sesión con diseño personalizado
                     Center(
                       child: Container(
                         decoration: BoxDecoration(
@@ -123,8 +140,9 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ),
-          // Right: Logo & Background
+          // Panel derecho: Logo e imagen de fondo
           Expanded(
+            flex: 2,
             child: Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -143,29 +161,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        'AGRIBAR',
-                        style: TextStyle(
-                          fontSize: 40,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF6B4F27),
-                          letterSpacing: 2,
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: Image.asset(
+                          'assets/logo.jpg',
+                          width: 1000,
+                          fit: BoxFit.cover,
                         ),
-                      ),
-                      SizedBox(height: 8),
-                      Text(
-                        'S. de R.L. de C.V.',
-                        style: TextStyle(
-                          fontSize: 22,
-                          color: Color(0xFF5BA829),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      SizedBox(height: 24),
-                      Icon(
-                        Icons.agriculture,
-                        size: 64,
-                        color: Color(0xFF5BA829),
                       ),
                     ],
                   ),

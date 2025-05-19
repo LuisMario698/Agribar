@@ -110,7 +110,7 @@ class _CuadrillaContentState extends State<CuadrillaContent> {
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
-                      color: Colors.green,
+                      color: Color(0xFF0B7A2F),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -238,7 +238,7 @@ class _CuadrillaContentState extends State<CuadrillaContent> {
                         Center(
                           child: ElevatedButton(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Color(0xFF8CB800),
+                              backgroundColor: Color(0xFF0B7A2F),
                               padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
@@ -257,7 +257,7 @@ class _CuadrillaContentState extends State<CuadrillaContent> {
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
-                      color: Colors.green,
+                      color: Color(0xFF0B7A2F),
                     ),
                   ),
                   const SizedBox(height: 16),

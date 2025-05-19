@@ -1,9 +1,20 @@
+/// Contenido del panel principal (Dashboard) del sistema Agribar.
+/// Muestra información relevante como métricas, gráficos y alertas.
+/// Se adapta a diferentes tamaños de pantalla para una mejor experiencia de usuario.
+
 import 'package:flutter/material.dart';
 import 'Dashboard_screen.dart';
 
+/// Widget principal del contenido del Dashboard.
+/// Muestra un resumen general del sistema incluyendo:
+/// - Información del usuario actual
+/// - Métricas clave
+/// - Gráficos de rendimiento
+/// - Alertas y notificaciones
 class DashboardHomeContent extends StatefulWidget {
-  final String userName;
-  final String userRole;
+  final String userName; // Nombre del usuario actual
+  final String userRole; // Rol del usuario (Admin, Supervisor, etc.)
+
   const DashboardHomeContent({
     this.userName = 'Juan Pérez',
     this.userRole = 'Supervisor',
@@ -14,8 +25,12 @@ class DashboardHomeContent extends StatefulWidget {
   State<DashboardHomeContent> createState() => _DashboardHomeContentState();
 }
 
+/// Estado del DashboardHomeContent que gestiona:
+/// - Visualización de porcentajes
+/// - Layout responsivo
+/// - Actualización de métricas
 class _DashboardHomeContentState extends State<DashboardHomeContent> {
-  bool showPercentages = true;
+  bool showPercentages = true; // Toggle para mostrar/ocultar porcentajes
 
   @override
   Widget build(BuildContext context) {
@@ -23,12 +38,18 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
       child: Center(
         child: LayoutBuilder(
           builder: (context, constraints) {
+            // Configuración de layout responsivo
             final isSmallScreen = constraints.maxWidth < 800;
-            final cardWidth = (isSmallScreen ? constraints.maxWidth * 0.9 : 1400).toDouble();
-            final metricCardWidth = (isSmallScreen ? constraints.maxWidth * 0.22 : 288).toDouble();
-            final chartWidth = (isSmallScreen ? constraints.maxWidth * 0.45 : 600).toDouble();
-            final chartHeight = (isSmallScreen ? constraints.maxWidth * 0.45 : 300).toDouble();
+            final cardWidth =
+                (isSmallScreen ? constraints.maxWidth * 0.9 : 1400).toDouble();
+            final metricCardWidth =
+                (isSmallScreen ? constraints.maxWidth * 0.22 : 288).toDouble();
+            final chartWidth =
+                (isSmallScreen ? constraints.maxWidth * 0.45 : 600).toDouble();
+            final chartHeight =
+                (isSmallScreen ? constraints.maxWidth * 0.45 : 300).toDouble();
 
+            // Contenedor principal con estilo de tarjeta
             return Card(
               elevation: 8,
               shape: RoundedRectangleBorder(
@@ -37,12 +58,15 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
               margin: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
               child: Container(
                 constraints: BoxConstraints(maxWidth: cardWidth),
-                padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 40),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 40,
+                  horizontal: 40,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 8),
-                    // Top: Usuario y nivel centrado y más grande
+                    // Sección superior: Información del usuario
                     Center(
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -96,7 +120,8 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
                                 value: '87',
                                 icon: Icons.person,
                                 iconColor: Color(0xFF6B4F27),
-                                isSmallScreen: isSmallScreen, // Pasar el estado de pantalla pequeña
+                                isSmallScreen:
+                                    isSmallScreen, // Pasar el estado de pantalla pequeña
                               ),
                             ),
                             SizedBox(
@@ -171,7 +196,8 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
                             child: DashboardPieChart(
                               showPercentages: showPercentages,
                             ),
-                            isSmallScreen: isSmallScreen, // Pasar el estado de pantalla pequeña
+                            isSmallScreen:
+                                isSmallScreen, // Pasar el estado de pantalla pequeña
                           ),
                         ),
                         SizedBox(
@@ -211,7 +237,9 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
                     ),
                     SizedBox(height: isSmallScreen ? 16 : 24),
                     // Alertas rápidas
-                    Center(child: SizedBox(width: cardWidth, child: AlertCard())),
+                    Center(
+                      child: SizedBox(width: cardWidth, child: AlertCard()),
+                    ),
                   ],
                 ),
               ),
@@ -249,7 +277,10 @@ class MetricCard extends StatelessWidget {
 
     return Container(
       margin: EdgeInsets.only(bottom: isSmallScreen ? 12 : 16),
-      padding: EdgeInsets.symmetric(horizontal: adjustedPadding, vertical: adjustedPadding * 0.8),
+      padding: EdgeInsets.symmetric(
+        horizontal: adjustedPadding,
+        vertical: adjustedPadding * 0.8,
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -285,7 +316,11 @@ class MetricCard extends StatelessWidget {
               ),
               if (icon != null) ...[
                 SizedBox(width: 8),
-                Icon(icon, color: iconColor ?? Colors.black, size: isSmallScreen ? 24 : 32),
+                Icon(
+                  icon,
+                  color: iconColor ?? Colors.black,
+                  size: isSmallScreen ? 24 : 32,
+                ),
               ],
             ],
           ),

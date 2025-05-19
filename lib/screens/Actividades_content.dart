@@ -302,7 +302,7 @@ class _ActividadesContentState extends State<ActividadesContent> {
                                         ElevatedButton(
                                           onPressed: agregarActividad,
                                           style: ElevatedButton.styleFrom(
-                                            backgroundColor: Color(0xFF8AB531),
+                                            backgroundColor: Color(0xFF0B7A2F),
                                             foregroundColor: Colors.white,
                                             padding: EdgeInsets.symmetric(
                                               horizontal: 32,

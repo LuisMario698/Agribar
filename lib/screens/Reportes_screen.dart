@@ -616,7 +616,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
                   const SizedBox(width: 8),
                   // Botón de búsqueda
                   Material(
-                    color: const Color(0xFF2CA14C),
+                    color: const Color(0xFF0B7A2F),
                     borderRadius: BorderRadius.circular(24),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(24),
@@ -638,18 +638,18 @@ class _ReportesScreenState extends State<ReportesScreen> {
                     message:
                         'Enter para buscar en uno de los tres apartados, importante, establecer el rango de fechas',
                     child: Material(
-                      color: const Color(0xFF2CA14C),
+                      color: const Color(0xFF0B7A2F),
                       shape: const CircleBorder(),
                       child: InkWell(
                         customBorder: const CircleBorder(),
                         onTap: () {},
                         child: const SizedBox(
-                          width: 44,
-                          height: 44,
+                          width: 48,
+                          height: 48,
                           child: Icon(
                             Icons.info,
                             color: Colors.white,
-                            size: 26,
+                            size: 28,
                           ),
                         ),
                       ),
@@ -693,7 +693,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
                   IconButton(
                     icon: const Icon(
                       Icons.fullscreen,
-                      color: Colors.green,
+                      color: Color(0xFF0B7A2F),
                       size: 28,
                     ),
                     tooltip: 'Expandir tabla',
@@ -1107,7 +1107,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
                 label,
                 style: TextStyle(
                   fontSize: 16, // Más pequeño
-                  color: selected ? const Color(0xFF2CA14C) : Colors.grey[800],
+                  color: selected ? const Color(0xFF0B7A2F) : Colors.grey[800],
                   fontWeight: selected ? FontWeight.bold : FontWeight.normal,
                 ),
               ),
@@ -1116,7 +1116,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
               height: 3,
               width: 60,
               decoration: BoxDecoration(
-                color: selected ? const Color(0xFF2CA14C) : Colors.transparent,
+                color: selected ? const Color(0xFF0B7A2F) : Colors.transparent,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),

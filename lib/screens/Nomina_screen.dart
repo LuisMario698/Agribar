@@ -1,24 +1,37 @@
+/// Módulo de nómina del sistema Agribar.
+/// Gestiona el cálculo y procesamiento de la nómina semanal de empleados,
+/// incluyendo percepciones, deducciones y totales por cuadrilla.
+
 import 'package:flutter/material.dart';
 import 'dart:ui';
 import 'package:flutter/services.dart';
 
+/// Widget principal de la pantalla de nómina.
+/// Permite la gestión y visualización de nóminas por cuadrilla y semana.
+/// Soporta vista completa y resumida de la tabla de nómina.
 class NominaScreen extends StatefulWidget {
   const NominaScreen({
     super.key,
-    this.showFullTable = false,
-    this.onCloseFullTable,
-    this.onOpenFullTable,
+    this.showFullTable = false, // Controla si se muestra la tabla completa
+    this.onCloseFullTable, // Callback al cerrar la vista completa
+    this.onOpenFullTable, // Callback al abrir la vista completa
   });
-  final bool showFullTable;
-  final VoidCallback? onCloseFullTable;
-  final VoidCallback? onOpenFullTable;
+
+  final bool showFullTable; // Estado de visualización de la tabla
+  final VoidCallback? onCloseFullTable; // Función para cerrar vista completa
+  final VoidCallback? onOpenFullTable; // Función para abrir vista completa
 
   @override
   State<NominaScreen> createState() => _NominaScreenState();
 }
 
+/// Estado del widget NominaScreen que maneja:
+/// - Selección de cuadrilla
+/// - Selección de semana
+/// - Filtrado de empleados
+/// - Cálculos de nómina
 class _NominaScreenState extends State<NominaScreen> {
-  // Simulación de cuadrillas obtenidas del otro módulo
+  /// Datos de cuadrillas disponibles para procesar nómina
   List<Map<String, String>> cuadrillas = [
     {
       'nombre': 'Indirectos',
@@ -40,11 +53,16 @@ class _NominaScreenState extends State<NominaScreen> {
     },
   ];
 
-  String? cuadrillaSeleccionada;
-  DateTimeRange? semanaSeleccionada;
+  String? cuadrillaSeleccionada; // Cuadrilla actual para procesar nómina
+  DateTimeRange? semanaSeleccionada; // Semana seleccionada para la nómina
   final TextEditingController searchController = TextEditingController();
 
-  // Datos de nómina (mock, pero dinámicos)
+  /// Datos de empleados con su información de nómina
+  /// Incluye:
+  /// - Datos personales (clave, nombre)
+  /// - Percepciones (días trabajados, bonos, etc.)
+  /// - Deducciones (préstamos, descuentos, etc.)
+  /// - Totales calculados
   List<Map<String, dynamic>> empleados = [
     {
       'clave': '1950',
@@ -362,7 +380,7 @@ class _NominaScreenState extends State<NominaScreen> {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenWidth < 1200;
-    
+
     // Calcular el total de la semana
     final totalSemana = empleadosFiltrados.fold<int>(
       0,
@@ -395,7 +413,8 @@ class _NominaScreenState extends State<NominaScreen> {
                       const SizedBox(height: 40),
                       // Contenedor flex para los cards superiores
                       Flex(
-                        direction: isSmallScreen ? Axis.vertical : Axis.horizontal,
+                        direction:
+                            isSmallScreen ? Axis.vertical : Axis.horizontal,
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
@@ -419,7 +438,8 @@ class _NominaScreenState extends State<NominaScreen> {
                                     vertical: 18,
                                   ),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       const Text(
@@ -467,7 +487,8 @@ class _NominaScreenState extends State<NominaScreen> {
                                     vertical: 18,
                                   ),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Text(
@@ -487,7 +508,9 @@ class _NominaScreenState extends State<NominaScreen> {
                                             width: 1.2,
                                           ),
                                           shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(22),
+                                            borderRadius: BorderRadius.circular(
+                                              22,
+                                            ),
                                           ),
                                           padding: const EdgeInsets.symmetric(
                                             horizontal: 28,
@@ -533,7 +556,8 @@ class _NominaScreenState extends State<NominaScreen> {
                                     vertical: 18,
                                   ),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Text(
@@ -550,12 +574,17 @@ class _NominaScreenState extends State<NominaScreen> {
                                         child: DropdownButton<String>(
                                           value: cuadrillaSeleccionada,
                                           isExpanded: true,
-                                          items: cuadrillas
-                                              .map((c) => DropdownMenuItem(
-                                                    value: c['nombre'],
-                                                    child: Text(c['nombre'] ?? ''),
-                                                  ))
-                                              .toList(),
+                                          items:
+                                              cuadrillas
+                                                  .map(
+                                                    (c) => DropdownMenuItem(
+                                                      value: c['nombre'],
+                                                      child: Text(
+                                                        c['nombre'] ?? '',
+                                                      ),
+                                                    ),
+                                                  )
+                                                  .toList(),
                                           onChanged: (value) {
                                             setState(() {
                                               cuadrillaSeleccionada = value;
@@ -581,7 +610,8 @@ class _NominaScreenState extends State<NominaScreen> {
                               const SizedBox(height: 24),
                               // Indicadores a la derecha (sin el Total Semana Acumulado de abajo)
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
                                   // Buscador
@@ -589,17 +619,23 @@ class _NominaScreenState extends State<NominaScreen> {
                                     flex: 2,
                                     child: Container(
                                       constraints: BoxConstraints(
-                                        maxWidth: isSmallScreen ? double.infinity : 300,
+                                        maxWidth:
+                                            isSmallScreen
+                                                ? double.infinity
+                                                : 300,
                                       ),
                                       child: TextField(
                                         controller: searchController,
-                                        onChanged: (value) => _filtrarEmpleados(),
+                                        onChanged:
+                                            (value) => _filtrarEmpleados(),
                                         decoration: InputDecoration(
                                           hintText: 'Buscar',
                                           filled: true,
                                           fillColor: Colors.grey[100],
                                           border: OutlineInputBorder(
-                                            borderRadius: BorderRadius.circular(10),
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
                                             borderSide: BorderSide(
                                               color: Colors.grey.shade400,
                                             ),
@@ -624,13 +660,20 @@ class _NominaScreenState extends State<NominaScreen> {
                                       ),
                                       child: Container(
                                         constraints: BoxConstraints(
-                                          maxWidth: isSmallScreen ? double.infinity : 260,
+                                          maxWidth:
+                                              isSmallScreen
+                                                  ? double.infinity
+                                                  : 260,
                                           minHeight: 100,
                                         ),
                                         child: Padding(
-                                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 16,
+                                            vertical: 12,
+                                          ),
                                           child: Column(
-                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
                                             children: [
                                               Text(
                                                 'Empleados en cuadrilla',
@@ -668,13 +711,20 @@ class _NominaScreenState extends State<NominaScreen> {
                                       ),
                                       child: Container(
                                         constraints: BoxConstraints(
-                                          maxWidth: isSmallScreen ? double.infinity : 260,
+                                          maxWidth:
+                                              isSmallScreen
+                                                  ? double.infinity
+                                                  : 260,
                                           minHeight: 100,
                                         ),
                                         child: Padding(
-                                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 16,
+                                            vertical: 12,
+                                          ),
                                           child: Column(
-                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
                                             children: [
                                               Text(
                                                 'Total Acumulado Cuadrilla',

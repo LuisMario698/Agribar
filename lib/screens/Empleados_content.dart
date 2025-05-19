@@ -1,15 +1,34 @@
+/// Módulo de gestión de empleados del sistema Agribar.
+/// Permite visualizar, agregar, editar y eliminar información de empleados,
+/// así como gestionar sus datos personales y laborales.
+
 import 'package:flutter/material.dart';
 
+/// Widget principal de la sección de empleados.
+/// Implementa una interfaz con pestañas para organizar diferentes aspectos
+/// de la gestión de empleados.
 class EmpleadosContent extends StatefulWidget {
   @override
   State<EmpleadosContent> createState() => _EmpleadosContentState();
 }
 
+/// Estado del widget EmpleadosContent que maneja:
+/// - Selección de pestañas
+/// - Datos de empleados
+/// - Scroll de la interfaz
 class _EmpleadosContentState extends State<EmpleadosContent> {
-  int _selectedTabIndex = 0;
+  int _selectedTabIndex = 0; // Índice de la pestaña seleccionada
   final ScrollController _tabScrollController = ScrollController();
 
-  // Datos de la tabla (editable)
+  /// Datos de los empleados en formato tabular
+  /// Cada lista representa una fila con los siguientes campos:
+  /// 1. Clave (ID único)
+  /// 2. Nombre
+  /// 3. Apellido paterno
+  /// 4. Apellido materno
+  /// 5. Supervisor/Área
+  /// 6. Salario
+  /// 7. Tipo de pago
   List<List<String>> empleadosData = [
     [
       '*390',
@@ -69,11 +88,7 @@ class _EmpleadosContentState extends State<EmpleadosContent> {
     'Tipo',
   ];
 
-  final List<String> tabTitles = [
-    'General',
-    'Registro',
-    'Registro del Sistema',
-  ];
+  final List<String> tabTitles = ['General', 'Registro'];
 
   // Keys para medir cada tab
   final List<GlobalKey> _tabKeys = List.generate(4, (_) => GlobalKey());
@@ -178,8 +193,6 @@ class _EmpleadosContentState extends State<EmpleadosContent> {
         return _buildGeneralTab();
       case 1:
         return _buildRegistroTab();
-      case 2:
-        return _buildRegistroSistemaTab();
       default:
         return _buildGeneralTab();
     }
@@ -321,10 +334,6 @@ class _EmpleadosContentState extends State<EmpleadosContent> {
         child: RegistroEmpleadoWizard(onEmpleadoRegistrado: agregarEmpleado),
       ),
     );
-  }
-
-  Widget _buildRegistroSistemaTab() {
-    return Center(child: Text('Contenido de Registro del Sistema'));
   }
 }
 
@@ -604,26 +613,22 @@ class _RegistroEmpleadoWizardState extends State<RegistroEmpleadoWizard> {
           Expanded(
             child: Center(
               child: Container(
-                width: 900,
+                constraints: BoxConstraints(maxWidth: 1200),
+                margin: const EdgeInsets.symmetric(horizontal: 24),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(30),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black12,
-                      blurRadius: 16,
+                      blurRadius: 12,
                       offset: Offset(0, 4),
                     ),
                   ],
                 ),
-                padding: EdgeInsets.all(32),
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _buildStepContent(_currentStep, grisInput, verde),
-                    ],
-                  ),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(32),
+                  child: _buildStepContent(_currentStep, grisInput, verde),
                 ),
               ),
             ),
@@ -639,8 +644,11 @@ class _RegistroEmpleadoWizardState extends State<RegistroEmpleadoWizard> {
                       onPressed: () {
                         // Cancelar acción
                       },
-                      icon: Icon(Icons.cancel, color: verde),
-                      label: Text('Cancelar', style: TextStyle(color: verde)),
+                      icon: Icon(Icons.cancel, color: Color(0xFF0B7A2F)),
+                      label: Text(
+                        'Cancelar',
+                        style: TextStyle(color: Color(0xFF0B7A2F)),
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
                         foregroundColor: verde,
@@ -653,8 +661,11 @@ class _RegistroEmpleadoWizardState extends State<RegistroEmpleadoWizard> {
                     )
                     : ElevatedButton.icon(
                       onPressed: _prevStep,
-                      icon: Icon(Icons.arrow_back, color: verde),
-                      label: Text('Anterior', style: TextStyle(color: verde)),
+                      icon: Icon(Icons.arrow_back, color: Color(0xFF0B7A2F)),
+                      label: Text(
+                        'Anterior',
+                        style: TextStyle(color: Color(0xFF0B7A2F)),
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
                         foregroundColor: verde,
@@ -677,7 +688,7 @@ class _RegistroEmpleadoWizardState extends State<RegistroEmpleadoWizard> {
                     _currentStep == totalSteps - 1 ? 'Terminar' : 'Siguiente',
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: verde,
+                    backgroundColor: Color(0xFF0B7A2F),
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(24),
@@ -707,7 +718,8 @@ class _RegistroEmpleadoWizardState extends State<RegistroEmpleadoWizard> {
           return Container(
             width: 60,
             height: 4,
-            color: i ~/ 2 < _currentStep ? verde : Color(0xFFBFC3C7),
+            color:
+                i ~/ 2 < _currentStep ? Color(0xFF0B7A2F) : Color(0xFFBFC3C7),
           );
         } else {
           int idx = i ~/ 2;
@@ -716,7 +728,7 @@ class _RegistroEmpleadoWizardState extends State<RegistroEmpleadoWizard> {
               CircleAvatar(
                 radius: 18,
                 backgroundColor:
-                    idx <= _currentStep ? verde : Color(0xFFBFC3C7),
+                    idx <= _currentStep ? Color(0xFF0B7A2F) : Color(0xFFBFC3C7),
                 child: Text(
                   '${idx + 1}',
                   style: TextStyle(color: Colors.white),
@@ -726,7 +738,10 @@ class _RegistroEmpleadoWizardState extends State<RegistroEmpleadoWizard> {
               Text(
                 titles[idx],
                 style: TextStyle(
-                  color: idx <= _currentStep ? verde : Color(0xFFBFC3C7),
+                  color:
+                      idx <= _currentStep
+                          ? Color(0xFF0B7A2F)
+                          : Color(0xFFBFC3C7),
                   fontWeight:
                       idx == _currentStep ? FontWeight.bold : FontWeight.normal,
                 ),
