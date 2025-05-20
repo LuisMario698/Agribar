@@ -22,30 +22,37 @@ class _CuadrillaContentState extends State<CuadrillaContent> {
   final TextEditingController searchController = TextEditingController();
   final ScrollController _tableScrollController = ScrollController();
 
-  // Lista de cuadrillas (mock data)
-  final List<Map<String, String>> cuadrillas = [
+  // Controladores para el diálogo de autenticación
+  final TextEditingController userController = TextEditingController();
+  final TextEditingController passController = TextEditingController();
+
+  // Lista de cuadrillas (mock data) ahora con estado habilitado/deshabilitado
+  final List<Map<String, dynamic>> cuadrillas = [
     {
       'nombre': 'Indirectos',
       'clave': '000001+390',
       'grupo': 'Grupo Baranzini',
       'actividad': 'Destajo',
+      'habilitado': true,
     },
     {
       'nombre': 'Linea 1',
       'clave': '000002+390',
       'grupo': 'Grupo Baranzini',
       'actividad': 'Destajo',
+      'habilitado': true,
     },
     {
       'nombre': 'Linea 3',
       'clave': '000003+390',
       'grupo': 'Grupo Baranzini',
       'actividad': 'Destajo',
+      'habilitado': true,
     },
   ];
 
   // Lista filtrada para mostrar en la tabla
-  List<Map<String, String>> cuadrillasFiltradas = [];
+  List<Map<String, dynamic>> cuadrillasFiltradas = [];
 
   @override
   void initState() {
@@ -60,14 +67,20 @@ class _CuadrillaContentState extends State<CuadrillaContent> {
       if (query.isEmpty) {
         cuadrillasFiltradas = List.from(cuadrillas);
       } else {
-        cuadrillasFiltradas = cuadrillas.where((c) => c['nombre']!.toLowerCase().contains(query)).toList();
+        cuadrillasFiltradas =
+            cuadrillas
+                .where((c) => c['nombre']!.toLowerCase().contains(query))
+                .toList();
       }
     });
   }
 
   // Crea una nueva cuadrilla y la agrega a la lista
   void _crearCuadrilla() {
-    if (claveController.text.isEmpty || nombreController.text.isEmpty || grupoController.text.isEmpty || actividadSeleccionada == null) {
+    if (claveController.text.isEmpty ||
+        nombreController.text.isEmpty ||
+        grupoController.text.isEmpty ||
+        actividadSeleccionada == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Por favor llena todos los campos.')),
       );
@@ -79,6 +92,7 @@ class _CuadrillaContentState extends State<CuadrillaContent> {
         'clave': claveController.text,
         'grupo': grupoController.text,
         'actividad': actividadSeleccionada!,
+        'habilitado': true, // Por defecto, nueva cuadrilla está habilitada
       });
       _buscarCuadrilla();
       claveController.clear();
@@ -88,6 +102,96 @@ class _CuadrillaContentState extends State<CuadrillaContent> {
     });
   }
 
+  // Validar credenciales de supervisor
+  bool _validarCredencialesSupervisor(String usuario, String password) {
+    return usuario == "supervisor" && password == "1234";
+  }
+
+  // Función para cambiar el estado de habilitado/deshabilitado
+  Future<void> _toggleHabilitado(int index) async {
+    // Mostrar diálogo de autenticación
+    bool? result = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Autenticación de Supervisor'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: userController,
+                decoration: InputDecoration(labelText: 'Usuario'),
+              ),
+              TextField(
+                controller: passController,
+                decoration: InputDecoration(labelText: 'Contraseña'),
+                obscureText: true,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              child: Text('Cancelar'),
+              onPressed: () => Navigator.of(context).pop(false),
+            ),
+            TextButton(
+              child: Text('Aceptar'),
+              onPressed: () {
+                if (_validarCredencialesSupervisor(
+                  userController.text,
+                  passController.text,
+                )) {
+                  Navigator.of(context).pop(true);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Credenciales inválidas'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  Navigator.of(context).pop(false);
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+
+    // Si la autenticación fue exitosa, cambiar el estado
+    if (result == true) {
+      setState(() {
+        // Encuentra la cuadrilla en la lista original usando la clave
+        String clave = cuadrillasFiltradas[index]['clave'];
+        int originalIndex = cuadrillas.indexWhere((c) => c['clave'] == clave);
+
+        if (originalIndex != -1) {
+          cuadrillas[originalIndex]['habilitado'] =
+              !cuadrillas[originalIndex]['habilitado'];
+
+          // Mostrar mensaje de confirmación
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Cuadrilla ${cuadrillas[originalIndex]['habilitado'] ? "habilitada" : "deshabilitada"} correctamente',
+              ),
+              backgroundColor:
+                  cuadrillas[originalIndex]['habilitado']
+                      ? Colors.green
+                      : Colors.orange,
+            ),
+          );
+
+          _buscarCuadrilla(); // Actualiza la lista filtrada
+        }
+      });
+    }
+
+    // Limpiar los controladores
+    userController.clear();
+    passController.clear();
+  }
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -95,8 +199,9 @@ class _CuadrillaContentState extends State<CuadrillaContent> {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final isSmallScreen = constraints.maxWidth < 800;
-            final cardWidth = (isSmallScreen ? constraints.maxWidth * 0.9 : 1400).toDouble();
-            
+            final cardWidth =
+                (isSmallScreen ? constraints.maxWidth * 0.9 : 1400).toDouble();
+
             return Card(
               elevation: 12,
               shape: RoundedRectangleBorder(
@@ -115,7 +220,10 @@ class _CuadrillaContentState extends State<CuadrillaContent> {
                     // Título
                     Text(
                       'Gestión de Cuadrillas',
-                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     SizedBox(height: 32),
                     // Formulario para crear cuadrillas
@@ -150,7 +258,9 @@ class _CuadrillaContentState extends State<CuadrillaContent> {
                                         filled: true,
                                         fillColor: Colors.grey[200],
                                         border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(8),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
                                           borderSide: BorderSide.none,
                                         ),
                                       ),
@@ -172,7 +282,9 @@ class _CuadrillaContentState extends State<CuadrillaContent> {
                                         filled: true,
                                         fillColor: Colors.grey[200],
                                         border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(8),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
                                           borderSide: BorderSide.none,
                                         ),
                                       ),
@@ -194,7 +306,9 @@ class _CuadrillaContentState extends State<CuadrillaContent> {
                                         filled: true,
                                         fillColor: Colors.grey[200],
                                         border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(8),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
                                           borderSide: BorderSide.none,
                                         ),
                                       ),
@@ -212,12 +326,15 @@ class _CuadrillaContentState extends State<CuadrillaContent> {
                                     const SizedBox(height: 8),
                                     DropdownButtonFormField<String>(
                                       value: actividadSeleccionada,
-                                      items: actividades
-                                          .map((a) => DropdownMenuItem(
-                                                value: a,
-                                                child: Text(a),
-                                              ))
-                                          .toList(),
+                                      items:
+                                          actividades
+                                              .map(
+                                                (a) => DropdownMenuItem(
+                                                  value: a,
+                                                  child: Text(a),
+                                                ),
+                                              )
+                                              .toList(),
                                       onChanged: (value) {
                                         setState(() {
                                           actividadSeleccionada = value;
@@ -227,7 +344,9 @@ class _CuadrillaContentState extends State<CuadrillaContent> {
                                         filled: true,
                                         fillColor: Colors.grey[200],
                                         border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(8),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
                                           borderSide: BorderSide.none,
                                         ),
                                       ),
@@ -243,13 +362,19 @@ class _CuadrillaContentState extends State<CuadrillaContent> {
                             child: ElevatedButton(
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Color(0xFF0B7A2F),
-                                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 40,
+                                  vertical: 12,
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                               ),
                               onPressed: _crearCuadrilla,
-                              child: const Text('Crear', style: TextStyle(fontSize: 18)),
+                              child: const Text(
+                                'Crear',
+                                style: TextStyle(fontSize: 18),
+                              ),
                             ),
                           ),
                         ],
@@ -306,7 +431,9 @@ class _CuadrillaContentState extends State<CuadrillaContent> {
                     Card(
                       color: Colors.white,
                       elevation: 12,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
                       child: Container(
                         padding: const EdgeInsets.all(16),
                         child: SizedBox(
@@ -318,27 +445,176 @@ class _CuadrillaContentState extends State<CuadrillaContent> {
                               controller: _tableScrollController,
                               children: [
                                 DataTable(
-                                  headingRowColor: MaterialStateProperty.all(Color(0xFFE0E0E0)),
-                                  dataRowColor: MaterialStateProperty.all(Colors.white),
+                                  headingRowColor: MaterialStateProperty.all(
+                                    Color(0xFFE0E0E0),
+                                  ),
+                                  dataRowColor: MaterialStateProperty.resolveWith<
+                                    Color?
+                                  >((Set<MaterialState> states) {
+                                    // Cambiar color de fondo si está deshabilitado
+                                    final rowIndex =
+                                        states.contains(MaterialState.selected)
+                                            ? states.toList().indexOf(
+                                              MaterialState.selected,
+                                            )
+                                            : -1;
+                                    if (rowIndex != -1 &&
+                                        rowIndex < cuadrillasFiltradas.length) {
+                                      return cuadrillasFiltradas[rowIndex]['habilitado'] ==
+                                              false
+                                          ? Colors.grey[100]
+                                          : null;
+                                    }
+                                    return null;
+                                  }),
                                   border: TableBorder.all(
                                     color: Colors.grey.shade400,
                                     width: 1,
                                     style: BorderStyle.solid,
                                   ),
                                   columns: const [
-                                    DataColumn(label: Text('Nombre', style: TextStyle(fontWeight: FontWeight.bold))),
-                                    DataColumn(label: Text('Clave', style: TextStyle(fontWeight: FontWeight.bold))),
-                                    DataColumn(label: Text('Grupo', style: TextStyle(fontWeight: FontWeight.bold))),
-                                    DataColumn(label: Text('Actividad', style: TextStyle(fontWeight: FontWeight.bold))),
+                                    DataColumn(
+                                      label: Text(
+                                        'Nombre',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                    DataColumn(
+                                      label: Text(
+                                        'Clave',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                    DataColumn(
+                                      label: Text(
+                                        'Grupo',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                    DataColumn(
+                                      label: Text(
+                                        'Actividad',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                    DataColumn(
+                                      label: Text(
+                                        'Estado',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
                                   ],
-                                  rows: cuadrillasFiltradas.map((cuadrilla) {
-                                    return DataRow(cells: [
-                                      DataCell(Text(cuadrilla['nombre']!)),
-                                      DataCell(Text(cuadrilla['clave']!)),
-                                      DataCell(Text(cuadrilla['grupo']!)),
-                                      DataCell(Text(cuadrilla['actividad']!)),
-                                    ]);
-                                  }).toList(),
+                                  rows:
+                                      cuadrillasFiltradas.asMap().entries.map((
+                                        entry,
+                                      ) {
+                                        final index = entry.key;
+                                        final cuadrilla = entry.value;
+                                        return DataRow(
+                                          cells: [
+                                            DataCell(
+                                              Text(
+                                                cuadrilla['nombre'],
+                                                style: TextStyle(
+                                                  color:
+                                                      cuadrilla['habilitado'] ==
+                                                              false
+                                                          ? Colors.grey[600]
+                                                          : null,
+                                                ),
+                                              ),
+                                            ),
+                                            DataCell(
+                                              Text(
+                                                cuadrilla['clave'],
+                                                style: TextStyle(
+                                                  color:
+                                                      cuadrilla['habilitado'] ==
+                                                              false
+                                                          ? Colors.grey[600]
+                                                          : null,
+                                                ),
+                                              ),
+                                            ),
+                                            DataCell(
+                                              Text(
+                                                cuadrilla['grupo'],
+                                                style: TextStyle(
+                                                  color:
+                                                      cuadrilla['habilitado'] ==
+                                                              false
+                                                          ? Colors.grey[600]
+                                                          : null,
+                                                ),
+                                              ),
+                                            ),
+                                            DataCell(
+                                              Text(
+                                                cuadrilla['actividad'],
+                                                style: TextStyle(
+                                                  color:
+                                                      cuadrilla['habilitado'] ==
+                                                              false
+                                                          ? Colors.grey[600]
+                                                          : null,
+                                                ),
+                                              ),
+                                            ),
+                                            DataCell(
+                                              Container(
+                                                width: 120,
+                                                child: ElevatedButton(
+                                                  style: ElevatedButton.styleFrom(
+                                                    backgroundColor:
+                                                        cuadrilla['habilitado']
+                                                            ? Color(
+                                                              0xFFE53935,
+                                                            ) // Rojo para deshabilitar
+                                                            : Color(
+                                                              0xFF0B7A2F,
+                                                            ), // Verde para habilitar
+                                                    foregroundColor:
+                                                        Colors.white,
+                                                    padding:
+                                                        EdgeInsets.symmetric(
+                                                          horizontal: 8,
+                                                          vertical: 4,
+                                                        ),
+                                                    shape: RoundedRectangleBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            8,
+                                                          ),
+                                                    ),
+                                                  ),
+                                                  onPressed:
+                                                      () => _toggleHabilitado(
+                                                        index,
+                                                      ),
+                                                  child: Text(
+                                                    cuadrilla['habilitado']
+                                                        ? 'Deshabilitar'
+                                                        : 'Habilitar',
+                                                    style: TextStyle(
+                                                      fontSize: 13,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        );
+                                      }).toList(),
                                 ),
                               ],
                             ),

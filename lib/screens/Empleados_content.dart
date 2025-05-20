@@ -29,53 +29,67 @@ class _EmpleadosContentState extends State<EmpleadosContent> {
   /// 5. Supervisor/Área
   /// 6. Salario
   /// 7. Tipo de pago
-  List<List<String>> empleadosData = [
-    [
-      '*390',
-      'Juan Carlos',
-      'Rodríguez',
-      'Fierro',
-      'JOSE FRANCISCO GONZALES REA',
-      '241.00',
-      'Fijo',
-    ],
-    [
-      '000001*390',
-      'Celestino',
-      'Hernandez',
-      'Martinez',
-      'Indirectos',
-      '2375.00',
-      'Fijo',
-    ],
-    ['000002*390', 'Ines', 'Cruz', 'Quiroz', 'Indirectos', '2375.00', 'Fijo'],
-    [
-      '000003*390',
-      'Feliciano',
-      'Cruz',
-      'Quiroz',
-      'Indirectos',
-      '2375.00',
-      'Fijo',
-    ],
-    [
-      '000003*390',
-      'Refugio Socorro',
-      'Ramirez',
-      'Carre--o',
-      'Indirectos',
-      '2375.00',
-      'Fijo',
-    ],
-    [
-      '000004*390',
-      'Adela',
-      'Rodriguez',
-      'Ramirez',
-      'Indirectos',
-      '2375.00',
-      'Fijo',
-    ],
+  List<Map<String, dynamic>> empleadosData = [
+    {
+      'clave': '*390',
+      'nombre': 'Juan Carlos',
+      'apellidoPaterno': 'Rodríguez',
+      'apellidoMaterno': 'Fierro',
+      'cuadrilla': 'JOSE FRANCISCO GONZALES REA',
+      'sueldo': '241.00',
+      'tipo': 'Fijo',
+      'habilitado': true,
+    },
+    {
+      'clave': '000001*390',
+      'nombre': 'Celestino',
+      'apellidoPaterno': 'Hernandez',
+      'apellidoMaterno': 'Martinez',
+      'cuadrilla': 'Indirectos',
+      'sueldo': '2375.00',
+      'tipo': 'Fijo',
+      'habilitado': true,
+    },
+    {
+      'clave': '000002*390',
+      'nombre': 'Ines',
+      'apellidoPaterno': 'Cruz',
+      'apellidoMaterno': 'Quiroz',
+      'cuadrilla': 'Indirectos',
+      'sueldo': '2375.00',
+      'tipo': 'Fijo',
+      'habilitado': true,
+    },
+    {
+      'clave': '000003*390',
+      'nombre': 'Feliciano',
+      'apellidoPaterno': 'Cruz',
+      'apellidoMaterno': 'Quiroz',
+      'cuadrilla': 'Indirectos',
+      'sueldo': '2375.00',
+      'tipo': 'Fijo',
+      'habilitado': true,
+    },
+    {
+      'clave': '000003*390',
+      'nombre': 'Refugio Socorro',
+      'apellidoPaterno': 'Ramirez',
+      'apellidoMaterno': 'Carre--o',
+      'cuadrilla': 'Indirectos',
+      'sueldo': '2375.00',
+      'tipo': 'Fijo',
+      'habilitado': true,
+    },
+    {
+      'clave': '000004*390',
+      'nombre': 'Adela',
+      'apellidoPaterno': 'Rodriguez',
+      'apellidoMaterno': 'Ramirez',
+      'cuadrilla': 'Indirectos',
+      'sueldo': '2375.00',
+      'tipo': 'Fijo',
+      'habilitado': true,
+    },
   ];
 
   final List<String> empleadosHeaders = [
@@ -86,6 +100,7 @@ class _EmpleadosContentState extends State<EmpleadosContent> {
     'Cuadrilla',
     'Sueldo',
     'Tipo',
+    'Estado',
   ];
 
   final List<String> tabTitles = ['General', 'Registro'];
@@ -123,194 +138,365 @@ class _EmpleadosContentState extends State<EmpleadosContent> {
     final RenderBox? parentBox = context.findRenderObject() as RenderBox?;
     if (box != null && parentBox != null) {
       box.localToGlobal(Offset.zero, ancestor: parentBox);
-      setState(() {
-      });
+      setState(() {});
     }
   }
 
   void agregarEmpleado(List<String> nuevoEmpleado) {
     setState(() {
-      empleadosData.add(nuevoEmpleado);
-      _selectedTabIndex = 0; // Opcional: regresa a la pestaña General
+      empleadosData.add({
+        'clave': nuevoEmpleado[0],
+        'nombre': nuevoEmpleado[1],
+        'apellidoPaterno': nuevoEmpleado[2],
+        'apellidoMaterno': nuevoEmpleado[3],
+        'cuadrilla': nuevoEmpleado[4],
+        'sueldo': nuevoEmpleado[5],
+        'tipo': nuevoEmpleado[6],
+        'habilitado': true, // Por defecto, nuevo empleado está habilitado
+      });
+      _selectedTabIndex = 0; // Regresa a la pestaña General
     });
   }
 
-  @override
-Widget build(BuildContext context) {
-  return Center(
-    child: LayoutBuilder(
-      builder: (context, constraints) {
-        final cardWidth = (constraints.maxWidth < 800 ? constraints.maxWidth * 0.9 : 1400).toDouble();
+  // Controladores para el diálogo de autenticación
+  final TextEditingController userController = TextEditingController();
+  final TextEditingController passController = TextEditingController();
 
-        return Card(
-          elevation: 8,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(32),
+  // Validar credenciales de supervisor
+  bool _validarCredencialesSupervisor(String usuario, String password) {
+    return usuario == "supervisor" && password == "1234";
+  }
+
+  // Método para cambiar el estado de habilitado/deshabilitado
+  Future<void> _toggleHabilitado(int index) async {
+    // Mostrar diálogo de autenticación
+    bool? result = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Autenticación de Supervisor'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: userController,
+                decoration: InputDecoration(labelText: 'Usuario'),
+              ),
+              TextField(
+                controller: passController,
+                decoration: InputDecoration(labelText: 'Contraseña'),
+                obscureText: true,
+              ),
+            ],
           ),
-          margin: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
-          child: Container(
-            constraints: BoxConstraints(maxWidth: cardWidth),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // TabBar visual mejorado
-                  Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: Color(0xFFF3F1EA),
-                      borderRadius: BorderRadius.circular(16),
+          actions: [
+            TextButton(
+              child: Text('Cancelar'),
+              onPressed: () => Navigator.of(context).pop(false),
+            ),
+            TextButton(
+              child: Text('Aceptar'),
+              onPressed: () {
+                if (_validarCredencialesSupervisor(
+                  userController.text,
+                  passController.text,
+                )) {
+                  Navigator.of(context).pop(true);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Credenciales inválidas'),
+                      backgroundColor: Colors.red,
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-                    child: Row(
-                      children: List.generate(tabTitles.length, (i) {
-                        return _EmpleadosTab(
-                          text: tabTitles[i],
-                          selected: _selectedTabIndex == i,
-                          onTap: () => _onTabSelected(i),
-                        );
-                      }),
+                  );
+                  Navigator.of(context).pop(false);
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+
+    // Si la autenticación fue exitosa, cambiar el estado
+    if (result == true) {
+      setState(() {
+        empleadosData[index]['habilitado'] =
+            !empleadosData[index]['habilitado'];
+      });
+
+      // Mostrar mensaje de confirmación
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Empleado ${empleadosData[index]['habilitado'] ? "habilitado" : "deshabilitado"} correctamente',
+          ),
+          backgroundColor:
+              empleadosData[index]['habilitado'] ? Colors.green : Colors.orange,
+        ),
+      );
+    }
+
+    // Limpiar los controladores
+    userController.clear();
+    passController.clear();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final cardWidth =
+              (constraints.maxWidth < 800 ? constraints.maxWidth * 0.9 : 1400)
+                  .toDouble();
+
+          return Card(
+            elevation: 8,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(32),
+            ),
+            margin: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
+            child: Container(
+              constraints: BoxConstraints(maxWidth: cardWidth),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // TabBar visual mejorado
+                    Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Color(0xFFF3F1EA),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 0,
+                      ),
+                      child: Row(
+                        children: List.generate(tabTitles.length, (i) {
+                          return _EmpleadosTab(
+                            text: tabTitles[i],
+                            selected: _selectedTabIndex == i,
+                            onTap: () => _onTabSelected(i),
+                          );
+                        }),
+                      ),
                     ),
+                    SizedBox(height: 16),
+                    // Contenido según la pestaña seleccionada
+                    Expanded(child: _buildTabContent()),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildTabContent() {
+    switch (_selectedTabIndex) {
+      case 0:
+        return _buildGeneralTab();
+      case 1:
+        return _buildRegistroTab();
+      default:
+        return _buildGeneralTab();
+    }
+  }
+
+  Widget _buildGeneralTab() {
+    int minRows = 20;
+    int extraRows =
+        empleadosData.length < minRows ? minRows - empleadosData.length : 0;
+
+    // Calcular empleados activos e inactivos
+    int empleadosActivos =
+        empleadosData.where((emp) => emp['habilitado'] == true).length;
+    int empleadosInactivos =
+        empleadosData.where((emp) => emp['habilitado'] == false).length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Métricas
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            _EmpleadosMetricCard(
+              title: 'Empleados activos',
+              value: empleadosActivos.toString(),
+              icon: Icons.person,
+              iconColor: Color(
+                0xFF0B7A2F,
+              ), // Verde más oscuro para empleados activos
+            ),
+            SizedBox(width: 32),
+            _EmpleadosMetricCard(
+              title: 'Empleados inactivos',
+              value: empleadosInactivos.toString(),
+              icon: Icons.person,
+              iconColor: Color(0xFFE53935), // Rojo para empleados inactivos
+            ),
+          ],
+        ),
+        SizedBox(height: 32),
+        // Tabla NO editable y con bordes redondeados
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 12,
+                    offset: Offset(0, 4),
                   ),
-                  SizedBox(height: 16),
-                  // Contenido según la pestaña seleccionada
-                  Expanded(child: _buildTabContent()),
                 ],
+              ),
+              padding: EdgeInsets.all(0),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minWidth: constraints.maxWidth,
+                      ),
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.vertical,
+                        child: DataTable(
+                          border: TableBorder.all(
+                            color: Color(0xFFE5E5E5),
+                            width: 1.2,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          headingRowColor: MaterialStateProperty.all(
+                            Color(0xFFF3F3F3),
+                          ),
+                          columnSpacing: 24,
+                          columns:
+                              empleadosHeaders.map((header) {
+                                return DataColumn(
+                                  label: Text(
+                                    header,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                          rows: [
+                            ...List.generate(empleadosData.length, (rowIdx) {
+                              return DataRow(
+                                // Cambiar el color de fondo si el empleado está deshabilitado
+                                color: MaterialStateProperty.resolveWith<
+                                  Color?
+                                >((Set<MaterialState> states) {
+                                  if (!empleadosData[rowIdx]['habilitado']) {
+                                    return Colors
+                                        .grey[100]; // Fondo gris claro para deshabilitados
+                                  }
+                                  return null; // Usar el color por defecto
+                                }),
+                                cells: [
+                                  DataCell(
+                                    Text(empleadosData[rowIdx]['clave'] ?? ''),
+                                  ),
+                                  DataCell(
+                                    Text(empleadosData[rowIdx]['nombre'] ?? ''),
+                                  ),
+                                  DataCell(
+                                    Text(
+                                      empleadosData[rowIdx]['apellidoPaterno'] ??
+                                          '',
+                                    ),
+                                  ),
+                                  DataCell(
+                                    Text(
+                                      empleadosData[rowIdx]['apellidoMaterno'] ??
+                                          '',
+                                    ),
+                                  ),
+                                  DataCell(
+                                    Text(
+                                      empleadosData[rowIdx]['cuadrilla'] ?? '',
+                                    ),
+                                  ),
+                                  DataCell(
+                                    Text(empleadosData[rowIdx]['sueldo'] ?? ''),
+                                  ),
+                                  DataCell(
+                                    Text(empleadosData[rowIdx]['tipo'] ?? ''),
+                                  ),
+                                  DataCell(
+                                    Container(
+                                      width: 120,
+                                      child: ElevatedButton(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor:
+                                              empleadosData[rowIdx]['habilitado']
+                                                  ? Color(
+                                                    0xFFE53935,
+                                                  ) // Rojo para deshabilitar
+                                                  : Color(
+                                                    0xFF0B7A2F,
+                                                  ), // Verde para habilitar
+                                          foregroundColor: Colors.white,
+                                          padding: EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                          ),
+                                        ),
+                                        onPressed:
+                                            () => _toggleHabilitado(rowIdx),
+                                        child: Text(
+                                          empleadosData[rowIdx]['habilitado']
+                                              ? 'Deshabilitar'
+                                              : 'Habilitar',
+                                          style: TextStyle(fontSize: 13),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            }),
+                            // Filas vacías
+                            ...List.generate(extraRows, (i) {
+                              return DataRow(
+                                cells: List.generate(empleadosHeaders.length, (
+                                  colIdx,
+                                ) {
+                                  return DataCell(Text(''));
+                                }),
+                              );
+                            }),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
           ),
-        );
-      },
-    ),
-  );
-}
-
-Widget _buildTabContent() {
-  switch (_selectedTabIndex) {
-    case 0:
-      return _buildGeneralTab();
-    case 1:
-      return _buildRegistroTab();
-    default:
-      return _buildGeneralTab();
-  }
-}
-
-Widget _buildGeneralTab() {
-  int minRows = 20;
-  int extraRows = empleadosData.length < minRows ? minRows - empleadosData.length : 0;
-
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      // Métricas
-      Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: 
-        [          _EmpleadosMetricCard(
-            title: 'Empleados activos',
-            value: '87',
-            icon: Icons.person,
-            iconColor: Color(0xFF0B7A2F), // Verde más oscuro para empleados activos
-          ),
-          SizedBox(width: 32),
-          _EmpleadosMetricCard(
-            title: 'Empleados inactivos',
-            value: '87',
-            icon: Icons.person,
-            iconColor: Color(0xFFE53935), // Rojo para empleados inactivos
-          ),
-        ],
-      ),
-      SizedBox(height: 32),
-      // Tabla NO editable y con bordes redondeados
-      Expanded(
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(18),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black12,
-                  blurRadius: 12,
-                  offset: Offset(0, 4),
-                ),
-              ],
-            ),
-            padding: EdgeInsets.all(0),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                return SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(minWidth: constraints.maxWidth),
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.vertical,
-                      child: DataTable(
-                        border: TableBorder.all(
-                          color: Color(0xFFE5E5E5),
-                          width: 1.2,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        headingRowColor: MaterialStateProperty.all(Color(0xFFF3F3F3)),
-                        columnSpacing: 24,
-                        columns: empleadosHeaders.map((header) {
-                          return DataColumn(
-                            label: Text(
-                              header,
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                          );
-                        }).toList(),
-                        rows: [
-                          ...List.generate(empleadosData.length, (rowIdx) {
-                            return DataRow(
-                              cells: List.generate(empleadosHeaders.length, (colIdx) {
-                                return DataCell(
-                                  Container(
-                                    width: 140,
-                                    child: Text(
-                                      empleadosData[rowIdx][colIdx],
-                                      style: TextStyle(fontSize: 15),
-                                    ),
-                                  ),
-                                );
-                              }),
-                            );
-                          }),
-                          // Filas vacías
-                          ...List.generate(extraRows, (i) {
-                            return DataRow(
-                              cells: List.generate(empleadosHeaders.length, (colIdx) {
-                                return DataCell(
-                                  Container(
-                                    width: 140,
-                                    child: Text(
-                                      '',
-                                      style: TextStyle(fontSize: 15, color: Colors.grey[400]),
-                                    ),
-                                  ),
-                                );
-                              }),
-                            );
-                          }),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
         ),
-      ),
-    ],
-  );
-}
-
+      ],
+    );
+  }
 
   Widget _buildRegistroTab() {
     return ClipRRect(
@@ -411,11 +597,8 @@ class _EmpleadosMetricCard extends StatelessWidget {
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
-        children: [          Icon(
-            icon,
-            size: 24,
-            color: iconColor,
-          ),
+        children: [
+          Icon(icon, size: 24, color: iconColor),
           SizedBox(width: 18),
           Text(
             title,
@@ -586,6 +769,7 @@ class _RegistroEmpleadoWizardState extends State<RegistroEmpleadoWizard> {
     descuentoInfonavitController.clear();
     setState(() {});
   }
+
   @override
   Widget build(BuildContext context) {
     final Color verde = Color(0xFF8AB531);
