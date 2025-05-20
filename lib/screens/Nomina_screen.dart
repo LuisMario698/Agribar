@@ -388,7 +388,8 @@ class _NominaScreenState extends State<NominaScreen> {
       children: [
         Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1400),            child: Card(
+            constraints: const BoxConstraints(maxWidth: 1400),
+            child: Card(
               elevation: 12,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(32),
@@ -407,6 +408,11 @@ class _NominaScreenState extends State<NominaScreen> {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       const SizedBox(height: 40),
+                      Text(
+                        'Nóminas',
+                        style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)
+                      ),
+                      const SizedBox(height: 30),
                       // Contenedor flex para los cards superiores
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.center,
