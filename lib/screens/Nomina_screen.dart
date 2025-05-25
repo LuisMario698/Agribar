@@ -5,6 +5,11 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
 import 'package:flutter/services.dart';
+import 'package:agribar/widgets/app_button.dart';
+import 'package:agribar/widgets/data_table_widget.dart';
+import 'package:agribar/widgets/indicator_card.dart';
+import 'package:agribar/widgets/dias_trabajados_table.dart';
+import 'package:agribar/widgets/editable_data_table.dart';
 
 /// Widget principal de la pantalla de nómina.
 /// Gestiona el proceso completo de nómina semanal incluyendo:
@@ -311,12 +316,12 @@ class _NominaScreenState extends State<NominaScreen> {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final isSmallScreen = screenWidth < 1200;
-    // Calcular el total de la semana (suma de todas las cuadrillas)
-    final totalSemana = empleados.fold<int>(
-      0,
-      (sum, e) => sum + (e['neto'] as int? ?? 0),
-    );
+    // Removing unused variables
+    // final isSmallScreen = screenWidth < 1200;
+    // final totalSemana = empleados.fold<int>(
+    //   0,
+    //   (sum, e) => sum + (e['neto'] as int? ?? 0),
+    // );
 
     return Stack(
       children: [
@@ -325,601 +330,107 @@ class _NominaScreenState extends State<NominaScreen> {
             constraints: const BoxConstraints(maxWidth: 1400),
             child: Card(
               elevation: 12,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(32),
-              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
               margin: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
               child: SingleChildScrollView(
-                child: Container(
-                  constraints: BoxConstraints(
-                    minHeight: MediaQuery.of(context).size.height * 0.9,
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 0,
-                    horizontal: 50,
-                  ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 50),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const SizedBox(height: 40),
-                      Text(
-                        'Nóminas',
-                        style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)
-                      ),
-                      const SizedBox(height: 30),
-                      // Contenedor flex para los cards superiores
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
+                      const SizedBox(height: 16),
+                      // Title and weekly total indicator
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const SizedBox(height: 8),
-                          // Total Semana Acumulado card at top
-                          Card(
+                          Text('Nóminas', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                          IndicatorCard(
+                            title: 'Total Semana',
+                            value: '\$${empleados.fold<int>(0, (sum, e) => sum + (e['neto'] as int? ?? 0))}',
+                            icon: Icons.calendar_view_week,
                             color: Colors.white,
-                            elevation: 12,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(18),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 32,
-                                vertical: 24,
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Text(
-                                    'Total Semana Acumulado',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    '\$$totalSemana',
-                                    style: const TextStyle(
-                                      fontSize: 36,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.green,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      _buildFilterBar(),
+                      const SizedBox(height: 24),
+                      _buildSearchAndIndicators(),
+                      const SizedBox(height: 24),
+                      // Top controls: expand and view days
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          AppButton(
+                            label: 'Expandir tabla',
+                            icon: Icons.open_in_full,
+                            onPressed: () => setState(() => isFullScreen = true),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blueGrey,
+                              foregroundColor: Colors.white,
                             ),
                           ),
-                          const SizedBox(
-                            height: 24,
-                          ), // Container Card for both Semana and Cuadrilla
-                          Card(
-                            color: Color.fromARGB(255, 219, 219, 219),
-                            elevation: 8,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(24),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(32),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  // Card: Semana
-                                  Flexible(
-                                    child: ConstrainedBox(
-                                      constraints: BoxConstraints(
-                                        maxWidth: 400,
-                                        minWidth: 300,
-                                      ),
-                                      child: Card(
-                                        color: Colors.white,
-                                        elevation: 12,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            18,
-                                          ),
-                                        ),
-                                        child: SizedBox(
-                                          height: 180,
-                                          child: Padding(
-                                            padding: const EdgeInsets.all(24),
-                                            child: Column(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.center,
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.center,
-                                              children: [
-                                                Text(
-                                                  'Semana',
-                                                  style: TextStyle(
-                                                    fontSize: 22,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: Colors.green[900],
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 16),
-                                                OutlinedButton(
-                                                  onPressed: _seleccionarSemana,
-                                                  style: OutlinedButton.styleFrom(
-                                                    side: const BorderSide(
-                                                      color: Colors.black54,
-                                                      width: 1.2,
-                                                    ),
-                                                    shape: RoundedRectangleBorder(
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            22,
-                                                          ),
-                                                    ),
-                                                  ),
-                                                  child: Text(
-                                                    semanaSeleccionada == null
-                                                        ? 'Inicio → Final'
-                                                        : '${semanaSeleccionada!.start.day}/${semanaSeleccionada!.start.month}/${semanaSeleccionada!.start.year} → ${semanaSeleccionada!.end.day}/${semanaSeleccionada!.end.month}/${semanaSeleccionada!.end.year}',
-                                                    style: TextStyle(
-                                                      fontSize: 16,
-                                                      color: Colors.green[900],
-                                                      fontWeight:
-                                                          FontWeight.w500,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 24),
-                                  // Card: Cuadrilla
-                                  Flexible(
-                                    child: ConstrainedBox(
-                                      constraints: BoxConstraints(
-                                        maxWidth: 400,
-                                        minWidth: 300,
-                                      ),
-                                      child: Card(
-                                        color: Colors.white,
-                                        elevation: 12,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            18,
-                                          ),
-                                        ),
-                                        child: SizedBox(
-                                          height: 180,
-                                          child: Padding(
-                                            padding: const EdgeInsets.all(24),
-                                            child: Column(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.center,
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.center,
-                                              children: [
-                                                Text(
-                                                  'Cuadrilla',
-                                                  style: TextStyle(
-                                                    fontSize: 22,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: Colors.green[900],
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 16),
-                                                DropdownButton<String>(
-                                                  value: cuadrillaSeleccionada,
-                                                  isExpanded: true,
-                                                  items:
-                                                      cuadrillas
-                                                          .map(
-                                                            (
-                                                              c,
-                                                            ) => DropdownMenuItem(
-                                                              value:
-                                                                  c['nombre'],
-                                                              child: Text(
-                                                                c['nombre'] ??
-                                                                    '',
-                                                              ),
-                                                            ),
-                                                          )
-                                                          .toList(),
-                                                  onChanged: (value) {
-                                                    setState(() {
-                                                      cuadrillaSeleccionada =
-                                                          value;
-                                                      _filtrarEmpleados();
-                                                    });
-                                                  },
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
+                          const SizedBox(width: 12),
+                          AppButton(
+                            label: 'Ver días trabajados',
+                            icon: Icons.calendar_today,
+                            onPressed: () => setState(() => showDiasTrabajados = true),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.orange,
+                              foregroundColor: Colors.white,
                             ),
                           ),
                         ],
                       ),
-                      // <-- This closes the Row's children list
-                      SingleChildScrollView(
-                        child: Padding(
-                          padding: const EdgeInsets.all(15.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const SizedBox(height: 24),
-                              // Indicadores a la derecha (sin el Total Semana Acumulado de abajo)
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  // Buscador a la izquierda
-                                  Container(
-                                    width: 300,
-                                    child: TextField(
-                                      controller: searchController,
-                                      onChanged: (value) => _filtrarEmpleados(),
-                                      decoration: InputDecoration(
-                                        hintText: 'Buscar',
-                                        filled: true,
-                                        fillColor: Colors.grey[100],
-                                        border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            10,
-                                          ),
-                                          borderSide: BorderSide(
-                                            color: Colors.grey.shade400,
-                                          ),
-                                        ),
-                                        suffixIcon: Icon(
-                                          Icons.search,
-                                          color: Colors.grey,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  // Tarjetas a la derecha
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Card(
-                                        color: Colors.white,
-                                        elevation: 12,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                        ),
-                                        child: Container(
-                                          constraints: BoxConstraints(
-                                            maxWidth:
-                                                isSmallScreen
-                                                    ? double.infinity
-                                                    : 220,
-                                            minHeight: 100,
-                                          ),
-                                          child: Padding(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 16,
-                                              vertical: 12,
-                                            ),
-                                            child: Column(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.center,
-                                              children: [
-                                                Text(
-                                                  'Empleados en cuadrilla',
-                                                  style: TextStyle(
-                                                    fontSize: 16,
-                                                    fontWeight: FontWeight.w500,
-                                                    color: Colors.green[900],
-                                                  ),
-                                                  textAlign: TextAlign.center,
-                                                ),
-                                                const SizedBox(height: 8),
-                                                Row(
-                                                  mainAxisAlignment:
-                                                      MainAxisAlignment.center,
-                                                  children: [
-                                                    Icon(
-                                                      Icons.people,
-                                                      size: 32,
-                                                      color: Colors.blue[700],
-                                                    ),
-                                                    const SizedBox(width: 8),
-                                                    Text(
-                                                      '${empleadosFiltrados.length}',
-                                                      style: TextStyle(
-                                                        fontSize: 32,
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                        color: Colors.blue[700],
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Card(
-                                        color: Colors.white,
-                                        elevation: 12,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                        ),
-                                        child: Container(
-                                          constraints: BoxConstraints(
-                                            maxWidth:
-                                                isSmallScreen
-                                                    ? double.infinity
-                                                    : 220,
-                                            minHeight: 100,
-                                          ),
-                                          child: Padding(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 16,
-                                              vertical: 12,
-                                            ),
-                                            child: Column(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.center,
-                                              children: [
-                                                Text(
-                                                  'Total Acumulado Cuadrilla',
-                                                  style: TextStyle(
-                                                    fontSize: 15,
-                                                    fontWeight: FontWeight.w500,
-                                                    color: Colors.green[900],
-                                                  ),
-                                                  textAlign: TextAlign.center,
-                                                ),
-                                                const SizedBox(height: 8),
-                                                Text(
-                                                  '\$${empleadosFiltrados.fold<int>(0, (sum, e) => sum + (e['neto'] as int? ?? 0))}',
-                                                  style: const TextStyle(
-                                                    fontSize: 32,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: Colors.green,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 25),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  // Botón nuevo a la izquierda
-                                  ElevatedButton.icon(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 16,
-                                        vertical: 8,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                    ),
-                                    onPressed: () {
-                                      setState(() {
-                                        showDiasTrabajados = true;
-                                      });
-                                    },
-                                    icon: const Icon(
-                                      Icons.calendar_today,
-                                      color: Colors.blue,
-                                    ),
-                                    label: const Text(
-                                      'Ver días trabajados',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.blue,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  ElevatedButton.icon(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor:
-                                          Colors.white, // White background
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 16,
-                                        vertical: 8,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                    ),
-                                    onPressed: () {
-                                      setState(() {
-                                        isFullScreen =
-                                            !isFullScreen; // Toggle full-screen mode
-                                      });
-                                    },
-                                    icon: const Icon(
-                                      Icons.fullscreen,
-                                      color: Colors.green,
-                                    ), // Expand icon with green color
-                                    label: const Text(
-                                      'Expandir Tabla',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.green,
-                                      ),
-                                    ), // Green text
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 1),
-                              Center(
-                                child: Card(
-                                  color: Colors.white,
-                                  elevation: 0,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(18),
-                                  ),
-                                  child: Container(
-                                    width: 1200,
-                                    height: 440,
-                                    padding: const EdgeInsets.all(16),
-                                    child: Column(
-                                      children: [
-                                        Expanded(
-                                          child: ScrollableDataTable(
-                                            key: ValueKey('expanded'),
-                                            data:
-                                                List<Map<String, dynamic>>.from(
-                                                  empleadosFiltrados,
-                                                ),
-                                            selectedWeek: semanaSeleccionada,
-                                            onUpdate: _updateEmpleadoData,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-
-                              const SizedBox(height: 1),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  ElevatedButton.icon(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 16,
-                                        vertical: 8,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                    ),
-                                    onPressed: () {
-                                      setState(() {
-                                        showSemanasCerradas = true;
-                                      });
-                                    },
-                                    icon: const Icon(
-                                      Icons.history,
-                                      color: Colors.blue,
-                                    ),
-                                    label: const Text(
-                                      'Semanas cerradas',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.blue,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Color(0xFF8CB800),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 24,
-                                        vertical: 12,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                    ),
-                                    onPressed: () {
-                                      if (semanaSeleccionada == null) {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                              'Debes seleccionar una semana antes de cerrarla',
-                                            ),
-                                            backgroundColor: Colors.red,
-                                          ),
-                                        );
-                                        return;
-                                      }
-                                      setState(() {
-                                        showSupervisorLogin = true;
-                                        supervisorLoginError = null;
-                                        supervisorUserController.clear();
-                                        supervisorPassController.clear();
-                                      });
-                                    },
-                                    child: const Text(
-                                      'Cerrar semana',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.red[700],
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 24,
-                                        vertical: 12,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                    ),
-                                    onPressed: () {},
-                                    child: const Text(
-                                      'PDF',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.green[700],
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 24,
-                                        vertical: 12,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                    ),
-                                    onPressed: () {},
-                                    child: const Text(
-                                      'EXCEL',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
+                      const SizedBox(height: 24),
+                      // Data table section
+                      _buildTableSection(),
+                      const SizedBox(height: 24),
+                      // Bottom action buttons: close week, history, PDF, Excel
+                      Row(
+                        children: [
+                          AppButton(
+                            label: 'Cerrar semana',
+                            icon: Icons.lock,
+                            onPressed: _onCerrarSemana,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green[900],
+                              foregroundColor: Colors.white,
+                            ),
                           ),
-                        ),
+                          const SizedBox(width: 12),
+                          AppButton(
+                            label: 'Historial semanas cerradas',
+                            icon: Icons.history,
+                            onPressed: () => setState(() => showSemanasCerradas = true),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.purple,
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                          Spacer(),
+                          AppButton(
+                            label: 'PDF',
+                            icon: Icons.picture_as_pdf,
+                            onPressed: _onExportPdf,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red[700],
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          AppButton(
+                            label: 'EXCEL',
+                            icon: Icons.table_chart,
+                            onPressed: _onExportExcel,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ],
                       ),
+                      const SizedBox(height: 24),
                     ],
                   ),
                 ),
@@ -1033,74 +544,72 @@ class _NominaScreenState extends State<NominaScreen> {
           Positioned.fill(
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
-              child: Center(
-                child: Card(
-                  color: Colors.white,
-                  elevation: 12,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: Container(
-                    width:
-                        MediaQuery.of(context).size.width *
-                        0.95, // Cover 95% of the screen width
-                    height:
-                        MediaQuery.of(context).size.height *
-                        0.95, // Cover 95% of the screen height
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                controller: searchController,
-                                onChanged: (value) => _filtrarEmpleados(),
-                                decoration: InputDecoration(
-                                  hintText: 'Buscar por nombre',
-                                  filled: true,
-                                  fillColor: Colors.grey[200],
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide.none,
-                                  ),
-                                  suffixIcon: const Icon(
-                                    Icons.search,
-                                    color: Colors.grey,
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 40),
+                  child: Card(
+                    color: Colors.white,
+                    elevation: 12,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: Container(
+                      width:
+                          MediaQuery.of(context).size.width *
+                          0.95, // Cover 95% of the screen width
+                      height:
+                          MediaQuery.of(context).size.height *
+                          0.95, // Cover 95% of the screen height
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: searchController,
+                                  onChanged: (value) => _filtrarEmpleados(),
+                                  decoration: InputDecoration(
+                                    hintText: 'Buscar por nombre',
+                                    filled: true,
+                                    fillColor: Colors.grey[200],
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                    suffixIcon: const Icon(
+                                      Icons.search,
+                                      color: Colors.grey,
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.close, color: Colors.red),
-                              onPressed: () {
-                                _sincronizarDatos(); // Sincronizar datos antes de cerrar
-                                setState(() {
-                                  isFullScreen =
-                                      false; // Close full-screen mode
-                                });
-                              },
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        // Aquí la tabla debe ocupar todo el ancho disponible
-                        Expanded(
-                          child: SizedBox(
-                            width: double.infinity,
-                            child: ScrollableDataTable(
-                              key: ValueKey('expanded'),
-                              data: List<Map<String, dynamic>>.from(
-                                empleadosFiltrados,
+                              IconButton(
+                                icon: const Icon(Icons.close, color: Colors.red),
+                                onPressed: () {
+                                  _sincronizarDatos(); // Sincronizar datos antes de cerrar
+                                  setState(() {
+                                    isFullScreen =
+                                        false; // Close full-screen mode
+                                  });
+                                },
                               ),
-                              selectedWeek: semanaSeleccionada,
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Flexible(
+                            fit: FlexFit.loose,
+                            child: EditableDataTableWidget(
+                              empleados: empleadosFiltrados,
+                              semanaSeleccionada: semanaSeleccionada,
+                              onChanged: _updateEmpleadoData,
                               isExpanded: true,
-                              onUpdate: _updateEmpleadoData,
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -1407,6 +916,158 @@ class _NominaScreenState extends State<NominaScreen> {
     );
   }
 
+  // 1. Barra de filtros: Semana y Cuadrilla
+  Widget _buildFilterBar() {
+    return Row(
+      children: [
+        Expanded(
+          child: Card(
+            color: Colors.white,
+            elevation: 8,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                  Text('Semana', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: Colors.green[900])),
+                  const SizedBox(height: 12),
+                  OutlinedButton(
+                    onPressed: _seleccionarSemana,
+                    child: Text(
+                      semanaSeleccionada != null
+                          ? '${semanaSeleccionada!.start.day}/${semanaSeleccionada!.start.month} → ${semanaSeleccionada!.end.day}/${semanaSeleccionada!.end.month}'
+                          : 'Inicio → Final',
+                    ),
+                  )
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Card(
+            color: Colors.white,
+            elevation: 8,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                  Text('Cuadrilla', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: Colors.green[900])),
+                  const SizedBox(height: 12),
+                  DropdownButton<String>(
+                    value: cuadrillaSeleccionada,
+                    isExpanded: true,
+                    items: cuadrillas.map((c) => DropdownMenuItem(value: c['nombre'], child: Text(c['nombre']!))).toList(),
+                    onChanged: (v) {
+                      setState(() {
+                        cuadrillaSeleccionada = v;
+                        _filtrarEmpleados();
+                      });
+                    },
+                  )
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // 2. Buscar e indicadores
+  Widget _buildSearchAndIndicators() {
+    return Row(
+      children: [
+        Expanded(
+          flex: 1,
+          child: IndicatorCard(
+            title: 'Empleados en cuadrilla',
+            value: '${empleadosFiltrados.length}',
+            icon: Icons.group,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          flex: 1,
+          child: IndicatorCard(
+            title: 'Total Acumulado',
+            value: '\$${empleadosFiltrados.fold<int>(0, (s, e) => s + (e['neto'] as int))}',
+            icon: Icons.attach_money,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          flex: 1,
+          child: TextField(
+            controller: searchController,
+            onChanged: (_) => _filtrarEmpleados(),
+            decoration: InputDecoration(
+              prefixIcon: Icon(Icons.search),
+              hintText: 'Buscar',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // 3. Sección central de tabla
+  Widget _buildTableSection() {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1200),
+        child: EditableDataTableWidget(
+          empleados: empleadosFiltrados,
+          semanaSeleccionada: semanaSeleccionada,
+          onChanged: _updateEmpleadoData,
+          isExpanded: false,
+        ),
+      ),
+    );
+  }
+
+  // 4. Barra de acciones
+  void _onCerrarSemana() {
+    if (semanaSeleccionada == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Debes seleccionar una semana antes de cerrarla'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    setState(() {
+      showSupervisorLogin = true;
+      supervisorLoginError = null;
+      supervisorUserController.clear();
+      supervisorPassController.clear();
+    });
+  }
+
+  void _onExportPdf() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Funcionalidad PDF no implementada'),
+        backgroundColor: Colors.blue,
+      ),
+    );
+  }
+
+  void _onExportExcel() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Funcionalidad Excel no implementada'),
+        backgroundColor: Colors.blue,
+      ),
+    );
+  }
+
   Widget _buildDetalleSemanaCerrada(BuildContext context) {
     final semana = semanasCerradas[semanaCerradaSeleccionada!];
     final empleadosSemana = semana['empleados'] as List<Map<String, dynamic>>;
@@ -1494,12 +1155,10 @@ class _NominaScreenState extends State<NominaScreen> {
                 'Tabla de nómina guardada:',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
-              ScrollableDataTable(
-                data: empleadosCuadrilla,
-                selectedWeek: null,
-                isExpanded: true,
-                readOnly: true,
-                onUpdate: (a, b, c) {}, // Solo visualización
+              DataTableWidget(
+                columns: _buildNominaHeaders(),
+                subHeaders: _buildNominaSubHeaders(),
+                rows: _buildNominaRows(empleadosCuadrilla),
               ),
               const SizedBox(height: 18),
               Text(
@@ -1524,767 +1183,67 @@ class _NominaScreenState extends State<NominaScreen> {
       ),
     );
   }
-}
 
-/// Widget que implementa una tabla desplazable para mostrar datos de nómina.
-/// Permite editar los valores de días trabajados, deducciones y comedor.
-/// Se adapta al tamaño de la pantalla y mantiene el estado de edición.
-class ScrollableDataTable extends StatefulWidget {
-  /// Datos a mostrar en la tabla (empleados y sus registros)
-  final List<Map<String, dynamic>> data;
-
-  /// Semana seleccionada para mostrar los días correspondientes
-  final DateTimeRange? selectedWeek;
-
-  /// Indica si la tabla está en modo expandido
-  final bool isExpanded;
-
-  /// Callback para actualizar valores en la tabla
-  final Function(int, String, dynamic) onUpdate;
-  final bool readOnly;
-
-  const ScrollableDataTable({
-    super.key,
-    required this.data,
-    this.selectedWeek,
-    this.isExpanded = false,
-    required this.onUpdate,
-    this.readOnly = false,
-  });
-
-  @override
-  _ScrollableDataTableState createState() => _ScrollableDataTableState();
-}
-
-class _ScrollableDataTableState extends State<ScrollableDataTable> {
-  final ScrollController _horizontalController = ScrollController();
-  final ScrollController _verticalController = ScrollController();
-  final Map<String, TextEditingController> _controllers = {};
-  final Map<String, FocusNode> _focusNodes = {};
-
-  @override
-  void initState() {
-    super.initState();
-    _initializeControllers();
-  }
-
-  @override
-  void didUpdateWidget(ScrollableDataTable oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // Actualizar los controladores cuando los datos cambian
-    for (var empleado in widget.data) {
-      for (int i = 0; i < 1; i++) {
-        String key = '${empleado['clave']}_dia_$i';
-        if (_controllers.containsKey(key) && !_focusNodes[key]!.hasFocus) {
-          _controllers[key]?.text = empleado['dias'][i].toString();
-        }
-      }
-      String deboKey = '${empleado['clave']}_debo';
-      String comedorKey = '${empleado['clave']}_comedor';
-      if (_controllers.containsKey(deboKey) &&
-          !_focusNodes[deboKey]!.hasFocus) {
-        _controllers[deboKey]?.text = empleado['debo'].toString();
-      }
-      if (_controllers.containsKey(comedorKey) &&
-          !_focusNodes[comedorKey]!.hasFocus) {
-        _controllers[comedorKey]?.text = empleado['comedor'].toString();
-      }
+  // Helper methods for DataTableWidget
+  List<String> _buildNominaHeaders() {
+    final headers = <String>['Clave', 'Nombre'];
+    final int diasCount = semanaSeleccionada != null
+      ? semanaSeleccionada!.end.difference(semanaSeleccionada!.start).inDays + 1
+      : 7;
+    DateTime date = semanaSeleccionada?.start ?? DateTime.now();
+    for (int i = 0; i < diasCount; i++) {
+      headers.add(semanaSeleccionada != null
+        ? '${date.day}/${date.month}'
+        : 'D${i+1}');
+      if (semanaSeleccionada != null) date = date.add(const Duration(days:1));
     }
+    headers.addAll(['Total', 'Debe', 'Subtotal', 'Comedor', 'Neto']);
+    return headers;
   }
 
-  void _initializeControllers() {
-    for (var empleado in widget.data) {
-      for (int i = 0; i < 7; i++) {
-        String key = '${empleado['clave']}_dia_$i';
-        if (!_controllers.containsKey(key)) {
-          _controllers[key] = TextEditingController(
-            text: empleado['dias'][i].toString(),
-          );
-          _focusNodes[key] = FocusNode();
-        }
-      }
-      String deboKey = '${empleado['clave']}_debo';
-      String comedorKey = '${empleado['clave']}_comedor';
-      if (!_controllers.containsKey(deboKey)) {
-        _controllers[deboKey] = TextEditingController(
-          text: empleado['debo'].toString(),
-        );
-        _focusNodes[deboKey] = FocusNode();
-      }
-      if (!_controllers.containsKey(comedorKey)) {
-        _controllers[comedorKey] = TextEditingController(
-          text: empleado['comedor'].toString(),
-        );
-        _focusNodes[comedorKey] = FocusNode();
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    _horizontalController.dispose();
-    _verticalController.dispose();
-    for (var controller in _controllers.values) {
-      controller.dispose();
-    }
-    for (var node in _focusNodes.values) {
-      node.dispose();
-    }
-    super.dispose();
-  }
-
-  Widget _buildEditableCell(
-    String value,
-    String key,
-    Function(String) onChanged,
-  ) {
-    if (widget.readOnly) {
-      return Text(
-        value,
-        style: TextStyle(fontSize: 12),
-        textAlign: TextAlign.center,
-      );
-    }
-
-    if (!_controllers.containsKey(key)) {
-      _controllers[key] = TextEditingController(text: value);
-      _focusNodes[key] = FocusNode();
-    }
-
-    return TextField(
-      controller: _controllers[key],
-      focusNode: _focusNodes[key],
-      keyboardType: TextInputType.number,
-      style: TextStyle(fontSize: 12),
-      decoration: const InputDecoration(
-        isDense: true,
-        contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-        border: InputBorder.none,
-      ),
-      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-      onChanged: (value) {
-        if (value.isEmpty) {
-          onChanged('0');
-        } else {
-          onChanged(value);
-        }
-      },
-      onTap: () {
-        _controllers[key]?.selection = TextSelection(
-          baseOffset: 0,
-          extentOffset: _controllers[key]!.text.length,
-        );
-      },
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scrollbar(
-      controller: _horizontalController,
-      thumbVisibility: true,
-      child: SingleChildScrollView(
-        controller: _horizontalController,
-        scrollDirection: Axis.horizontal,
-        child: SingleChildScrollView(
-          controller: _verticalController,
-          scrollDirection: Axis.vertical,
-          child: DataTable(
-            headingRowColor: MaterialStateProperty.all(Color(0xFFE0E0E0)),
-            dataRowColor: MaterialStateProperty.resolveWith((states) {
-              if (states.contains(MaterialState.selected)) {
-                return Colors.grey.shade300;
-              }
-              return Colors.white;
-            }),
-            border: TableBorder.all(
-              color: Colors.grey.shade400,
-              width: 1,
-              style: BorderStyle.solid,
-            ),
-            columnSpacing: widget.isExpanded ? 69 : 40,
-            columns: [
-              DataColumn(
-                label: Text(
-                  'Clave',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Nombre',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                ),
-              ),
-              if (widget.selectedWeek != null)
-                ...List.generate(widget.selectedWeek!.duration.inDays + 1, (
-                  index,
-                ) {
-                  final date = widget.selectedWeek!.start.add(
-                    Duration(days: index),
-                  );
-                  final dayNames = [
-                    'dom',
-                    'lun',
-                    'mar',
-                    'mie',
-                    'jue',
-                    'vie',
-                    'sab',
-                  ];
-                  return DataColumn(
-                    label: Text(
-                      dayNames[date.weekday % 7],
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                    ),
-                  );
-                })
-              else
-                ...List.generate(7, (index) {
-                  return DataColumn(
-                    label: Text(
-                      'Día',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                    ),
-                  );
-                }),
-              DataColumn(
-                label: Text(
-                  'Total',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Debo',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Subtotal',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Comedor',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Total neto',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                ),
-              ),
-            ],
-            rows: [
-              DataRow(
-                cells: [
-                  const DataCell(Text('')),
-                  const DataCell(Text('')),
-                  if (widget.selectedWeek != null)
-                    ...List.generate(widget.selectedWeek!.duration.inDays + 1, (
-                      index,
-                    ) {
-                      return const DataCell(
-                        Padding(
-                          padding: EdgeInsets.symmetric(vertical: 1),
-                          child: Text(
-                            'TT',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                        placeholder: true,
-                      );
-                    })
-                  else
-                    ...List.generate(7, (index) {
-                      return const DataCell(
-                        Padding(
-                          padding: EdgeInsets.symmetric(vertical: 1),
-                          child: Text(
-                            'TT',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                        placeholder: true,
-                      );
-                    }),
-                  const DataCell(Text('')),
-                  const DataCell(Text('')),
-                  const DataCell(Text('')),
-                  const DataCell(Text('')),
-                  const DataCell(Text('')),
-                ],
-                color: MaterialStateProperty.all(Colors.grey.shade200),
-              ),
-              ...widget.data.asMap().entries.map((entry) {
-                final index = entry.key;
-                final e = entry.value;
-                return DataRow(
-                  cells: [
-                    DataCell(
-                      Text(
-                        e['clave'].toString(),
-                        style: TextStyle(fontSize: 12),
-                      ),
-                    ),
-                    DataCell(
-                      Text(
-                        e['nombre'].toString(),
-                        style: TextStyle(fontSize: 12),
-                      ),
-                    ),
-                    if (widget.selectedWeek != null)
-                      ...List.generate(
-                        widget.selectedWeek!.duration.inDays + 1,
-                        (diaIndex) {
-                          return DataCell(
-                            _buildEditableCell(
-                              e['dias'][diaIndex].toString(),
-                              '${e['clave']}_dia_$diaIndex',
-                              (value) {
-                                int? newValue = int.tryParse(value);
-                                if (newValue != null) {
-                                  widget.onUpdate(
-                                    index,
-                                    'dia_$diaIndex',
-                                    newValue,
-                                  );
-                                }
-                              },
-                            ),
-                          );
-                        },
-                      )
-                    else
-                      ...List.generate(7, (diaIndex) {
-                        return DataCell(
-                          _buildEditableCell(
-                            e['dias'][diaIndex].toString(),
-                            '${e['clave']}_dia_$diaIndex',
-                            (value) {
-                              int? newValue = int.tryParse(value);
-                              if (newValue != null) {
-                                widget.onUpdate(
-                                  index,
-                                  'dia_$diaIndex',
-                                  newValue,
-                                );
-                              }
-                            },
-                          ),
-                        );
-                      }),
-                    DataCell(
-                      Text(
-                        '\$${e['total']}',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ),
-                    DataCell(
-                      _buildEditableCell(
-                        e['debo'].toString(),
-                        '${e['clave']}_debo',
-                        (value) {
-                          int? newValue = int.tryParse(value);
-                          if (newValue != null) {
-                            widget.onUpdate(index, 'debo', newValue);
-                          }
-                        },
-                      ),
-                    ),
-                    DataCell(
-                      Text(
-                        '\$${e['subtotal']}',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ),
-                    DataCell(
-                      _buildComedorCell(index, e, '${e['clave']}_comedor'),
-                    ),
-                    DataCell(
-                      Text(
-                        '\$${e['neto']}',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ),
-                  ],
-                );
-              }).toList(),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildComedorCell(int index, Map<String, dynamic> e, String key) {
-    bool checked = e['comedor'] == 400;
-    if (widget.readOnly) {
-      return Text(
-        '${e['comedor']}',
-        style: const TextStyle(fontSize: 12),
-        textAlign: TextAlign.center,
-      );
-    }
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Checkbox(
-          value: checked,
-          onChanged: (val) {
-            int newValue = val == true ? 400 : 0;
-            widget.onUpdate(index, 'comedor', newValue);
-          },
-        ),
-        Text('${e['comedor']}', style: const TextStyle(fontSize: 12)),
-      ],
-    );
-  }
-}
-
-class DiasTrabajadosTable extends StatefulWidget {
-  final List<Map<String, dynamic>> empleados;
-  final DateTimeRange? selectedWeek;
-  final List<List<int>>? diasH;
-  final List<List<int>>? diasTT;
-  final void Function(List<List<int>> h, List<List<int>> tt)? onChanged;
-  final bool readOnly;
-  final bool isExpanded;
-
-  const DiasTrabajadosTable({
-    required this.empleados,
-    required this.selectedWeek,
-    this.diasH,
-    this.diasTT,
-    this.onChanged,
-    this.readOnly = false,
-    this.isExpanded = false,
-    Key? key,
-  }) : super(key: key);
-
-  @override
-  State<DiasTrabajadosTable> createState() => _DiasTrabajadosTableState();
-}
-
-class _DiasTrabajadosTableState extends State<DiasTrabajadosTable> {
-  late List<List<int>> hValues;
-  late List<List<int>> ttValues;
-  final Map<String, TextEditingController> _controllersH = {};
-  final Map<String, TextEditingController> _controllersTT = {};
-  final Map<String, FocusNode> _focusNodesH = {};
-  final Map<String, FocusNode> _focusNodesTT = {};
-  final ScrollController _horizontalController = ScrollController();
-  final ScrollController _verticalController = ScrollController();
-
-  @override
-  void initState() {
-    super.initState();
-    _initLocalData();
-  }
-
-  @override
-  void didUpdateWidget(DiasTrabajadosTable oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    _initLocalData();
-  }
-
-  void _initLocalData() {
-    final diasSemana =
-        widget.selectedWeek != null
-            ? List.generate(
-              widget.selectedWeek!.duration.inDays + 1,
-              (i) => widget.selectedWeek!.start.add(Duration(days: i)),
-            )
-            : List.generate(7, (i) => DateTime(2023, 1, i + 1));
-    int diasCount = diasSemana.length;
-    hValues =
-        widget.diasH != null &&
-                widget.diasH!.length == widget.empleados.length &&
-                widget.diasH!.every((l) => l.length == diasCount)
-            ? widget.diasH!.map((l) => List<int>.from(l)).toList()
-            : List.generate(
-              widget.empleados.length,
-              (i) => List<int>.filled(diasCount, 0),
-            );
-    ttValues =
-        widget.diasTT != null &&
-                widget.diasTT!.length == widget.empleados.length &&
-                widget.diasTT!.every((l) => l.length == diasCount)
-            ? widget.diasTT!.map((l) => List<int>.from(l)).toList()
-            : List.generate(
-              widget.empleados.length,
-              (i) => List<int>.filled(diasCount, 0),
-            );
-    for (int eIdx = 0; eIdx < widget.empleados.length; eIdx++) {
+  List<List<String>> _buildNominaRows([List<Map<String, dynamic>>? sourceList]) {
+    final list = sourceList ?? empleadosFiltrados;
+    final rows = <List<String>>[];
+    final int diasCount = semanaSeleccionada != null
+      ? semanaSeleccionada!.end.difference(semanaSeleccionada!.start).inDays + 1
+      : 7;
+    for (var emp in list) {
+      final totalDias = (emp['dias'] as List<int>).fold(0, (a, b) => a + b);
+      final debo = emp['debo'] as int? ?? 0;
+      final subtotal = totalDias - debo;
+      final comedor = emp['comedor'] as int? ?? 0;
+      final neto = subtotal - comedor;
+      final row = <String>[];
+      row.add(emp['clave'] ?? '');
+      row.add(emp['nombre'] ?? '');
       for (int i = 0; i < diasCount; i++) {
-        String keyH = '${eIdx}_h_$i';
-        String keyTT = '${eIdx}_tt_$i';
-        _controllersH[keyH] = TextEditingController(
-          text: hValues[eIdx][i].toString(),
-        );
-        _controllersTT[keyTT] = TextEditingController(
-          text: ttValues[eIdx][i].toString(),
-        );
-        _focusNodesH[keyH] = FocusNode();
-        _focusNodesTT[keyTT] = FocusNode();
-        _controllersH[keyH]?.addListener(() {
-          int v = int.tryParse(_controllersH[keyH]?.text ?? '0') ?? 0;
-          hValues[eIdx][i] = v;
-          widget.onChanged?.call(hValues, ttValues);
-          setState(() {});
-        });
-        _controllersTT[keyTT]?.addListener(() {
-          int v = int.tryParse(_controllersTT[keyTT]?.text ?? '0') ?? 0;
-          ttValues[eIdx][i] = v;
-          widget.onChanged?.call(hValues, ttValues);
-          setState(() {});
-        });
+        row.add((emp['dias'][i] as int).toString());
       }
+      // Total de días
+      row.add(totalDias.toString());
+      // Valores monetarios
+      row.add('\$${debo}');
+      row.add('\$${subtotal}');
+      row.add('\$${comedor}');
+      row.add('\$${neto}');
+      rows.add(row);
     }
+    return rows;
   }
 
-  @override
-  void dispose() {
-    _horizontalController.dispose();
-    _verticalController.dispose();
-    for (var c in _controllersH.values) {
-      c.dispose();
+  List<String> _buildNominaSubHeaders() {
+    // Crea subencabezados: blancos para Clave y Nombre, 'TT' para cada día, y blancos para columnas monetarias
+    final subHeaders = <String>['', ''];
+    final int diasCount = semanaSeleccionada != null
+      ? semanaSeleccionada!.end.difference(semanaSeleccionada!.start).inDays + 1
+      : 7;
+    for (int i = 0; i < diasCount; i++) {
+      subHeaders.add('TT');
     }
-    for (var c in _controllersTT.values) {
-      c.dispose();
-    }
-    for (var f in _focusNodesH.values) {
-      f.dispose();
-    }
-    for (var f in _focusNodesTT.values) {
-      f.dispose();
-    }
-    super.dispose();
+    // Columnas finales: Total, Debe, Subtotal, Comedor, Neto
+    subHeaders.addAll(['', '', '', '', '']);
+    return subHeaders;
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final diasSemana =
-        widget.selectedWeek != null
-            ? List.generate(
-              widget.selectedWeek!.duration.inDays + 1,
-              (i) => widget.selectedWeek!.start.add(Duration(days: i)),
-            )
-            : List.generate(7, (i) => DateTime(2023, 1, i + 1));
-    final dayNames = ['dom', 'lun', 'mar', 'mie', 'jue', 'vie', 'sab'];
-    int diasCount = diasSemana.length;
-    int totalCols = 2 + diasCount * 2 + 1; // Clave, Nombre, (TT+H)*dias, Total
-
-    // Definir los anchos personalizados
-    Map<int, TableColumnWidth> columnWidths = {
-      0: FixedColumnWidth(widget.isExpanded ? 99 : 60), // Clave
-      1: FixedColumnWidth(widget.isExpanded ? 239 : 200), // Nombre
-    };
-    for (int i = 0; i < diasCount * 2; i++) {
-      columnWidths[2 + i] = FixedColumnWidth(
-        widget.isExpanded ? 79 : 48,
-      ); // TT y H
-    }
-    columnWidths[totalCols - 1] = FixedColumnWidth(
-      widget.isExpanded ? 99 : 60,
-    ); // Total
-
-    return Scrollbar(
-      controller: _horizontalController,
-      thumbVisibility: true,
-      child: SingleChildScrollView(
-        controller: _horizontalController,
-        scrollDirection: Axis.horizontal,
-        child: SingleChildScrollView(
-          controller: _verticalController,
-          scrollDirection: Axis.vertical,
-          child: Table(
-            border: TableBorder.all(color: Colors.grey.shade500, width: 1),
-            columnWidths: columnWidths,
-            children: [
-              TableRow(
-                decoration: const BoxDecoration(color: Color(0xFFE0E0E0)),
-                children: [
-                  _headerCell('Clave', fontSize: widget.isExpanded ? 14 : 12),
-                  _headerCell('Nombre', fontSize: widget.isExpanded ? 14 : 12),
-                  ...diasSemana.expand(
-                    (date) => [
-                      _headerCell(
-                        dayNames[date.weekday % 7].toUpperCase(),
-                        fontSize: widget.isExpanded ? 14 : 12,
-                      ),
-                      _headerCell('', fontSize: widget.isExpanded ? 14 : 12),
-                    ],
-                  ),
-                  _headerCell('Total', fontSize: widget.isExpanded ? 14 : 12),
-                ],
-              ),
-              TableRow(
-                decoration: const BoxDecoration(color: Color(0xFFF5F5F5)),
-                children: [
-                  const TableCell(child: SizedBox()),
-                  const TableCell(child: SizedBox()),
-                  ...List.generate(
-                    diasCount,
-                    (i) => [
-                      _headerCell('TT', fontSize: widget.isExpanded ? 14 : 12),
-                      _headerCell('H', fontSize: widget.isExpanded ? 14 : 12),
-                    ],
-                  ).expand((x) => x),
-                  const TableCell(child: SizedBox()),
-                ],
-              ),
-              ...List.generate(widget.empleados.length, (eIdx) {
-                int total = 0;
-                for (int i = 0; i < diasCount; i++) {
-                  total += hValues[eIdx][i] + ttValues[eIdx][i];
-                }
-                return TableRow(
-                  children: [
-                    _bodyCell(
-                      widget.empleados[eIdx]['clave'].toString(),
-                      fontSize: widget.isExpanded ? 14 : 12,
-                    ),
-                    _bodyCell(
-                      widget.empleados[eIdx]['nombre'].toString(),
-                      fontSize: widget.isExpanded ? 14 : 12,
-                    ),
-                    ...List.generate(
-                      diasCount,
-                      (i) => [
-                        _editableCell(
-                          ttValues[eIdx][i].toString(),
-                          'tt_${eIdx}_$i',
-                          (val) {
-                            int? newValue = int.tryParse(val);
-                            if (newValue != null) {
-                              ttValues[eIdx][i] = newValue;
-                              widget.onChanged?.call(hValues, ttValues);
-                              setState(() {});
-                            }
-                          },
-                          _controllersTT,
-                          _focusNodesTT,
-                          fontSize: widget.isExpanded ? 14 : 12,
-                        ),
-                        _editableCell(
-                          hValues[eIdx][i].toString(),
-                          'h_${eIdx}_$i',
-                          (val) {
-                            int? newValue = int.tryParse(val);
-                            if (newValue != null) {
-                              hValues[eIdx][i] = newValue;
-                              widget.onChanged?.call(hValues, ttValues);
-                              setState(() {});
-                            }
-                          },
-                          _controllersH,
-                          _focusNodesH,
-                          fontSize: widget.isExpanded ? 14 : 12,
-                        ),
-                      ],
-                    ).expand((x) => x),
-                    _bodyCell(
-                      total.toString(),
-                      bold: true,
-                      fontSize: widget.isExpanded ? 14 : 12,
-                    ),
-                  ],
-                );
-              }),
-            ],
-          ),
-        ),
-      ),
-    );
+    // Fin de _NominaScreenState
   }
-
-  Widget _headerCell(String text, {double fontSize = 12}) => TableCell(
-    child: Container(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-      alignment: Alignment.center,
-      child: Text(
-        text,
-        style: TextStyle(fontWeight: FontWeight.bold, fontSize: fontSize),
-      ),
-    ),
-  );
-
-  Widget _bodyCell(String text, {bool bold = false, double fontSize = 12}) =>
-      TableCell(
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-          alignment: Alignment.center,
-          child: Text(
-            text,
-            style: TextStyle(
-              fontWeight: bold ? FontWeight.bold : FontWeight.normal,
-              fontSize: fontSize,
-            ),
-          ),
-        ),
-      );
-
-  Widget _editableCell(
-    String value,
-    String key,
-    void Function(String) onChanged,
-    Map<String, TextEditingController> controllers,
-    Map<String, FocusNode> focusNodes, {
-    double fontSize = 12,
-  }) {
-    if (widget.readOnly) {
-      return Text(
-        value,
-        style: TextStyle(fontSize: fontSize),
-        textAlign: TextAlign.center,
-      );
-    }
-
-    if (!controllers.containsKey(key)) {
-      controllers[key] = TextEditingController(text: value);
-      focusNodes[key] = FocusNode();
-    }
-    return TextField(
-      controller: controllers[key],
-      focusNode: focusNodes[key],
-      keyboardType: TextInputType.number,
-      style: TextStyle(fontSize: fontSize),
-      decoration: const InputDecoration(
-        isDense: true,
-        contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-        border: InputBorder.none,
-      ),
-      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-      onChanged: (value) {
-        if (value.isEmpty) {
-          onChanged('0');
-        } else {
-          onChanged(value);
-        }
-      },
-      onTap: () {
-        controllers[key]?.selection = TextSelection(
-          baseOffset: 0,
-          extentOffset: controllers[key]!.text.length,
-        );
-      },
-    );
-  }
-}

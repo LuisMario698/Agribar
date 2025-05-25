@@ -15,8 +15,8 @@ void main() async {
 
     // Definir opciones de ventana predeterminadas
     WindowOptions windowOptions = const WindowOptions(
-      size: Size(1820, 960), // Tamaño inicial de la ventana
-      minimumSize: Size(1220, 768), // Tamaño mínimo permitido
+      size: Size(1820, 960), // Tamaño inicial de la venta
+      minimumSize: Size(1220, 770), // Tamaño mínimo permitido 
       maximumSize: Size(1920, 1080), // Tamaño maximo permitido
       center: true, // Centrar la ventana al inicio
       backgroundColor: Colors.transparent,
