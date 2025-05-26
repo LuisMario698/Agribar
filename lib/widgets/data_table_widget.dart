@@ -1,12 +1,28 @@
 import 'package:flutter/material.dart';
 
-/// A generic scrollable data table that can be reused across screens.
+/// Tabla de datos genérica y reutilizable con scroll horizontal.
+///
+/// Este widget implementa una tabla con las siguientes características:
+/// - Encabezados personalizables
+/// - Subencabezados opcionales
+/// - Scroll horizontal para tablas anchas
+/// - Espaciado configurable entre celdas
+/// - Bordes ligeros para mejor legibilidad
+///
+/// Se utiliza en varias pantallas del sistema para mostrar datos tabulares como:
+/// - Lista de empleados
+/// - Reportes de nómina
+/// - Resúmenes de actividades
 class DataTableWidget extends StatelessWidget {
+  /// Títulos de las columnas de la tabla
   final List<String> columns;
+  /// Datos de las filas. Cada fila es una lista de strings alineada con las columnas
   final List<List<String>> rows;
-  /// Subencabezados alineados con cada columna (opcional).
+  /// Subtítulos opcionales alineados con cada columna
   final List<String>? subHeaders;
+  /// Espacio horizontal entre celdas
   final double horizontalSpacing;
+  /// Espacio vertical entre celdas
   final double verticalSpacing;
 
   const DataTableWidget({

@@ -1,10 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 
-/// A generic chart widget that can render different types of charts.
+/// Widget genérico para gráficos estadísticos.
+///
+/// Este widget puede renderizar diferentes tipos de gráficos:
+/// - Gráficos de barras para comparaciones
+/// - Gráficos circulares para distribuciones
+///
+/// Características principales:
+/// - Altura configurable
+/// - Soporte para múltiples tipos de gráficos
+/// - Integración con fl_chart
+/// - Diseño responsivo
+///
+/// Se utiliza en la pantalla de reportes y dashboard para visualizar:
+/// - Distribución de actividades
+/// - Comparativas de nómina
+/// - Estadísticas de empleados
 class ChartWidget extends StatelessWidget {
+  /// Datos para gráfico de barras (opcional)
   final List<BarChartGroupData>? barData;
+  /// Datos para gráfico circular (opcional)
   final List<PieChartSectionData>? pieData;
+  /// Altura del gráfico en píxeles
   final double height;
 
   const ChartWidget({

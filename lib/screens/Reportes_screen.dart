@@ -1,11 +1,28 @@
 import 'package:flutter/material.dart';
-// Archivo: Reportes_screen.dart
-// Pantalla para la gestión de reportes en el sistema Agribar
-// Estructura profesionalizada y documentada en español
-// No modificar la lógica ni la interfaz visual sin justificación técnica
 import 'package:flutter/rendering.dart';
 import 'dart:ui';
+import '../widgets/custom_search_bar.dart';
+import '../widgets/filter_button.dart';
+import '../widgets/date_selector.dart';
+import '../widgets/fullscreen_table_dialog.dart';
+import '../widgets/export_button_group.dart';
+import '../widgets/data_table_widget.dart';
+import '../widgets/chart_widget.dart';
 
+/// Pantalla de reportes del sistema Agribar.
+/// 
+/// Esta pantalla implementa la visualización y generación de reportes,
+/// permitiendo al usuario:
+/// - Filtrar datos por empleado, cuadrilla o actividad
+/// - Seleccionar rangos de fechas específicos
+/// - Visualizar datos en tablas y gráficos
+/// - Exportar reportes en diferentes formatos
+/// 
+/// La pantalla utiliza varios widgets reutilizables para:
+/// - Filtrado y búsqueda (CustomSearchBar)
+/// - Selección de fechas (DateSelector)
+/// - Visualización de datos (DataTableWidget)
+/// - Gráficos estadísticos (ChartWidget)
 class ReportesScreen extends StatefulWidget {
   const ReportesScreen({Key? key}) : super(key: key);
 
@@ -13,6 +30,17 @@ class ReportesScreen extends StatefulWidget {
   State<ReportesScreen> createState() => _ReportesScreenState();
 }
 
+/// Estado de la pantalla de reportes que gestiona:
+/// - Filtros seleccionados
+/// - Fechas del reporte
+/// - Datos visualizados
+/// - Scroll de tablas
+/// 
+/// Funcionalidad principal:
+/// - Actualización dinámica de datos según filtros
+/// - Gestión del scroll horizontal y vertical
+/// - Exportación de reportes personalizados
+/// - Visualización de gráficos estadísticos
 class _ReportesScreenState extends State<ReportesScreen> {
   int selectedFilter = 1; // 0: Empleado, 1: Cuadrilla, 2: Actividad
   final TextEditingController searchController = TextEditingController();
@@ -586,83 +614,26 @@ class _ReportesScreenState extends State<ReportesScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Barra de búsqueda y botones
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Container(
-                            height: 48,
-                            decoration: BoxDecoration(
-                              color: const Color.fromARGB(118, 206, 206, 206),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: TextField(
-                              controller: searchController,
-                              onChanged: (_) => setState(() {}),
-                              decoration: const InputDecoration(
-                                hintText: 'Buscar',
-                                border: InputBorder.none,
-                                contentPadding: EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                              ),
-                              style: const TextStyle(fontSize: 18),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Material(
-                          color: const Color(0xFF0B7A2F),
-                          borderRadius: BorderRadius.circular(24),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(24),
-                            onTap: () => setState(() {}),
-                            child: const SizedBox(
-                              width: 48,
-                              height: 48,
-                              child: Icon(Icons.search, color: Colors.white, size: 28),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Tooltip(
-                          message: 'Enter para buscar en uno de los tres apartados, importante, establecer el rango de fechas',
-                          child: Material(
-                            color: const Color(0xFF0B7A2F),
-                            shape: const CircleBorder(),
-                            child: InkWell(
-                              customBorder: const CircleBorder(),
-                              onTap: () {},
-                              child: const SizedBox(
-                                width: 48,
-                                height: 48,
-                                child: Icon(Icons.info, color: Colors.white, size: 28),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+                    CustomSearchBar(
+                      controller: searchController,
+                      onSearchChanged: (_) => setState(() {}),
+                      onSearchTap: () => setState(() {}),
+                      onInfoTap: () {},
                     ),
                     const SizedBox(height: 24),
 
                     // Filtros y fechas centrados
                     Center(
                       child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              _buildFilterButton('Empleado', 0),
-                              _buildFilterButton('Cuadrilla', 1),
-                              _buildFilterButton('Actividad', 2),
-                            ],
+                        children: [                          FilterBar(
+                            filters: const ['Empleado', 'Cuadrilla', 'Actividad'],
+                            selectedIndex: selectedFilter,
+                            onFilterChanged: (index) => setState(() => selectedFilter = index),
                           ),
-                          const SizedBox(height: 10),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              _buildDateSelector(context, true),
-                              const Text('  →  ', style: TextStyle(fontSize: 18, color: Colors.grey)),
-                              _buildDateSelector(context, false),
-                            ],
+                          const SizedBox(height: 10),                          DateRangeSelector(
+                            startDate: startDate,
+                            endDate: endDate,
+                            onDateSelect: (isStart) => _selectDate(context, isStart),
                           ),
                         ],
                       ),
@@ -682,69 +653,11 @@ class _ReportesScreenState extends State<ReportesScreen> {
                               barrierColor: Colors.black.withOpacity(0.2),
                               builder: (context) {
                                 final _modalHorizontal = ScrollController();
-                                final _modalVertical = ScrollController();
-
-                                return Stack(
-                                  children: [
-                                    BackdropFilter(
-                                      filter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
-                                      child: Container(color: Colors.black.withOpacity(0)),
-                                    ),
-                                    Center(
-                                      child: ConstrainedBox(
-                                        constraints: BoxConstraints(
-                                          maxWidth: MediaQuery.of(context).size.width * 0.98,
-                                          maxHeight: MediaQuery.of(context).size.height * 0.95,
-                                        ),
-                                        child: Material(
-                                          color: Colors.transparent,
-                                          child: Stack(
-                                            children: [
-                                              Card(
-                                                elevation: 8,
-                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                                                child: Padding(
-                                                  padding: const EdgeInsets.all(32),
-                                                  child: SizedBox(
-                                                    width: 1200,
-                                                    child: Scrollbar(
-                                                      controller: _modalHorizontal,
-                                                      thumbVisibility: true,
-                                                      child: SingleChildScrollView(
-                                                        controller: _modalHorizontal,
-                                                        scrollDirection: Axis.horizontal,
-                                                        child: ConstrainedBox(
-                                                          constraints: const BoxConstraints(minWidth: 1100),
-                                                          child: Scrollbar(
-                                                            controller: _modalVertical,
-                                                            thumbVisibility: true,
-                                                            child: SingleChildScrollView(
-                                                              controller: _modalVertical,
-                                                              scrollDirection: Axis.vertical,
-                                                              child: _buildTableWithBorders(),
-                                                            ),
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                              Positioned(
-                                                top: 8,
-                                                right: 8,
-                                                child: IconButton(
-                                                  icon: const Icon(Icons.close, color: Colors.red, size: 32),
-                                                  tooltip: 'Cerrar',
-                                                  onPressed: () => Navigator.of(context).pop(),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
+                                final _modalVertical = ScrollController();                                return FullscreenTableDialog(
+                                  table: _buildTableWithBorders(),
+                                  onClose: () => Navigator.of(context).pop(),
+                                  horizontalController: _modalHorizontal,
+                                  verticalController: _modalVertical,
                                 );
                               },
                             );
@@ -933,37 +846,13 @@ class _ReportesScreenState extends State<ReportesScreen> {
                     const SizedBox(height: 24),
 
                     // Botones de exportar
-                    Center(
-                      child: Column(
-                        children: [
-                          const Text('EXPORTAR A', style: TextStyle(fontSize: 16, color: Colors.grey)),
-                          const SizedBox(height: 8),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.red[700],
-                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                ),
-                                onPressed: () {},
-                                child: const Text('PDF', style: TextStyle(fontSize: 14, color: Colors.white)),
-                              ),
-                              const SizedBox(width: 16),
-                              ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.green[700],
-                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                ),
-                                onPressed: () {},
-                                child: const Text('EXCEL', style: TextStyle(fontSize: 14, color: Colors.white)),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+                    ExportButtonGroup(
+                      onPdfExport: () {
+                        // TODO: Implement PDF export functionality
+                      },
+                      onExcelExport: () {
+                        // TODO: Implement Excel export functionality
+                      },
                     ),
                   ],
                 ),
@@ -977,72 +866,6 @@ class _ReportesScreenState extends State<ReportesScreen> {
 }
 
 
-  Widget _buildFilterButton(String label, int index) {
-    final bool selected = selectedFilter == index;
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: GestureDetector(
-        onTap: () {
-          setState(() {
-            selectedFilter = index;
-          });
-        },
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.transparent,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 16, // Más pequeño
-                  color: selected ? const Color(0xFF0B7A2F) : Colors.grey[800],
-                  fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-                ),
-              ),
-            ),
-            Container(
-              height: 3,
-              width: 60,
-              decoration: BoxDecoration(
-                color: selected ? const Color(0xFF0B7A2F) : Colors.transparent,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDateSelector(BuildContext context, bool isStart) {
-    DateTime? date = isStart ? startDate : endDate;
-    return GestureDetector(
-      onTap: () => _selectDate(context, isStart),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        decoration: BoxDecoration(
-          color: Colors.grey[200],
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          children: [
-            Text(
-              date == null
-                  ? 'DD/MM/YYYY'
-                  : '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}',
-              style: const TextStyle(fontSize: 16, color: Colors.black),
-            ),
-            const SizedBox(width: 6),
-            const Icon(Icons.calendar_today, size: 18, color: Colors.grey),
-          ],
-        ),
-      ),
-    );
-  }
 
   // Tabla con bordes en todas las celdas y tamaño de fuente reducido
   Widget _buildTableWithBorders() {

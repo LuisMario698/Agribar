@@ -10,6 +10,9 @@ import 'package:agribar/widgets/data_table_widget.dart';
 import 'package:agribar/widgets/indicator_card.dart';
 import 'package:agribar/widgets/dias_trabajados_table.dart';
 import 'package:agribar/widgets/editable_data_table.dart';
+import 'package:agribar/widgets/filter_bar.dart';
+import 'package:agribar/widgets/search_field.dart';
+import 'package:agribar/widgets/export_button_group.dart';
 
 /// Widget principal de la pantalla de nómina.
 /// Gestiona el proceso completo de nómina semanal incluyendo:
@@ -38,6 +41,13 @@ class NominaScreen extends StatefulWidget {
 /// - Datos de empleados y sus registros
 /// - Cálculos de nómina
 /// - Estado de la interfaz
+///
+/// Funcionalidad principal:
+/// - Gestión de captura de días trabajados
+/// - Cálculo automático de percepciones y deducciones
+/// - Exportación de reportes en Excel y PDF
+/// - Vista normal y expandida de la tabla de nómina
+/// - Filtrado y búsqueda de registros
 class _NominaScreenState extends State<NominaScreen> {
   // Datos de ejemplo de cuadrillas
   List<Map<String, String>> cuadrillas = [
@@ -315,14 +325,6 @@ class _NominaScreenState extends State<NominaScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    // Removing unused variables
-    // final isSmallScreen = screenWidth < 1200;
-    // final totalSemana = empleados.fold<int>(
-    //   0,
-    //   (sum, e) => sum + (e['neto'] as int? ?? 0),
-    // );
-
     return Stack(
       children: [
         Center(
@@ -353,9 +355,22 @@ class _NominaScreenState extends State<NominaScreen> {
                         ],
                       ),
                       const SizedBox(height: 24),
-                      _buildFilterBar(),
-                      const SizedBox(height: 24),
-                      _buildSearchAndIndicators(),
+                      FilterBar(
+                        weekLabel: semanaSeleccionada != null
+                            ? '${semanaSeleccionada!.start.day}/${semanaSeleccionada!.start.month} → ${semanaSeleccionada!.end.day}/${semanaSeleccionada!.end.month}'
+                            : 'Inicio → Final',
+                        onWeekTap: _seleccionarSemana,
+                        optionsCuadrilla: cuadrillas.map((c) => c['nombre']!).toList(),
+                        selectedCuadrilla: cuadrillaSeleccionada,
+                        onCuadrillaChanged: (v) {
+                          setState(() {
+                            cuadrillaSeleccionada = v;
+                            _filtrarEmpleados();
+                          });
+                        },
+                      ),
+                     const SizedBox(height: 24),
+                     _buildSearchAndIndicators(),
                       const SizedBox(height: 24),
                       // Top controls: expand and view days
                       Row(
@@ -407,26 +422,10 @@ class _NominaScreenState extends State<NominaScreen> {
                               backgroundColor: Colors.purple,
                               foregroundColor: Colors.white,
                             ),
-                          ),
-                          Spacer(),
-                          AppButton(
-                            label: 'PDF',
-                            icon: Icons.picture_as_pdf,
-                            onPressed: _onExportPdf,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red[700],
-                              foregroundColor: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          AppButton(
-                            label: 'EXCEL',
-                            icon: Icons.table_chart,
-                            onPressed: _onExportExcel,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
-                              foregroundColor: Colors.white,
-                            ),
+                          ),                          const Spacer(),
+                          ExportButtonGroup(
+                            onPdfExport: _onExportPdf,
+                            onExcelExport: _onExportExcel,
                           ),
                         ],
                       ),
@@ -916,66 +915,6 @@ class _NominaScreenState extends State<NominaScreen> {
     );
   }
 
-  // 1. Barra de filtros: Semana y Cuadrilla
-  Widget _buildFilterBar() {
-    return Row(
-      children: [
-        Expanded(
-          child: Card(
-            color: Colors.white,
-            elevation: 8,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                children: [
-                  Text('Semana', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: Colors.green[900])),
-                  const SizedBox(height: 12),
-                  OutlinedButton(
-                    onPressed: _seleccionarSemana,
-                    child: Text(
-                      semanaSeleccionada != null
-                          ? '${semanaSeleccionada!.start.day}/${semanaSeleccionada!.start.month} → ${semanaSeleccionada!.end.day}/${semanaSeleccionada!.end.month}'
-                          : 'Inicio → Final',
-                    ),
-                  )
-                ],
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Card(
-            color: Colors.white,
-            elevation: 8,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                children: [
-                  Text('Cuadrilla', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: Colors.green[900])),
-                  const SizedBox(height: 12),
-                  DropdownButton<String>(
-                    value: cuadrillaSeleccionada,
-                    isExpanded: true,
-                    items: cuadrillas.map((c) => DropdownMenuItem(value: c['nombre'], child: Text(c['nombre']!))).toList(),
-                    onChanged: (v) {
-                      setState(() {
-                        cuadrillaSeleccionada = v;
-                        _filtrarEmpleados();
-                      });
-                    },
-                  )
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
   // 2. Buscar e indicadores
   Widget _buildSearchAndIndicators() {
     return Row(
@@ -1000,18 +939,14 @@ class _NominaScreenState extends State<NominaScreen> {
           ),
         ),
         const SizedBox(width: 16),
-        Expanded(
-          flex: 1,
-          child: TextField(
-            controller: searchController,
-            onChanged: (_) => _filtrarEmpleados(),
-            decoration: InputDecoration(
-              prefixIcon: Icon(Icons.search),
-              hintText: 'Buscar',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-          ),
-        ),
+Expanded(
+  flex: 1,
+  child: SearchField(
+    controller: searchController,
+    onChanged: (_) => _filtrarEmpleados(),
+    hintText: 'Buscar',
+  ),
+),
       ],
     );
   }

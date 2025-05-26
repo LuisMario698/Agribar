@@ -1,13 +1,37 @@
 import 'package:flutter/material.dart';
 
-/// Generic table for days worked in payroll.
+/// Tabla para captura y visualización de días trabajados en nómina.
+///
+/// Este widget implementa una tabla especializada para el registro de:
+/// - Días normales trabajados (TT)
+/// - Horas extra trabajadas (H)
+/// - Totales semanales por empleado
+///
+/// Características principales:
+/// - Edición en línea de días trabajados
+/// - Modo de solo lectura para consultas
+/// - Vista expandible para mejor visualización
+/// - Actualización en tiempo real
+/// - Cálculos automáticos de totales
+///
+/// Se utiliza principalmente en la pantalla de nómina para:
+/// - Captura semanal de días trabajados
+/// - Revisión de registros históricos
+/// - Cálculo de pagos basados en días trabajados 
 class DiasTrabajadosTable extends StatefulWidget {
+  /// Lista de empleados con sus datos básicos
   final List<Map<String, dynamic>> empleados;
+  /// Rango de fechas de la semana seleccionada
   final DateTimeRange? selectedWeek;
+  /// Matriz de horas extra por empleado y día
   final List<List<int>>? diasH;
+  /// Matriz de días trabajados por empleado y día
   final List<List<int>>? diasTT;
+  /// Callback que se ejecuta cuando cambian los días trabajados
   final void Function(List<List<int>> h, List<List<int>> tt)? onChanged;
+  /// Si es true, la tabla será de solo lectura
   final bool readOnly;
+  /// Si es true, la tabla se muestra en modo expandido
   final bool isExpanded;
 
   const DiasTrabajadosTable({
