@@ -11,11 +11,11 @@ class DatabaseService {
 
   Future<void> connect() async {
     _connection = PostgreSQLConnection(
-      '192.168.1.100', // IP del servidor PostgreSQL
+      'localhost', // IP del servidor PostgreSQL
       5432,
-      'agribar_db',    // Nombre de tu base de datos
-      username: 'usuario',
-      password: 'contraseña',
+      'AGRIBAR',    // Nombre de tu base de datos
+      username: 'postgres',
+      password: 'admin',
     );
     await _connection.open();
     print('✅ Conexión establecida con PostgreSQL');
