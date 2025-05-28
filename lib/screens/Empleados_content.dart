@@ -3,6 +3,8 @@
 /// así como gestionar sus datos personales y laborales.
 
 import 'package:flutter/material.dart';
+import '../services/database_service.dart';
+import '../services/registro_empleado_service.dart';
 
 /// Widget principal de la sección de empleados.
 /// Implementa una interfaz con pestañas para organizar diferentes aspectos
@@ -29,68 +31,7 @@ class _EmpleadosContentState extends State<EmpleadosContent> {
   /// 5. Supervisor/Área
   /// 6. Salario
   /// 7. Tipo de pago
-  List<Map<String, dynamic>> empleadosData = [
-    {
-      'clave': '*390',
-      'nombre': 'Juan Carlos',
-      'apellidoPaterno': 'Rodríguez',
-      'apellidoMaterno': 'Fierro',
-      'cuadrilla': 'JOSE FRANCISCO GONZALES REA',
-      'sueldo': '241.00',
-      'tipo': 'Fijo',
-      'habilitado': true,
-    },
-    {
-      'clave': '000001*390',
-      'nombre': 'Celestino',
-      'apellidoPaterno': 'Hernandez',
-      'apellidoMaterno': 'Martinez',
-      'cuadrilla': 'Indirectos',
-      'sueldo': '2375.00',
-      'tipo': 'Fijo',
-      'habilitado': true,
-    },
-    {
-      'clave': '000002*390',
-      'nombre': 'Ines',
-      'apellidoPaterno': 'Cruz',
-      'apellidoMaterno': 'Quiroz',
-      'cuadrilla': 'Indirectos',
-      'sueldo': '2375.00',
-      'tipo': 'Fijo',
-      'habilitado': true,
-    },
-    {
-      'clave': '000003*390',
-      'nombre': 'Feliciano',
-      'apellidoPaterno': 'Cruz',
-      'apellidoMaterno': 'Quiroz',
-      'cuadrilla': 'Indirectos',
-      'sueldo': '2375.00',
-      'tipo': 'Fijo',
-      'habilitado': true,
-    },
-    {
-      'clave': '000003*390',
-      'nombre': 'Refugio Socorro',
-      'apellidoPaterno': 'Ramirez',
-      'apellidoMaterno': 'Carre--o',
-      'cuadrilla': 'Indirectos',
-      'sueldo': '2375.00',
-      'tipo': 'Fijo',
-      'habilitado': true,
-    },
-    {
-      'clave': '000004*390',
-      'nombre': 'Adela',
-      'apellidoPaterno': 'Rodriguez',
-      'apellidoMaterno': 'Ramirez',
-      'cuadrilla': 'Indirectos',
-      'sueldo': '2375.00',
-      'tipo': 'Fijo',
-      'habilitado': true,
-    },
-  ];
+  List<Map<String, dynamic>> empleadosData = [];
 
   final List<String> empleadosHeaders = [
     'Clave',
@@ -111,7 +52,56 @@ class _EmpleadosContentState extends State<EmpleadosContent> {
   @override
   void initState() {
     super.initState();
+    cargarEmpleadosDesdeBD();
     WidgetsBinding.instance.addPostFrameCallback((_) => _setIndicator());
+  }
+
+  Future<void> cargarEmpleadosDesdeBD() async {
+    try {
+      final db = DatabaseService();
+      await db.connect();
+
+      final results = await db.connection.query('''
+      SELECT 
+        e.codigo AS clave,
+        e.nombre,
+        e.apellido_paterno,
+        e.apellido_materno,
+        c.nombre AS cuadrilla,
+        dn.sueldo,
+        dn.tipo_descuento_infonavit AS tipo,
+        NOT dl.deshabilitado AS habilitado
+      FROM empleados e
+      JOIN datos_laborales dl ON e.id_empleado = dl.id_empleado
+      JOIN datos_nomina dn ON e.id_empleado = dn.id_empleado
+      LEFT JOIN cuadrillas c ON dl.id_cuadrilla = c.id_cuadrilla;
+    ''');
+
+      setState(() {
+        empleadosData =
+            results
+                .map(
+                  (row) => {
+                    'clave': row[0],
+                    'nombre': row[1],
+                    'apellidoPaterno': row[2],
+                    'apellidoMaterno': row[3],
+                    'cuadrilla': row[4] ?? 'Sin asignar',
+                    'sueldo':
+                        row[5] is double
+                            ? row[5].toStringAsFixed(2)
+                            : row[5].toString(),
+                    'tipo': row[6],
+                    'habilitado': row[7],
+                  },
+                )
+                .toList();
+      });
+
+      await db.close();
+    } catch (e) {
+      print('Error al cargar empleados: $e');
+    }
   }
 
   void _onTabSelected(int index) {
@@ -714,27 +704,70 @@ class _RegistroEmpleadoWizardState extends State<RegistroEmpleadoWizard> {
     'Descuento extraordinario',
   ];
 
-  void _nextStep() {
-    if (_currentStep < totalSteps - 1) {
-      setState(() => _currentStep++);
-    } else {
-      // Al terminar, agrega el empleado
-      widget.onEmpleadoRegistrado([
-        codigoController.text,
-        nombreController.text,
-        apellidoPaternoController.text,
-        apellidoMaternoController.text,
-        cuadrilla,
-        sueldoController.text,
-        tipoEmpleado,
-      ]);
-      setState(() => _currentStep = 0);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('¡Registro completado!')));
-      _limpiarCampos();
-    }
+  Future<void> _nextStep() async {
+if (_currentStep < totalSteps - 1) {
+  setState(() => _currentStep++);
+} else {
+final nuevoCodigo = await generarSiguienteCodigoEmpleado();
+final nuevoEmpleado = {
+    'codigo':nuevoCodigo,
+    'nombre': nombreController.text,
+    'apellidoPaterno': apellidoPaternoController.text,
+    'apellidoMaterno': apellidoMaternoController.text,
+    'curp': curpController.text,
+    'rfc': rfcController.text,
+    'nss': nssController.text,
+    'estado': estadoOrigen,
+
+    'tipo': tipoEmpleado,
+    'idCuadrilla': int.tryParse(cuadrilla) ?? null, // si cuadrilla es ID numérico
+    'fechaIngreso': fechaIngreso?.toIso8601String().split('T').first ?? '',
+    'empresa': empresaController.text,
+    'puesto': puestoController.text,
+    'registroPatronal': registroPatronalController.text,
+
+    'sueldo': double.tryParse(sueldoController.text) ?? 0.0,
+    'domingoLaboral': domingoLaboral
+        ? double.tryParse(domingoLaboralMontoController.text) ?? 0.0
+        : 0.0,
+    'descuentoComedor': descuentoComedor
+        ? double.tryParse(descuentoComedorController.text) ?? 0.0
+        : 0.0,
+    'tipoDescuento': tipoDescuentoInfonavit,
+    'descuentoInfonavit': double.tryParse(descuentoInfonavitController.text) ?? 0.0,
+  };
+
+  await registrarEmpleadoEnBD(nuevoEmpleado);
+  //await cargarEmpleadosDesdeBD(); // recarga la tabla
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text('¡Registro completado!')),
+  );
+
+  setState(() => _currentStep = 0);
+  _limpiarCampos();
+}
+
   }
+
+Future<String> generarSiguienteCodigoEmpleado() async {
+  final db = DatabaseService();
+  await db.connect();
+
+final result = await db.connection.query(
+  "SELECT codigo FROM empleados WHERE codigo ~ '^EMP[0-9]+\$' ORDER BY CAST(SUBSTRING(codigo FROM 4) AS INTEGER) DESC LIMIT 1;"
+);
+
+  await db.close();
+
+  if (result.isEmpty) return 'EMP001';
+
+  final ultimoCodigo = result.first[0] as String;
+  final numero = int.parse(ultimoCodigo.substring(3));
+  final siguienteNumero = numero + 1;
+  return 'EMP${siguienteNumero.toString().padLeft(3, '0')}';
+}
+
 
   void _prevStep() {
     if (_currentStep > 0) {
@@ -1079,12 +1112,14 @@ class _RegistroEmpleadoWizardState extends State<RegistroEmpleadoWizard> {
                     firstDate: DateTime(2000),
                     lastDate: DateTime(2100),
                   );
-                  setState(() {
-                    fechaIngreso = picked;
-                    fechaIngresoController.text =
-                        "${picked?.day.toString().padLeft(2, '0')}/${picked?.month.toString().padLeft(2, '0')}/${picked?.year}";
-                  });
-                                },
+                  if (picked != null) {
+                    setState(() {
+                      fechaIngreso = picked;
+                      fechaIngresoController.text =
+                          "${picked.day.toString().padLeft(2, '0')}/${picked.month.toString().padLeft(2, '0')}/${picked.year}";
+                    });
+                  }
+                },
                 child: AbsorbPointer(
                   child: TextField(
                     controller: fechaIngresoController,
