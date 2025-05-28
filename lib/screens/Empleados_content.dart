@@ -5,6 +5,7 @@
 import 'package:flutter/material.dart';
 import '../services/database_service.dart';
 import '../services/registro_empleado_service.dart';
+import 'EmpleadosGeneralTab.dart';
 
 /// Widget principal de la sección de empleados.
 /// Implementa una interfaz con pestañas para organizar diferentes aspectos
@@ -300,191 +301,10 @@ class _EmpleadosContentState extends State<EmpleadosContent> {
   }
 
   Widget _buildGeneralTab() {
-    int minRows = 20;
-    int extraRows =
-        empleadosData.length < minRows ? minRows - empleadosData.length : 0;
-
-    // Calcular empleados activos e inactivos
-    int empleadosActivos =
-        empleadosData.where((emp) => emp['habilitado'] == true).length;
-    int empleadosInactivos =
-        empleadosData.where((emp) => emp['habilitado'] == false).length;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Métricas
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            _EmpleadosMetricCard(
-              title: 'Empleados activos',
-              value: empleadosActivos.toString(),
-              icon: Icons.person,
-              iconColor: Color(
-                0xFF0B7A2F,
-              ), // Verde más oscuro para empleados activos
-            ),
-            SizedBox(width: 32),
-            _EmpleadosMetricCard(
-              title: 'Empleados inactivos',
-              value: empleadosInactivos.toString(),
-              icon: Icons.person,
-              iconColor: Color(0xFFE53935), // Rojo para empleados inactivos
-            ),
-          ],
-        ),
-        SizedBox(height: 32),
-        // Tabla NO editable y con bordes redondeados
-        Expanded(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(18),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 12,
-                    offset: Offset(0, 4),
-                  ),
-                ],
-              ),
-              padding: EdgeInsets.all(0),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  return SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        minWidth: constraints.maxWidth,
-                      ),
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.vertical,
-                        child: DataTable(
-                          border: TableBorder.all(
-                            color: Color(0xFFE5E5E5),
-                            width: 1.2,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          headingRowColor: MaterialStateProperty.all(
-                            Color(0xFFF3F3F3),
-                          ),
-                          columnSpacing: 24,
-                          columns:
-                              empleadosHeaders.map((header) {
-                                return DataColumn(
-                                  label: Text(
-                                    header,
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                );
-                              }).toList(),
-                          rows: [
-                            ...List.generate(empleadosData.length, (rowIdx) {
-                              return DataRow(
-                                // Cambiar el color de fondo si el empleado está deshabilitado
-                                color: MaterialStateProperty.resolveWith<
-                                  Color?
-                                >((Set<MaterialState> states) {
-                                  if (!empleadosData[rowIdx]['habilitado']) {
-                                    return Colors
-                                        .grey[100]; // Fondo gris claro para deshabilitados
-                                  }
-                                  return null; // Usar el color por defecto
-                                }),
-                                cells: [
-                                  DataCell(
-                                    Text(empleadosData[rowIdx]['clave'] ?? ''),
-                                  ),
-                                  DataCell(
-                                    Text(empleadosData[rowIdx]['nombre'] ?? ''),
-                                  ),
-                                  DataCell(
-                                    Text(
-                                      empleadosData[rowIdx]['apellidoPaterno'] ??
-                                          '',
-                                    ),
-                                  ),
-                                  DataCell(
-                                    Text(
-                                      empleadosData[rowIdx]['apellidoMaterno'] ??
-                                          '',
-                                    ),
-                                  ),
-                                  DataCell(
-                                    Text(
-                                      empleadosData[rowIdx]['cuadrilla'] ?? '',
-                                    ),
-                                  ),
-                                  DataCell(
-                                    Text(empleadosData[rowIdx]['sueldo'] ?? ''),
-                                  ),
-                                  DataCell(
-                                    Text(empleadosData[rowIdx]['tipo'] ?? ''),
-                                  ),
-                                  DataCell(
-                                    Container(
-                                      width: 120,
-                                      child: ElevatedButton(
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor:
-                                              empleadosData[rowIdx]['habilitado']
-                                                  ? Color(
-                                                    0xFFE53935,
-                                                  ) // Rojo para deshabilitar
-                                                  : Color(
-                                                    0xFF0B7A2F,
-                                                  ), // Verde para habilitar
-                                          foregroundColor: Colors.white,
-                                          padding: EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 4,
-                                          ),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              8,
-                                            ),
-                                          ),
-                                        ),
-                                        onPressed:
-                                            () => _toggleHabilitado(rowIdx),
-                                        child: Text(
-                                          empleadosData[rowIdx]['habilitado']
-                                              ? 'Deshabilitar'
-                                              : 'Habilitar',
-                                          style: TextStyle(fontSize: 13),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              );
-                            }),
-                            // Filas vacías
-                            ...List.generate(extraRows, (i) {
-                              return DataRow(
-                                cells: List.generate(empleadosHeaders.length, (
-                                  colIdx,
-                                ) {
-                                  return DataCell(Text(''));
-                                }),
-                              );
-                            }),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-        ),
-      ],
+    return EmpleadosGeneralTab(
+      empleadosData: empleadosData,
+      empleadosHeaders: empleadosHeaders,
+      toggleHabilitado: _toggleHabilitado,
     );
   }
 
@@ -557,61 +377,7 @@ class _EmpleadosTab extends StatelessWidget {
   }
 }
 
-class _EmpleadosMetricCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData icon;
-  final Color iconColor;
-  const _EmpleadosMetricCard({
-    required this.title,
-    required this.value,
-    required this.icon,
-    this.iconColor = const Color(0xFF8AB531),
-  });
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 12,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 24, color: iconColor),
-          SizedBox(width: 18),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 20,
-              color: Colors.grey[700],
-              fontWeight: FontWeight.w400,
-            ),
-          ),
-          SizedBox(width: 18),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 24,
-              color: Colors.black,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class RegistroEmpleadoWizard extends StatefulWidget {
   final void Function(List<String>) onEmpleadoRegistrado;
