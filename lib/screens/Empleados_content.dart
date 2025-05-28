@@ -1079,14 +1079,12 @@ class _RegistroEmpleadoWizardState extends State<RegistroEmpleadoWizard> {
                     firstDate: DateTime(2000),
                     lastDate: DateTime(2100),
                   );
-                  if (picked != null) {
-                    setState(() {
-                      fechaIngreso = picked;
-                      fechaIngresoController.text =
-                          "${picked.day.toString().padLeft(2, '0')}/${picked.month.toString().padLeft(2, '0')}/${picked.year}";
-                    });
-                  }
-                },
+                  setState(() {
+                    fechaIngreso = picked;
+                    fechaIngresoController.text =
+                        "${picked?.day.toString().padLeft(2, '0')}/${picked?.month.toString().padLeft(2, '0')}/${picked?.year}";
+                  });
+                                },
                 child: AbsorbPointer(
                   child: TextField(
                     controller: fechaIngresoController,

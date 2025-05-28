@@ -418,13 +418,11 @@ class _ActividadesContentState extends State<ActividadesContent> {
             firstDate: DateTime(2000),
             lastDate: DateTime(2100),
           );
-          if (picked != null) {
-            setState(() {
-              fecha = picked;
-              fechaController.text = "${picked.day.toString().padLeft(2, '0')}/${picked.month.toString().padLeft(2, '0')}/${picked.year}";
-            });
-          }
-        },
+          setState(() {
+            fecha = picked;
+            fechaController.text = "${picked?.day.toString().padLeft(2, '0')}/${picked?.month.toString().padLeft(2, '0')}/${picked?.year}";
+          });
+                },
       ),
     );
   }
