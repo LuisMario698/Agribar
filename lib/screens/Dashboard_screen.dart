@@ -9,13 +9,13 @@
 /// - Mostrar el contenido correspondiente a cada sección
 
 import 'package:flutter/material.dart';
+import 'cuadrillas/CuadrillaContent.dart';
 import 'Dashboard_content.dart';
 import 'Empleados_content.dart';
 import 'Nomina_screen.dart';
-import 'Actividades_content.dart';
+import 'actividades/ActividadContent.dart';
 import 'Configuracion_content.dart';
 import 'AppTheme.dart';
-import 'Cuadrilla_Content.dart';
 import 'Reportes_screen.dart';
 
 /// Widget principal del panel de control.
@@ -91,7 +91,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       case 2:
         return CuadrillaContent();
       case 3:
-        return ActividadesContent();
+        return ActividadContent();
       case 4:
         return NominaScreen();
       case 5:
@@ -405,4 +405,3 @@ class _ChartCard extends StatelessWidget {
     );
   }
 }
-

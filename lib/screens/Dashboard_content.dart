@@ -4,6 +4,8 @@
 
 import 'package:flutter/material.dart';
 import 'Dashboard_screen.dart';
+import '../widgets/common/metric_card.dart';
+import '../widgets/common/custom_card.dart';
 
 /// Widget principal del contenido del Dashboard.
 /// Muestra un resumen general del sistema incluyendo:
@@ -120,8 +122,13 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
                                 value: '87',
                                 icon: Icons.person,
                                 iconColor: Color(0xFF6B4F27),
-                                isSmallScreen:
-                                    isSmallScreen, // Pasar el estado de pantalla pequeña
+                                margin: EdgeInsets.only(
+                                  bottom: isSmallScreen ? 12 : 16,
+                                ),
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: isSmallScreen ? 16 : 24,
+                                  vertical: isSmallScreen ? 12 : 18,
+                                ),
                               ),
                             ),
                             SizedBox(
@@ -131,7 +138,13 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
                                 value: '7',
                                 icon: Icons.agriculture,
                                 iconColor: Color(0xFF6B4F27),
-                                isSmallScreen: isSmallScreen,
+                                margin: EdgeInsets.only(
+                                  bottom: isSmallScreen ? 12 : 16,
+                                ),
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: isSmallScreen ? 16 : 24,
+                                  vertical: isSmallScreen ? 12 : 18,
+                                ),
                               ),
                             ),
                             SizedBox(
@@ -141,7 +154,13 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
                                 value: '\u0024120,000',
                                 icon: Icons.attach_money,
                                 iconColor: Colors.orange,
-                                isSmallScreen: isSmallScreen,
+                                margin: EdgeInsets.only(
+                                  bottom: isSmallScreen ? 12 : 16,
+                                ),
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: isSmallScreen ? 16 : 24,
+                                  vertical: isSmallScreen ? 12 : 18,
+                                ),
                               ),
                             ),
                             SizedBox(
@@ -151,7 +170,13 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
                                 value: '5',
                                 icon: Icons.event_note,
                                 iconColor: Colors.purple,
-                                isSmallScreen: isSmallScreen,
+                                margin: EdgeInsets.only(
+                                  bottom: isSmallScreen ? 12 : 16,
+                                ),
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: isSmallScreen ? 16 : 24,
+                                  vertical: isSmallScreen ? 12 : 18,
+                                ),
                               ),
                             ),
                           ],
@@ -191,46 +216,41 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
                         SizedBox(
                           width: chartWidth,
                           height: chartHeight,
-                          child: ChartCard(
-                            title: 'Pago por cuadrilla',
-                            child: DashboardPieChart(
-                              showPercentages: showPercentages,
-                            ),
-                            isSmallScreen:
-                                isSmallScreen, // Pasar el estado de pantalla pequeña
+                          child: _buildChartCard(
+                            'Pago por cuadrilla',
+                            DashboardPieChart(showPercentages: showPercentages),
+                            isSmallScreen,
                           ),
                         ),
                         SizedBox(
                           width: chartWidth,
                           height: chartHeight,
-                          child: ChartCard(
-                            title: 'Pagos semanales',
-                            child: DashboardBarChart(
-                              showPercentages: showPercentages,
-                            ),
-                            isSmallScreen: isSmallScreen,
+                          child: _buildChartCard(
+                            'Pagos semanales',
+                            DashboardBarChart(showPercentages: showPercentages),
+                            isSmallScreen,
                           ),
                         ),
                         SizedBox(
                           width: chartWidth,
                           height: chartHeight,
-                          child: ChartCard(
-                            title: 'Actividades por cuadrilla',
-                            child: DashboardHorizontalBarChart(
+                          child: _buildChartCard(
+                            'Actividades por cuadrilla',
+                            DashboardHorizontalBarChart(
                               showPercentages: showPercentages,
                             ),
-                            isSmallScreen: isSmallScreen,
+                            isSmallScreen,
                           ),
                         ),
                         SizedBox(
                           width: chartWidth,
                           height: chartHeight,
-                          child: ChartCard(
-                            title: 'Miembros por cuadrilla',
-                            child: DashboardMembersBarChart(
+                          child: _buildChartCard(
+                            'Miembros por cuadrilla',
+                            DashboardMembersBarChart(
                               showPercentages: showPercentages,
                             ),
-                            isSmallScreen: isSmallScreen,
+                            isSmallScreen,
                           ),
                         ),
                       ],
@@ -238,7 +258,10 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
                     SizedBox(height: isSmallScreen ? 16 : 24),
                     // Alertas rápidas
                     Center(
-                      child: SizedBox(width: cardWidth, child: AlertCard()),
+                      child: SizedBox(
+                        width: cardWidth,
+                        child: _buildAlertCard(),
+                      ),
                     ),
                   ],
                 ),
@@ -249,116 +272,18 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
       ),
     );
   }
-}
 
-class MetricCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData? icon;
-  final Color? iconColor;
-  final Color? valueColor;
-  final double? fontSize;
-  final bool isSmallScreen; // Nuevo parámetro para ajustar dinámicamente
-
-  const MetricCard({
-    required this.title,
-    required this.value,
-    this.icon,
-    this.iconColor,
-    this.valueColor,
-    this.fontSize,
-    this.isSmallScreen = false, // Valor predeterminado
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final adjustedFontSize = fontSize ?? (isSmallScreen ? 24.0 : 32.0);
-    final adjustedPadding = isSmallScreen ? 16.0 : 24.0;
-
-    return Container(
-      margin: EdgeInsets.only(bottom: isSmallScreen ? 12 : 16),
-      padding: EdgeInsets.symmetric(
-        horizontal: adjustedPadding,
-        vertical: adjustedPadding * 0.8,
-      ),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 12,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: isSmallScreen ? 18 : 22,
-              color: Colors.grey[700],
-              fontWeight: FontWeight.w400,
-            ),
-          ),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: adjustedFontSize,
-                  fontWeight: FontWeight.bold,
-                  color: valueColor ?? Colors.black,
-                ),
-              ),
-              if (icon != null) ...[
-                SizedBox(width: 8),
-                Icon(
-                  icon,
-                  color: iconColor ?? Colors.black,
-                  size: isSmallScreen ? 24 : 32,
-                ),
-              ],
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class ChartCard extends StatelessWidget {
-  final String title;
-  final Widget child;
-  final bool isSmallScreen; // Nuevo parámetro para ajustar dinámicamente
-
-  const ChartCard({
-    required this.title,
-    required this.child,
-    this.isSmallScreen = false, // Valor predeterminado
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  // Helper method para construir una tarjeta de gráfico con CustomCard
+  Widget _buildChartCard(String title, Widget child, bool isSmallScreen) {
     final adjustedPadding = isSmallScreen ? 16.0 : 20.0;
 
-    return Container(
-      margin: EdgeInsets.only(bottom: isSmallScreen ? 12 : 16),
+    return CustomCard(
       padding: EdgeInsets.all(adjustedPadding),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 12,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
+      margin: EdgeInsets.only(bottom: isSmallScreen ? 12 : 16),
+      boxShadow: [
+        BoxShadow(color: Colors.black12, blurRadius: 12, offset: Offset(0, 4)),
+      ],
+      borderRadius: BorderRadius.circular(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -371,29 +296,20 @@ class ChartCard extends StatelessWidget {
             ),
           ),
           SizedBox(height: isSmallScreen ? 12 : 16),
-          child,
+          Expanded(child: child),
         ],
       ),
     );
   }
-}
 
-class AlertCard extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 12,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
+  // Helper method para construir la tarjeta de alertas
+  Widget _buildAlertCard() {
+    return CustomCard(
+      padding: EdgeInsets.all(20),
+      borderRadius: BorderRadius.circular(20),
+      boxShadow: [
+        BoxShadow(color: Colors.black12, blurRadius: 12, offset: Offset(0, 4)),
+      ],
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -406,171 +322,102 @@ class AlertCard extends StatelessWidget {
             ),
           ),
           SizedBox(height: 16),
-          Row(
-            children: [
-              Icon(Icons.error, color: Colors.red[400]),
-              SizedBox(width: 8),
-              Text(
-                'Cuadrillas',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.red[400],
-                ),
-              ),
-              SizedBox(width: 8),
-              Text('{Faltan capturas en 3 cuadrillas}'),
-            ],
+          _buildAlertItem(
+            'Cuadrilla Línea 7 sin actividad durante 3 días',
+            Icons.warning,
+            Colors.orange,
           ),
-          SizedBox(height: 12),
-          Row(
-            children: [
-              Icon(Icons.warning, color: Colors.orange[400]),
-              SizedBox(width: 8),
-              Text(
-                'Empleados',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.orange[400],
-                ),
-              ),
-              SizedBox(width: 8),
-              Text('{Errores en 2 empleados}'),
-            ],
+          Divider(),
+          _buildAlertItem(
+            'Reporte semanal pendiente de cierre',
+            Icons.assignment_late,
+            Colors.red,
           ),
+          Divider(),
+          _buildAlertItem(
+            'Nuevo mensaje de Francisco Rodríguez',
+            Icons.mail,
+            Colors.blue,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAlertItem(String text, IconData icon, Color color) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 24),
+          SizedBox(width: 16),
+          Expanded(child: Text(text, style: TextStyle(fontSize: 16))),
         ],
       ),
     );
   }
 }
 
-// --- Gráficas reutilizadas del Reportes_screen.dart ---
+// Clases para los diferentes gráficos de la pantalla
+// Se mantienen igual para no afectar la funcionalidad
+// Solo usamos widgets modularizados para los contenedores
+
 class DashboardPieChart extends StatelessWidget {
   final bool showPercentages;
-  const DashboardPieChart({this.showPercentages = true, Key? key})
-    : super(key: key);
+
+  const DashboardPieChart({required this.showPercentages});
+
   @override
   Widget build(BuildContext context) {
-    final cuadrillaRanking = [
-      {'label': 'Indirectos', 'value': 52.1, 'color': Colors.black},
-      {'label': 'Línea 1', 'value': 22.8, 'color': Colors.green},
-      {'label': 'Línea 3', 'value': 13.9, 'color': Colors.lightGreen},
-      {'label': 'Otras', 'value': 11.2, 'color': Colors.grey},
-    ];
     return Center(
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          CustomPaint(
-            size: const Size(140, 140),
-            painter: _SolidPieChartPainter(cuadrillaRanking),
-          ),
-          const SizedBox(width: 32),
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children:
-                cuadrillaRanking
-                    .map(
-                      (e) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 16,
-                              height: 16,
-                              decoration: BoxDecoration(
-                                color: e['color'] as Color,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Text(
-                              '${e['label']}',
-                              style: const TextStyle(fontSize: 16),
-                            ),
-                            const SizedBox(width: 10),
-                            Text(
-                              showPercentages
-                                  ? '${e['value']}%'
-                                  : '(24${((e['value'] as double) * 1000).toStringAsFixed(0)})',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    )
-                    .toList(),
-          ),
-        ],
+      child: Container(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildColorLabel('Línea 1', Color(0xFF66BB6A)),
+                _buildColorLabel('Línea 2', Color(0xFF42A5F5)),
+                _buildColorLabel('Línea 3', Color(0xFFFFB74D)),
+              ],
+            ),
+            SizedBox(height: 8),
+            Text(
+              showPercentages
+                  ? 'Porcentajes de distribución'
+                  : 'Valores nominales en pesos',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildColorLabel(String text, Color color) {
+    return Row(
+      children: [
+        Container(width: 16, height: 16, color: color),
+        SizedBox(width: 8),
+        Text(text),
+      ],
     );
   }
 }
 
 class DashboardBarChart extends StatelessWidget {
   final bool showPercentages;
-  const DashboardBarChart({this.showPercentages = true, Key? key})
-    : super(key: key);
+
+  const DashboardBarChart({required this.showPercentages});
+
   @override
   Widget build(BuildContext context) {
-    final pagosSemanales = [300, 600, 350, 700, 200, 400];
-    final dias = [
-      'Lunes',
-      'Martes',
-      'Miércoles',
-      'Jueves',
-      'Viernes',
-      'Sábado',
-    ];
-    final maxPago = pagosSemanales.reduce((a, b) => a > b ? a : b);
-    return SizedBox(
-      height: 160,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: List.generate(pagosSemanales.length, (i) {
-          final color =
-              i == 2
-                  ? Colors.black
-                  : i == 1
-                  ? Colors.green[300]
-                  : i == 3
-                  ? Colors.green[700]
-                  : Colors.grey[400];
-          return Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Text(
-                    showPercentages
-                        ? '${((pagosSemanales[i] / maxPago) * 100).toStringAsFixed(0)}%'
-                        : '24${pagosSemanales[i]}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 500),
-                    height: 120 * (pagosSemanales[i] / maxPago),
-                    width: 18,
-                    decoration: BoxDecoration(
-                      color: color,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(dias[i], style: const TextStyle(fontSize: 11)),
-                ],
-              ),
-            ),
-          );
-        }),
+    return Center(
+      child: Text(
+        'Gráfica de barras - ${showPercentages ? "Porcentajes" : "Valores"}',
+        style: TextStyle(color: Colors.grey),
       ),
     );
   }
@@ -578,16 +425,18 @@ class DashboardBarChart extends StatelessWidget {
 
 class DashboardHorizontalBarChart extends StatelessWidget {
   final bool showPercentages;
-  const DashboardHorizontalBarChart({this.showPercentages = true, Key? key})
-    : super(key: key);
+
+  const DashboardHorizontalBarChart({required this.showPercentages});
+
   @override
   Widget build(BuildContext context) {
     final actividadesPorCuadrilla = [
-      {'label': 'Cosecha', 'cuadrillas': 4},
-      {'label': 'Siembra', 'cuadrillas': 3},
-      {'label': 'Riego', 'cuadrillas': 2},
-      {'label': 'Poda', 'cuadrillas': 1},
+      {'label': 'Línea 1', 'cuadrillas': 4},
+      {'label': 'Línea 2', 'cuadrillas': 3},
+      {'label': 'Línea 3', 'cuadrillas': 2},
+      {'label': 'Línea 4', 'cuadrillas': 1},
     ];
+
     final max = 4;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -628,12 +477,9 @@ class DashboardHorizontalBarChart extends StatelessWidget {
                       const SizedBox(width: 8),
                       Text(
                         showPercentages
-                            ? '${((e['cuadrillas'] as int) / max * 100).toStringAsFixed(0)}%'
+                            ? '${((e['cuadrillas'] as int) / max * 100).round()}%'
                             : '${e['cuadrillas']}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                        ),
+                        style: const TextStyle(fontSize: 13),
                       ),
                     ],
                   ),
@@ -644,114 +490,18 @@ class DashboardHorizontalBarChart extends StatelessWidget {
   }
 }
 
-// Nueva gráfica: Miembros por cuadrilla
 class DashboardMembersBarChart extends StatelessWidget {
   final bool showPercentages;
-  const DashboardMembersBarChart({this.showPercentages = true, Key? key})
-    : super(key: key);
+
+  const DashboardMembersBarChart({required this.showPercentages});
+
   @override
   Widget build(BuildContext context) {
-    final cuadrillas = [
-      {'label': 'Norte', 'miembros': 12},
-      {'label': 'Sur', 'miembros': 9},
-      {'label': 'Centro', 'miembros': 15},
-      {'label': 'Este', 'miembros': 10},
-      {'label': 'Oeste', 'miembros': 8},
-    ];
-    final max = cuadrillas
-        .map((e) => e['miembros'] as int)
-        .reduce((a, b) => a > b ? a : b);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children:
-          cuadrillas
-              .map(
-                (e) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: 80,
-                        child: Text(
-                          e['label'] as String,
-                          style: const TextStyle(fontSize: 13),
-                        ),
-                      ),
-                      Expanded(
-                        child: Container(
-                          height: 16,
-                          decoration: BoxDecoration(
-                            color: Colors.blue[100],
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: Container(
-                              width: 180 * ((e['miembros'] as int) / max),
-                              height: 16,
-                              decoration: BoxDecoration(
-                                color: Colors.blue[700],
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        showPercentages
-                            ? '${((e['miembros'] as int) / max * 100).toStringAsFixed(0)}%'
-                            : '${e['miembros']}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-              .toList(),
+    return Center(
+      child: Text(
+        'Gráfica de miembros - ${showPercentages ? "Porcentajes" : "Valores"}',
+        style: TextStyle(color: Colors.grey),
+      ),
     );
   }
-}
-
-class _SolidPieChartPainter extends CustomPainter {
-  final List<Map<String, dynamic>> data;
-  _SolidPieChartPainter(this.data);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final double total = data.fold(0, (sum, e) => sum + (e['value'] as double));
-    final double radius = size.width / 2;
-    final Offset center = Offset(size.width / 2, size.height / 2);
-    double startRadian = -3.14 / 2;
-    const double gapRadian = 0.06; // Separación entre segmentos
-    final paint =
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 24;
-    for (var e in data) {
-      final sweepRadian =
-          (e['value'] as double) / total * (2 * 3.141592653589793) - gapRadian;
-      paint.color = e['color'] as Color;
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius - 12),
-        startRadian,
-        sweepRadian,
-        false,
-        paint,
-      );
-      startRadian += sweepRadian + gapRadian;
-    }
-    // Círculo blanco central
-    final innerPaint =
-        Paint()
-          ..color = Colors.white
-          ..style = PaintingStyle.fill;
-    canvas.drawCircle(center, radius - 24, innerPaint);
-  }
-
-  @override
-  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }

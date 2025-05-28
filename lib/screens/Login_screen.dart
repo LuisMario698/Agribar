@@ -4,6 +4,8 @@
 
 import 'package:flutter/material.dart';
 import 'Dashboard_screen.dart';
+import '../widgets/common/custom_input_field.dart';
+import '../widgets/common/custom_button.dart';
 
 /// Widget que representa la pantalla de inicio de sesión.
 /// Maneja el estado del formulario de autenticación.
@@ -16,6 +18,17 @@ class LoginScreen extends StatefulWidget {
 
 /// Estado de la pantalla de inicio de sesión
 class _LoginScreenState extends State<LoginScreen> {
+  // Controladores para los campos de texto
+  final TextEditingController _usuarioController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    _usuarioController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -43,37 +56,23 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     SizedBox(height: 40),
-                    // Campo de usuario con diseño personalizado
-                    TextField(
-                      decoration: InputDecoration(
-                        prefixIcon: Icon(Icons.person_outline),
-                        hintText: 'Usuario',
-                        filled: true,
-                        fillColor: Color(
-                          0xFFF2F3EC,
-                        ), // Color de fondo del campo
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
+                    // Campo de usuario modularizado
+                    CustomInputField(
+                      controller: _usuarioController,
+                      label: '',
+                      hintText: 'Usuario',
+                      prefix: Icon(Icons.person_outline),
+                      fillColor: Color(0xFFF2F3EC),
                     ),
                     SizedBox(height: 20),
-                    // Campo de contraseña con diseño personalizado
-                    TextField(
+                    // Campo de contraseña modularizado
+                    CustomInputField(
+                      controller: _passwordController,
+                      label: '',
+                      hintText: 'Contraseña',
                       obscureText: true,
-                      decoration: InputDecoration(
-                        prefixIcon: Icon(Icons.lock_outline),
-                        hintText: 'Contraseña',
-                        filled: true,
-                        fillColor: Color(
-                          0xFFF2F3EC,
-                        ), // Color de fondo del campo
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
+                      prefix: Icon(Icons.lock_outline),
+                      fillColor: Color(0xFFF2F3EC),
                     ),
                     SizedBox(height: 10),
                     // Enlace para recuperar contraseña
@@ -85,53 +84,26 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     SizedBox(height: 40),
-                    // Botón de inicio de sesión con diseño personalizado
+                    // Botón de inicio de sesión modularizado
                     Center(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [Color(0xFF5BA829), Color(0xFF8DC63F)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black26,
-                              blurRadius: 12,
-                              offset: Offset(0, 6),
+                      child: CustomButton(
+                        text: 'Ingresar',
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => DashboardScreen(),
                             ),
-                          ],
-                        ),
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => DashboardScreen(),
-                              ),
-                            );
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            shadowColor: Colors.transparent,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 40,
-                              vertical: 16,
-                            ),
-                            elevation: 0,
-                          ),
-                          child: const Text(
-                            'Ingresar',
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
+                          );
+                        },
+                        type: ButtonType.primary,
+                        backgroundColor: Color(0xFF5BA829),
+                        width: 200,
+                        height: 56,
+                        borderRadius: BorderRadius.circular(16),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 40,
+                          vertical: 16,
                         ),
                       ),
                     ),

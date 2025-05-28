@@ -1,0 +1,368 @@
+// Archivo: ActividadContent.dart
+// Pantalla para la gestión de actividades en el sistema Agribar
+// Estructura profesionalizada y documentada en español
+// Refactorizado para usar widgets modulares
+
+import 'package:flutter/material.dart';
+import 'widgets/ActividadForm.dart';
+import 'widgets/ActividadSearchBar.dart';
+import '../widgets_general/GenericTable.dart';
+import '../../widgets/common/custom_snackbar.dart';
+
+/// Pantalla de gestión de actividades que mantiene el diseño original
+class ActividadContent extends StatefulWidget {
+  const ActividadContent({Key? key}) : super(key: key);
+
+  @override
+  State<ActividadContent> createState() => _ActividadContentState();
+}
+
+class _ActividadContentState extends State<ActividadContent> {
+  // Controladores de texto
+  final TextEditingController nombreController = TextEditingController();
+  final TextEditingController claveController = TextEditingController();
+  final TextEditingController importeController = TextEditingController();
+  DateTime? fecha;
+  final TextEditingController fechaController = TextEditingController();
+  final TextEditingController searchController = TextEditingController();
+
+  // Variables para filtrado por cuadrilla
+  String cuadrillaSeleccionada = 'Todas las cuadrillas';
+  
+  // Lista de cuadrillas disponibles (similar a nómina y reportes)
+  final List<Map<String, String>> cuadrillas = [
+    {'nombre': 'Todas las cuadrillas', 'clave': 'ALL'},
+    {'nombre': 'Indirectos', 'clave': '000001+390'},
+    {'nombre': 'Linea 1', 'clave': '000002+390'},
+    {'nombre': 'Linea 2', 'clave': '000003+390'},
+    {'nombre': 'Linea 3', 'clave': '000004+390'},
+    {'nombre': 'Linea 4', 'clave': '000005+390'},
+    {'nombre': 'Linea 5', 'clave': '000006+390'},
+    {'nombre': 'Linea 6', 'clave': '000007+390'},
+    {'nombre': 'Linea 7', 'clave': '000008+390'},
+    {'nombre': 'Linea 8', 'clave': '000009+390'},
+    {'nombre': 'Linea 9', 'clave': '000010+390'},
+    {'nombre': 'Linea 10', 'clave': '000011+390'},
+    {'nombre': 'Linea 11', 'clave': '000012+390'},
+    {'nombre': 'Linea 12', 'clave': '000013+390'},
+    {'nombre': 'Linea 13', 'clave': '000014+390'},
+    {'nombre': 'Linea 14', 'clave': '000015+390'},
+    {'nombre': 'Linea 15', 'clave': '000016+390'},
+    {'nombre': 'Linea 16', 'clave': '000017+390'},
+  ];
+
+  // Lista de actividades con datos de ejemplo (ahora incluye cuadrilla)
+  final List<List<String>> actividades = [
+    // [Clave, Fecha, Importe, Actividad, Cuadrilla]
+    ['1', '25/04/2025', '\u024300', 'Destajo', 'Indirectos'],
+    ['1315', '25/04/2025', '\u024300', 'Tapadora', 'Linea 1'],
+    ['1305', '25/04/2025', '\u024200', 'Limpieza', 'Linea 2'],
+    ['1400', '25/04/2025', '\u024500', 'Cosecha', 'Linea 3'],
+    ['1500', '25/04/2025', '\u024100', 'Riego', 'Linea 4'],
+    ['1600', '25/04/2025', '\u024350', 'Fertilización', 'Linea 5'],
+    ['1700', '25/04/2025', '\u024250', 'Poda', 'Linea 6'],
+    ['1800', '25/04/2025', '\u024400', 'Transplante', 'Linea 7'],
+    ['1900', '25/04/2025', '\u024150', 'Siembra', 'Linea 8'],
+    ['2000', '25/04/2025', '\u024300', 'Aplicación de Plaguicida', 'Indirectos'],
+    ['2100', '25/04/2025', '\u024180', 'Deshierbe', 'Linea 9'],
+    ['2200', '25/04/2025', '\u024320', 'Empaque', 'Linea 10'],
+    ['2300', '25/04/2025', '\u024210', 'Carga', 'Linea 11'],
+    ['2400', '25/04/2025', '\u024290', 'Selección', 'Linea 12'],
+    ['2500', '25/04/2025', '\u024160', 'Supervisión', 'Indirectos'],
+    ['2600', '25/04/2025', '\u024380', 'Mantenimiento', 'Linea 13'],
+  ];
+
+  // Lista de opciones para el dropdown de actividades
+  final List<String> actividadesOptions = [
+    'Nombre',
+    'Destajo',
+    'Tapadora',
+    'Limpieza',
+    'Cosecha',
+    'Riego',
+    'Fertilización',
+    'Poda',
+    'Transplante',
+    'Siembra',
+    'Aplicación de Plaguicida',
+    'Deshierbe',
+    'Empaque',
+    'Carga',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    cuadrillaSeleccionada = cuadrillas.first['nombre']!; // "Todas las cuadrillas"
+  }
+
+  /// Obtiene las actividades filtradas según el texto de búsqueda y cuadrilla seleccionada
+  List<List<String>> get actividadesFiltradas {
+    String query = searchController.text.toLowerCase();
+    List<List<String>> resultado = actividades;
+    
+    // Filtrar por cuadrilla si no es "Todas las cuadrillas"
+    if (cuadrillaSeleccionada != 'Todas las cuadrillas') {
+      resultado = resultado.where((row) => row[4] == cuadrillaSeleccionada).toList();
+    }
+    
+    // Filtrar por texto de búsqueda
+    if (query.isNotEmpty) {
+      resultado = resultado
+          .where((row) => row.any((cell) => cell.toLowerCase().contains(query)))
+          .toList();
+    }
+    
+    return resultado;
+  }
+
+  /// Obtiene estadísticas de actividades por cuadrilla
+  Map<String, int> get estadisticasPorCuadrilla {
+    Map<String, int> stats = {};
+    for (var actividad in actividades) {
+      String cuadrilla = actividad[4];
+      stats[cuadrilla] = (stats[cuadrilla] ?? 0) + 1;
+    }
+    return stats;
+  }
+
+  /// Obtiene el total de importes por cuadrilla
+  Map<String, double> get importesPorCuadrilla {
+    Map<String, double> totales = {};
+    for (var actividad in actividades) {
+      String cuadrilla = actividad[4];
+      String importeStr = actividad[2].replaceAll('\u0243', '');
+      double importe = double.tryParse(importeStr) ?? 0.0;
+      totales[cuadrilla] = (totales[cuadrilla] ?? 0.0) + importe;
+    }
+    return totales;
+  }
+
+  /// Agrega una nueva actividad a la lista
+  void agregarActividad() {
+    if (claveController.text.isEmpty ||
+        importeController.text.isEmpty ||
+        fechaController.text.isEmpty ||
+        nombreController.text.isEmpty ||
+        cuadrillaSeleccionada == 'Todas las cuadrillas') {
+      // Mostrar mensaje de error si hay campos vacíos o no se seleccionó cuadrilla específica
+      CustomSnackBar.showError(context, 'Por favor completa todos los campos y selecciona una cuadrilla específica');
+      return;
+    }
+
+    setState(() {
+      actividades.add([
+        claveController.text,
+        fechaController.text,
+        importeController.text,
+        nombreController.text,
+        cuadrillaSeleccionada, // Agregar cuadrilla
+      ]);
+      _limpiarCampos();
+    });
+
+    // Mostrar mensaje de éxito
+    CustomSnackBar.showSuccess(context, 'Actividad agregada correctamente a ${cuadrillaSeleccionada}');
+  }
+
+  /// Limpia todos los campos del formulario
+  void _limpiarCampos() {
+    claveController.clear();
+    importeController.clear();
+    fecha = null;
+    fechaController.clear();
+    nombreController.clear();
+  }
+
+  /// Construye un widget para mostrar métricas
+  Widget _buildMetricItem(String title, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      child: Center(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isSmallScreen = constraints.maxWidth < 800;
+            final cardWidth =
+                (isSmallScreen ? constraints.maxWidth * 0.9 : 1400).toDouble();
+
+            return Card(
+              elevation: 12,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(32),
+              ),
+              margin: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
+              child: Container(
+                constraints: BoxConstraints(maxWidth: cardWidth),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 40,
+                  horizontal: 40,
+                ),
+                child: Column(
+                  children: [
+                    // Título
+                    Text(
+                      'Gestión de Actividades',
+                      textAlign: TextAlign.start,
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        
+                      ),
+                    ),
+                    SizedBox(height: 32),
+
+                    // Contenido específico de actividades
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Formulario de creación de actividad
+                        ActividadForm(
+                          claveController: claveController,
+                          nombreController: nombreController,
+                          importeController: importeController,
+                          fechaController: fechaController,
+                          fecha: fecha,
+                          actividadesOptions: actividadesOptions,
+                          cuadrillas: cuadrillas,
+                          cuadrillaSeleccionada: cuadrillaSeleccionada,
+                          onDateSelected: (selectedDate) {
+                            setState(() {
+                              fecha = selectedDate;
+                            });
+                          },
+                          onCuadrillaChanged: (value) {
+                            setState(() {
+                              cuadrillaSeleccionada = value;
+                            });
+                          },
+                          onCrear: agregarActividad,
+                        ),
+                        SizedBox(height: 19),
+
+                        // Tabla de actividades
+                        GenericTable<List<String>>(
+                          title: 'Tabla de actividades',
+                          headers: const ['Clave', 'Fecha', 'Importe', 'Actividad'],
+                          data: actividadesFiltradas,
+                          buildCells: (row, idx) => [
+                            DataCell(Text(row[0])), // Clave
+                            DataCell(Text(row[1])), // Fecha
+                            DataCell(Text(row[2])), // Importe
+                            DataCell(Text(row[3])), // Actividad
+                          ],
+                          searchBar: ActividadSearchBar(
+                            controller: searchController,
+                            onChanged: (_) => setState(() {}),
+                            cuadrillas: cuadrillas,
+                            cuadrillaSeleccionada: cuadrillaSeleccionada,
+                            onCuadrillaChanged: (value) {
+                              if (value != null) {
+                                setState(() {
+                                  cuadrillaSeleccionada = value;
+                                });
+                              }
+                            },
+                          ),
+                        ),
+                        SizedBox(height: 19),
+
+                        // Panel de métricas por cuadrilla
+                        if (cuadrillaSeleccionada != 'Todas las cuadrillas') ...[
+                          Card(
+                            elevation: 4,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Estadísticas de $cuadrillaSeleccionada',
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: _buildMetricItem(
+                                          'Total Actividades',
+                                          estadisticasPorCuadrilla[cuadrillaSeleccionada]?.toString() ?? '0',
+                                          const Color(0xFF0B7A2F),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Expanded(
+                                        child: _buildMetricItem(
+                                          'Importe Total',
+                                          '₡${(importesPorCuadrilla[cuadrillaSeleccionada] ?? 0.0).toStringAsFixed(0)}',
+                                          const Color(0xFF1976D2),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 19),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    // Limpieza de controladores
+    nombreController.dispose();
+    claveController.dispose();
+    importeController.dispose();
+    fechaController.dispose();
+    searchController.dispose();
+    super.dispose();
+  }
+}

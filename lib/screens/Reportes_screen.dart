@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 // No modificar la lógica ni la interfaz visual sin justificación técnica
 import 'package:flutter/rendering.dart';
 import 'dart:ui';
+import '../widgets_shared/generic_search_bar.dart';
 
 class ReportesScreen extends StatefulWidget {
   const ReportesScreen({Key? key}) : super(key: key);
@@ -564,164 +565,180 @@ class _ReportesScreenState extends State<ReportesScreen> {
     _verticalController.dispose();
     super.dispose();
   }
+
   @override
   Widget build(BuildContext context) {
-  return Center(
-    child: LayoutBuilder(
-      builder: (context, constraints) {
-        final cardWidth = (constraints.maxWidth < 800 ? constraints.maxWidth * 0.9 : 1400).toDouble();
+    return Center(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final cardWidth =
+              (constraints.maxWidth < 800 ? constraints.maxWidth * 0.9 : 1400)
+                  .toDouble();
 
-        return Card(
-          elevation: 8,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(32),
-          ),
-          margin: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
-          child: Container(
-            constraints: BoxConstraints(maxWidth: cardWidth),
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Barra de búsqueda y botones
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Container(
-                            height: 48,
-                            decoration: BoxDecoration(
-                              color: const Color.fromARGB(118, 206, 206, 206),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: TextField(
+          return Card(
+            elevation: 8,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(32),
+            ),
+            margin: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
+            child: Container(
+              constraints: BoxConstraints(maxWidth: cardWidth),
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 40,
+                    vertical: 24,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Barra de búsqueda y botones
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: GenericSearchBar(
                               controller: searchController,
                               onChanged: (_) => setState(() {}),
-                              decoration: const InputDecoration(
-                                hintText: 'Buscar',
-                                border: InputBorder.none,
-                                contentPadding: EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                              ),
-                              style: const TextStyle(fontSize: 18),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Material(
-                          color: const Color(0xFF0B7A2F),
-                          borderRadius: BorderRadius.circular(24),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(24),
-                            onTap: () => setState(() {}),
-                            child: const SizedBox(
-                              width: 48,
+                              hintText: 'Buscar reportes...',
                               height: 48,
-                              child: Icon(Icons.search, color: Colors.white, size: 28),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Tooltip(
-                          message: 'Enter para buscar en uno de los tres apartados, importante, establecer el rango de fechas',
-                          child: Material(
-                            color: const Color(0xFF0B7A2F),
-                            shape: const CircleBorder(),
-                            child: InkWell(
-                              customBorder: const CircleBorder(),
-                              onTap: () {},
-                              child: const SizedBox(
-                                width: 48,
-                                height: 48,
-                                child: Icon(Icons.info, color: Colors.white, size: 28),
+                              fillColor: const Color.fromARGB(
+                                59,
+                                139,
+                                139,
+                                139,
                               ),
+                              borderRadius: 10,
+                              showSearchButton: false,
                             ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Filtros y fechas centrados
-                    Center(
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              _buildFilterButton('Empleado', 0),
-                              _buildFilterButton('Cuadrilla', 1),
-                              _buildFilterButton('Actividad', 2),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              _buildDateSelector(context, true),
-                              const Text('  →  ', style: TextStyle(fontSize: 18, color: Colors.grey)),
-                              _buildDateSelector(context, false),
-                            ],
                           ),
                         ],
                       ),
-                    ),
-                    const SizedBox(height: 18),
+                      const SizedBox(height: 24),
 
-                    // Botones superiores
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.fullscreen, color: Color(0xFF0B7A2F), size: 28),
-                          tooltip: 'Expandir tabla',
-                          onPressed: () {
-                            showDialog(
-                              context: context,
-                              barrierColor: Colors.black.withOpacity(0.2),
-                              builder: (context) {
-                                final _modalHorizontal = ScrollController();
-                                final _modalVertical = ScrollController();
+                      // Filtros y fechas centrados
+                      Center(
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                _buildFilterButton('Empleado', 0),
+                                _buildFilterButton('Cuadrilla', 1),
+                                _buildFilterButton('Actividad', 2),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                _buildDateSelector(context, true),
+                                const Text(
+                                  '  →  ',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                                _buildDateSelector(context, false),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 18),
 
-                                return Stack(
-                                  children: [
-                                    BackdropFilter(
-                                      filter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
-                                      child: Container(color: Colors.black.withOpacity(0)),
-                                    ),
-                                    Center(
-                                      child: ConstrainedBox(
-                                        constraints: BoxConstraints(
-                                          maxWidth: MediaQuery.of(context).size.width * 0.98,
-                                          maxHeight: MediaQuery.of(context).size.height * 0.95,
+                      // Botones superiores
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          IconButton(
+                            icon: const Icon(
+                              Icons.fullscreen,
+                              color: Color(0xFF0B7A2F),
+                              size: 28,
+                            ),
+                            tooltip: 'Expandir tabla',
+                            onPressed: () {
+                              showDialog(
+                                context: context,
+                                barrierColor: Colors.black.withOpacity(0.2),
+                                builder: (context) {
+                                  final _modalHorizontal = ScrollController();
+                                  final _modalVertical = ScrollController();
+
+                                  return Stack(
+                                    children: [
+                                      BackdropFilter(
+                                        filter: ImageFilter.blur(
+                                          sigmaX: 3,
+                                          sigmaY: 3,
                                         ),
-                                        child: Material(
-                                          color: Colors.transparent,
-                                          child: Stack(
-                                            children: [
-                                              Card(
-                                                elevation: 8,
-                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                                                child: Padding(
-                                                  padding: const EdgeInsets.all(32),
-                                                  child: SizedBox(
-                                                    width: 1200,
-                                                    child: Scrollbar(
-                                                      controller: _modalHorizontal,
-                                                      thumbVisibility: true,
-                                                      child: SingleChildScrollView(
-                                                        controller: _modalHorizontal,
-                                                        scrollDirection: Axis.horizontal,
-                                                        child: ConstrainedBox(
-                                                          constraints: const BoxConstraints(minWidth: 1100),
-                                                          child: Scrollbar(
-                                                            controller: _modalVertical,
-                                                            thumbVisibility: true,
-                                                            child: SingleChildScrollView(
-                                                              controller: _modalVertical,
-                                                              scrollDirection: Axis.vertical,
-                                                              child: _buildTableWithBorders(),
+                                        child: Container(
+                                          color: Colors.black.withOpacity(0),
+                                        ),
+                                      ),
+                                      Center(
+                                        child: ConstrainedBox(
+                                          constraints: BoxConstraints(
+                                            maxWidth:
+                                                MediaQuery.of(
+                                                  context,
+                                                ).size.width *
+                                                0.98,
+                                            maxHeight:
+                                                MediaQuery.of(
+                                                  context,
+                                                ).size.height *
+                                                0.95,
+                                          ),
+                                          child: Material(
+                                            color: Colors.transparent,
+                                            child: Stack(
+                                              children: [
+                                                Card(
+                                                  elevation: 8,
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          18,
+                                                        ),
+                                                  ),
+                                                  child: Padding(
+                                                    padding:
+                                                        const EdgeInsets.all(
+                                                          32,
+                                                        ),
+                                                    child: SizedBox(
+                                                      width: 1200,
+                                                      child: Scrollbar(
+                                                        controller:
+                                                            _modalHorizontal,
+                                                        thumbVisibility: true,
+                                                        child: SingleChildScrollView(
+                                                          controller:
+                                                              _modalHorizontal,
+                                                          scrollDirection:
+                                                              Axis.horizontal,
+                                                          child: ConstrainedBox(
+                                                            constraints:
+                                                                const BoxConstraints(
+                                                                  minWidth:
+                                                                      1100,
+                                                                ),
+                                                            child: Scrollbar(
+                                                              controller:
+                                                                  _modalVertical,
+                                                              thumbVisibility:
+                                                                  true,
+                                                              child: SingleChildScrollView(
+                                                                controller:
+                                                                    _modalVertical,
+                                                                scrollDirection:
+                                                                    Axis.vertical,
+                                                                child:
+                                                                    _buildTableWithBorders(),
+                                                              ),
                                                             ),
                                                           ),
                                                         ),
@@ -729,66 +746,82 @@ class _ReportesScreenState extends State<ReportesScreen> {
                                                     ),
                                                   ),
                                                 ),
-                                              ),
-                                              Positioned(
-                                                top: 8,
-                                                right: 8,
-                                                child: IconButton(
-                                                  icon: const Icon(Icons.close, color: Colors.red, size: 32),
-                                                  tooltip: 'Cerrar',
-                                                  onPressed: () => Navigator.of(context).pop(),
+                                                Positioned(
+                                                  top: 8,
+                                                  right: 8,
+                                                  child: IconButton(
+                                                    icon: const Icon(
+                                                      Icons.close,
+                                                      color: Colors.red,
+                                                      size: 32,
+                                                    ),
+                                                    tooltip: 'Cerrar',
+                                                    onPressed:
+                                                        () =>
+                                                            Navigator.of(
+                                                              context,
+                                                            ).pop(),
+                                                  ),
                                                 ),
-                                              ),
-                                            ],
+                                              ],
+                                            ),
                                           ),
                                         ),
                                       ),
-                                    ),
-                                  ],
-                                );
-                              },
-                            );
-                          },
-                        ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          icon: const Icon(Icons.bar_chart, color: Colors.blue, size: 28),
-                          tooltip: 'Ver gráficas',
-                          onPressed: () {
-                            setState(() {
-                              showCharts = !showCharts;
-                            });
-                          },
-                        ),
-                      ],
-                    ),
+                                    ],
+                                  );
+                                },
+                              );
+                            },
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: const Icon(
+                              Icons.bar_chart,
+                              color: Colors.blue,
+                              size: 28,
+                            ),
+                            tooltip: 'Ver gráficas',
+                            onPressed: () {
+                              setState(() {
+                                showCharts = !showCharts;
+                              });
+                            },
+                          ),
+                        ],
+                      ),
 
-                    // Tabla
-                    Center(
-                      child: Card(
-                        elevation: 2,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        margin: const EdgeInsets.symmetric(vertical: 0),
-                        child: Padding(
-                          padding: const EdgeInsets.all(18),
-                          child: SizedBox(
-                            width: 1224,
-                            height: 500,
-                            child: Scrollbar(
-                              controller: _horizontalController,
-                              thumbVisibility: true,
-                              child: SingleChildScrollView(
+                      // Tabla
+                      Center(
+                        child: Card(
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          margin: const EdgeInsets.symmetric(vertical: 0),
+                          child: Padding(
+                            padding: const EdgeInsets.all(18),
+                            child: SizedBox(
+                              width: 1224,
+                              height: 500,
+                              child: Scrollbar(
                                 controller: _horizontalController,
-                                scrollDirection: Axis.horizontal,
-                                child: ConstrainedBox(
-                                  constraints: const BoxConstraints(minWidth: 1224),
-                                  child: Scrollbar(
-                                    controller: _verticalController,
-                                    thumbVisibility: true,
-                                    child: SingleChildScrollView(
+                                thumbVisibility: true,
+                                child: SingleChildScrollView(
+                                  controller: _horizontalController,
+                                  scrollDirection: Axis.horizontal,
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(
+                                      minWidth: 1224,
+                                    ),
+                                    child: Scrollbar(
                                       controller: _verticalController,
-                                      scrollDirection: Axis.vertical,
-                                      child: _buildTableWithBorders(),
+                                      thumbVisibility: true,
+                                      child: SingleChildScrollView(
+                                        controller: _verticalController,
+                                        scrollDirection: Axis.vertical,
+                                        child: _buildTableWithBorders(),
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -797,185 +830,276 @@ class _ReportesScreenState extends State<ReportesScreen> {
                           ),
                         ),
                       ),
-                    ),
 
-                    // Gráficas
-                    if (showCharts)
+                      // Gráficas
+                      if (showCharts)
+                        Center(
+                          child: SizedBox(
+                            width: 1000,
+                            child: SingleChildScrollView(
+                              child: Column(
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.end,
+                                    children: [
+                                      const Text(
+                                        'Mostrar: ',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      Switch(
+                                        value: showPercentages,
+                                        onChanged:
+                                            (val) => setState(
+                                              () => showPercentages = val,
+                                            ),
+                                        activeColor: Colors.green,
+                                      ),
+                                      Text(
+                                        showPercentages
+                                            ? 'Porcentajes'
+                                            : 'Datos',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Expanded(
+                                        child: Card(
+                                          elevation: 2,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              14,
+                                            ),
+                                          ),
+                                          margin: const EdgeInsets.all(12),
+                                          child: Padding(
+                                            padding: const EdgeInsets.all(24),
+                                            child: SizedBox(
+                                              height: 220,
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.center,
+                                                children: [
+                                                  Row(
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment
+                                                            .center,
+                                                    children: [
+                                                      const Text(
+                                                        'Pago por cuadrilla',
+                                                        style: TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          fontSize: 18,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 6),
+                                                      Tooltip(
+                                                        message:
+                                                            'Distribución del pago total semanal entre las cuadrillas.',
+                                                        child: Icon(
+                                                          Icons.info_outline,
+                                                          color:
+                                                              Colors.grey[600],
+                                                          size: 18,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  const SizedBox(height: 12),
+                                                  Expanded(
+                                                    child:
+                                                        _buildPieChartSection(),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: Card(
+                                          elevation: 2,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              14,
+                                            ),
+                                          ),
+                                          margin: const EdgeInsets.all(12),
+                                          child: Padding(
+                                            padding: const EdgeInsets.all(24),
+                                            child: SizedBox(
+                                              height: 220,
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.center,
+                                                children: [
+                                                  Row(
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment
+                                                            .center,
+                                                    children: [
+                                                      const Text(
+                                                        'Pagos semanales',
+                                                        style: TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          fontSize: 18,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 6),
+                                                      Tooltip(
+                                                        message:
+                                                            'Distribución del pago total semanal entre las cuadrillas.',
+                                                        child: Icon(
+                                                          Icons.info_outline,
+                                                          color:
+                                                              Colors.grey[600],
+                                                          size: 18,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  const SizedBox(height: 12),
+                                                  Expanded(
+                                                    child:
+                                                        _buildBarChartSection(),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Card(
+                                    elevation: 2,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                    margin: const EdgeInsets.all(12),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(24),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              const Text(
+                                                'Actividades por cuadrilla',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 18,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Tooltip(
+                                                message:
+                                                    'Distribución de las actividades entre las cuadrillas.',
+                                                child: Icon(
+                                                  Icons.info_outline,
+                                                  color: Colors.grey[600],
+                                                  size: 18,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 12),
+                                          _buildHorizontalBarChartSection(),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+
+                      const SizedBox(height: 24),
+
+                      // Botones de exportar
                       Center(
-                        child: SizedBox(
-                          width: 1000,
-                          child: SingleChildScrollView(
-                            child: Column(
+                        child: Column(
+                          children: [
+                            const Text(
+                              'EXPORTAR A',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.end,
-                                  children: [
-                                    const Text('Mostrar: ', style: TextStyle(fontWeight: FontWeight.bold)),
-                                    Switch(
-                                      value: showPercentages,
-                                      onChanged: (val) => setState(() => showPercentages = val),
-                                      activeColor: Colors.green,
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.red[700],
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 24,
+                                      vertical: 10,
                                     ),
-                                    Text(
-                                      showPercentages ? 'Porcentajes' : 'Datos',
-                                      style: const TextStyle(fontWeight: FontWeight.bold),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
                                     ),
-                                  ],
+                                  ),
+                                  onPressed: () {},
+                                  child: const Text(
+                                    'PDF',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.white,
+                                    ),
+                                  ),
                                 ),
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Expanded(
-                                      child: Card(
-                                        elevation: 2,
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                        margin: const EdgeInsets.all(12),
-                                        child: Padding(
-                                          padding: const EdgeInsets.all(24),
-                                          child: SizedBox(
-                                            height: 220,
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.center,
-                                              children: [
-                                                Row(
-                                                  mainAxisAlignment: MainAxisAlignment.center,
-                                                  children: [
-                                                    const Text(
-                                                      'Pago por cuadrilla',
-                                                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                                                    ),
-                                                    const SizedBox(width: 6),
-                                                    Tooltip(
-                                                      message: 'Distribución del pago total semanal entre las cuadrillas.',
-                                                      child: Icon(Icons.info_outline, color: Colors.grey[600], size: 18),
-                                                    ),
-                                                  ],
-                                                ),
-                                                const SizedBox(height: 12),
-                                                Expanded(child: _buildPieChartSection()),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                      ),
+                                const SizedBox(width: 16),
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.green[700],
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 24,
+                                      vertical: 10,
                                     ),
-                                    Expanded(
-                                      child: Card(
-                                        elevation: 2,
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                        margin: const EdgeInsets.all(12),
-                                        child: Padding(
-                                          padding: const EdgeInsets.all(24),
-                                          child: SizedBox(
-                                            height: 220,
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.center,
-                                              children: [
-                                                Row(
-                                                  mainAxisAlignment: MainAxisAlignment.center,
-                                                  children: [
-                                                    const Text(
-                                                      'Pagos semanales',
-                                                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                                                    ),
-                                                    const SizedBox(width: 6),
-                                                    Tooltip(
-                                                      message: 'Distribución del pago total semanal entre las cuadrillas.',
-                                                      child: Icon(Icons.info_outline, color: Colors.grey[600], size: 18),
-                                                    ),
-                                                  ],
-                                                ),
-                                                const SizedBox(height: 12),
-                                                Expanded(child: _buildBarChartSection()),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                      ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
                                     ),
-                                  ],
-                                ),
-                                Card(
-                                  elevation: 2,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                  margin: const EdgeInsets.all(12),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(24),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            const Text(
-                                              'Actividades por cuadrilla',
-                                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                                            ),
-                                            const SizedBox(width: 6),
-                                            Tooltip(
-                                              message: 'Distribución de las actividades entre las cuadrillas.',
-                                              child: Icon(Icons.info_outline, color: Colors.grey[600], size: 18),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 12),
-                                        _buildHorizontalBarChartSection(),
-                                      ],
+                                  ),
+                                  onPressed: () {},
+                                  child: const Text(
+                                    'EXCEL',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.white,
                                     ),
                                   ),
                                 ),
                               ],
                             ),
-                          ),
+                          ],
                         ),
                       ),
-
-                    const SizedBox(height: 24),
-
-                    // Botones de exportar
-                    Center(
-                      child: Column(
-                        children: [
-                          const Text('EXPORTAR A', style: TextStyle(fontSize: 16, color: Colors.grey)),
-                          const SizedBox(height: 8),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.red[700],
-                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                ),
-                                onPressed: () {},
-                                child: const Text('PDF', style: TextStyle(fontSize: 14, color: Colors.white)),
-                              ),
-                              const SizedBox(width: 16),
-                              ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.green[700],
-                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                ),
-                                onPressed: () {},
-                                child: const Text('EXCEL', style: TextStyle(fontSize: 14, color: Colors.white)),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-        );
-      },
-    ),
-  );
-}
-
+          );
+        },
+      ),
+    );
+  }
 
   Widget _buildFilterButton(String label, int index) {
     final bool selected = selectedFilter == index;

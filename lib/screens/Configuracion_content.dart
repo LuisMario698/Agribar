@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:ui';
 import '../screens/login_screen.dart';
 import '../utils/auth_utils.dart';
+import '../widgets/widgets.dart';
 
 class ConfiguracionContent extends StatefulWidget {
   const ConfiguracionContent({Key? key}) : super(key: key);
@@ -38,8 +39,6 @@ class _ConfiguracionContentState extends State<ConfiguracionContent> {
     },
   ];
 
-
-
   void _showUserDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -54,9 +53,6 @@ class _ConfiguracionContentState extends State<ConfiguracionContent> {
     });
   }
 
-
-
-
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -64,7 +60,7 @@ class _ConfiguracionContentState extends State<ConfiguracionContent> {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final isSmallScreen = constraints.maxWidth < 800;
-            
+
             return Container(
               padding: const EdgeInsets.all(32),
               constraints: BoxConstraints(
@@ -77,13 +73,9 @@ class _ConfiguracionContentState extends State<ConfiguracionContent> {
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: _buildImportSection(),
-                        ),
+                        Expanded(child: _buildImportSection()),
                         const SizedBox(width: 24),
-                        Expanded(
-                          child: _buildUserSection(),
-                        ),
+                        Expanded(child: _buildUserSection()),
                       ],
                     )
                   else
@@ -98,43 +90,18 @@ class _ConfiguracionContentState extends State<ConfiguracionContent> {
                   Center(
                     child: SizedBox(
                       width: 300,
-                      child: ElevatedButton(
+                      child: CustomButton(
+                        text: 'Cerrar Sesión',
+                        type: ButtonType.danger,
                         onPressed: () {
-                          showDialog(
+                          CustomConfirmationDialog.showLogout(
                             context: context,
-                            barrierColor: Colors.black26,
-                            builder: (context) => AlertDialog(
-                              title: const Text('Cerrar sesión'),
-                              content: const Text('¿Estás seguro que deseas cerrar sesión?'),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.of(context).pop(),
-                                  child: const Text('Cancelar'),
-                                ),
-                                TextButton(
-                                  onPressed: () {
-                                    Navigator.of(context).pushAndRemoveUntil(
-                                      MaterialPageRoute(
-                                        builder: (context) => const LoginScreen(),
-                                      ),
-                                      (route) => false,
-                                    );
-                                  },
-                                  child: const Text('Cerrar sesión'),
-                                  style: TextButton.styleFrom(foregroundColor: Colors.red),
-                                ),
-                              ],
-                            ),
+                            onConfirm: () {
+                              AuthUtils.logout(context);
+                            },
                           );
                         },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                        ),
-                        child: const Text(
-                          'Cerrar sesión',
-                          style: TextStyle(color: Colors.white, fontSize: 16),
-                        ),
+                        icon: Icon(Icons.logout, color: Colors.white),
                       ),
                     ),
                   ),
@@ -150,27 +117,16 @@ class _ConfiguracionContentState extends State<ConfiguracionContent> {
   Widget _buildUserSection() {
     return Card(
       elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Icon(Icons.manage_accounts, color: Colors.grey[700]),
-                const SizedBox(width: 12),
-                Text(
-                  'Administrar Usuarios',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey[800],
-                  ),
-                ),
-              ],
+            PageHeader(
+              title: 'Administrar Usuarios',
+              leading: Icon(Icons.manage_accounts, color: Colors.grey[700]),
+              backgroundColor: Colors.transparent,
             ),
             const SizedBox(height: 24),
             ListView.builder(
@@ -220,28 +176,32 @@ class _ConfiguracionContentState extends State<ConfiguracionContent> {
                       ),
                       PopupMenuButton(
                         icon: Icon(Icons.more_vert, color: Colors.grey[600]),
-                        itemBuilder: (context) => [
-                          PopupMenuItem(
-                            value: 'edit',
-                            child: Row(
-                              children: [
-                                const Icon(Icons.edit),
-                                const SizedBox(width: 8),
-                                const Text('Editar'),
-                              ],
-                            ),
-                          ),
-                          PopupMenuItem(
-                            value: 'delete',
-                            child: Row(
-                              children: [
-                                const Icon(Icons.delete, color: Colors.red),
-                                const SizedBox(width: 8),
-                                const Text('Eliminar', style: TextStyle(color: Colors.red)),
-                              ],
-                            ),
-                          ),
-                        ],
+                        itemBuilder:
+                            (context) => [
+                              PopupMenuItem(
+                                value: 'edit',
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.edit),
+                                    const SizedBox(width: 8),
+                                    const Text('Editar'),
+                                  ],
+                                ),
+                              ),
+                              PopupMenuItem(
+                                value: 'delete',
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.delete, color: Colors.red),
+                                    const SizedBox(width: 8),
+                                    const Text(
+                                      'Eliminar',
+                                      style: TextStyle(color: Colors.red),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                         onSelected: (value) {
                           if (value == 'edit') {
                             _showEditUserDialog(context, index);
@@ -256,18 +216,11 @@ class _ConfiguracionContentState extends State<ConfiguracionContent> {
               },
             ),
             const SizedBox(height: 16),
-            ElevatedButton.icon(
+            CustomButton(
+              text: 'Agregar usuario',
+              type: ButtonType.primary,
+              icon: Icon(Icons.add, color: Colors.white),
               onPressed: () => _showUserDialog(context),
-              icon: const Icon(Icons.add),
-              label: const Text('Agregar usuario'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0B7A2F),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
             ),
           ],
         ),
@@ -277,58 +230,32 @@ class _ConfiguracionContentState extends State<ConfiguracionContent> {
 
   Future<void> _importFile(String type) async {
     try {
-      // Aquí se implementaría la lógica real de importación de archivos
-      // Por ahora mostraremos un diálogo de éxito
+      // Mostrar overlay de carga
+      final loadingOverlay = LoadingOverlay(
+        isVisible: true,
+        message: 'Importando ${type.toLowerCase()}...',
+        child: Container(), // Contenedor vacío ya que el overlay es modal
+      );
 
       showDialog(
         context: context,
-        builder:
-            (context) => AlertDialog(
-              title: Text('Importar ${type.toLowerCase()}'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const CircularProgressIndicator(),
-                  const SizedBox(height: 16),
-                  Text('Importando ${type.toLowerCase()}...'),
-                ],
-              ),
-            ),
+        barrierDismissible: false,
+        builder: (context) => loadingOverlay,
       );
 
       // Simulamos un proceso de importación
       await Future.delayed(const Duration(seconds: 2));
 
-      Navigator.of(context).pop(); // Cerramos el diálogo de carga
+      // Cerramos el diálogo de carga
+      Navigator.of(context).pop();
 
-      showDialog(
-        context: context,
-        builder:
-            (context) => AlertDialog(
-              title: const Text('Éxito'),
-              content: Text('${type} importados correctamente.'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Aceptar'),
-                ),
-              ],
-            ),
-      );
+      // Mostrar mensaje de éxito
+      CustomSnackBar.showSuccess(context, '${type} importados correctamente');
     } catch (e) {
-      showDialog(
-        context: context,
-        builder:
-            (context) => AlertDialog(
-              title: const Text('Error'),
-              content: Text('Error al importar ${type.toLowerCase()}: $e'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Aceptar'),
-                ),
-              ],
-            ),
+      // En caso de error, mostrar mensaje
+      CustomSnackBar.showError(
+        context,
+        'Error al importar ${type.toLowerCase()}: $e',
       );
     }
   }
@@ -336,27 +263,16 @@ class _ConfiguracionContentState extends State<ConfiguracionContent> {
   Widget _buildImportSection() {
     return Card(
       elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Icon(Icons.file_upload, color: Colors.grey[700]),
-                const SizedBox(width: 12),
-                Text(
-                  'Cargar desde excel',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey[800],
-                  ),
-                ),
-              ],
+            PageHeader(
+              title: 'Cargar desde excel',
+              leading: Icon(Icons.file_upload, color: Colors.grey[700]),
+              backgroundColor: Colors.transparent,
             ),
             const SizedBox(height: 24),
             _buildImportButton('Cuadrillas', Icons.groups),
@@ -371,29 +287,14 @@ class _ConfiguracionContentState extends State<ConfiguracionContent> {
   }
 
   Widget _buildImportButton(String text, IconData icon) {
-    return InkWell(
-      onTap: () => _importFile(text),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-        decoration: BoxDecoration(
-          color: Colors.grey[100],
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey[300]!),
-        ),
-        child: Row(
-          children: [
-            Text(
-              text,
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[800],
-              ),
-            ),
-            const Spacer(),
-            Icon(Icons.download, color: Colors.grey[600]),
-          ],
-        ),
-      ),
+    return CustomButton(
+      text: text,
+      type: ButtonType.secondary,
+      icon: Icon(Icons.download, color: Color(0xFF0B7A2F)),
+      onPressed: () => _importFile(text),
+      padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      backgroundColor: Colors.grey[100],
+      foregroundColor: Colors.grey[800],
     );
   }
 
@@ -413,32 +314,16 @@ class _ConfiguracionContentState extends State<ConfiguracionContent> {
   }
 
   void _showDeleteUserDialog(BuildContext context, int index) {
-    showDialog(
+    final userName = _users[index]['name'];
+    CustomConfirmationDialog.showDelete(
       context: context,
-      barrierColor: Colors.black26,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Eliminar usuario'),
-            content: Text(
-              '¿Estás seguro que deseas eliminar a ${_users[index]['name']}?',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Cancelar'),
-              ),
-              TextButton(
-                onPressed: () {
-                  setState(() {
-                    _users.removeAt(index);
-                  });
-                  Navigator.of(context).pop();
-                },
-                child: const Text('Eliminar'),
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
-              ),
-            ],
-          ),
+      title: 'Eliminar usuario',
+      message: '¿Estás seguro que deseas eliminar a $userName?',
+      onConfirm: () {
+        setState(() {
+          _users.removeAt(index);
+        });
+      },
     );
   }
 }
@@ -513,64 +398,47 @@ class _AddUserDialogState extends State<_AddUserDialog> {
             const SizedBox(height: 24),
             const Icon(Icons.account_circle, size: 64, color: Colors.blue),
             const SizedBox(height: 24),
-            TextField(
+            CustomInputField(
               controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Usuario',
-                prefixIcon: Icon(Icons.person_outline),
-                border: OutlineInputBorder(),
-                filled: true,
-                fillColor: Color(0xFFF5F5F5),
-              ),
+              label: 'Usuario',
+              prefix: Icon(Icons.person_outline),
+              fillColor: Color(0xFFF5F5F5),
             ),
             const SizedBox(height: 16),
-            TextField(
+            CustomInputField(
               controller: _passwordController,
+              label: 'Contraseña',
+              prefix: Icon(Icons.lock_outline),
               obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Contraseña',
-                prefixIcon: Icon(Icons.lock_outline),
-                border: OutlineInputBorder(),
-                filled: true,
-                fillColor: Color(0xFFF5F5F5),
-              ),
+              fillColor: Color(0xFFF5F5F5),
             ),
             const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
+            CustomDropdownField<String>(
+              label: 'Rol',
               value: _selectedRole,
-              decoration: const InputDecoration(
-                labelText: 'Rol',
-                prefixIcon: Icon(Icons.work_outline),
-                border: OutlineInputBorder(),
-                filled: true,
-                fillColor: Color(0xFFF5F5F5),
-              ),
-              items:
-                  _roles.map((role) {
-                    return DropdownMenuItem(value: role, child: Text(role));
-                  }).toList(),
+              items: _roles,
+              itemLabel: (role) => role,
               onChanged: (value) {
                 setState(() {
                   _selectedRole = value!;
                 });
               },
+              fillColor: Color(0xFFF5F5F5),
             ),
             const SizedBox(height: 24),
             Row(
               children: [
                 Expanded(
-                  child: ElevatedButton(
+                  child: CustomButton(
+                    text: widget.initialUser == null ? 'Añadir' : 'Guardar',
+                    type: ButtonType.success,
                     onPressed: () {
                       if (_nameController.text.trim().isEmpty ||
                           _passwordController.text.trim().isEmpty) {
                         // Mostrar mensaje de error
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Por favor complete todos los campos',
-                            ),
-                            backgroundColor: Colors.red,
-                          ),
+                        CustomSnackBar.showError(
+                          context,
+                          'Por favor complete todos los campos',
                         );
                         return;
                       }
@@ -581,28 +449,14 @@ class _AddUserDialogState extends State<_AddUserDialog> {
                         'color': _getColorForRole(_selectedRole),
                       });
                     },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF7BAE2F),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    child: Text(
-                      widget.initialUser == null ? 'Añadir' : 'Guardar',
-                      style: const TextStyle(color: Colors.white),
-                    ),
                   ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
-                  child: TextButton(
+                  child: CustomButton(
+                    text: 'Cancelar',
+                    type: ButtonType.danger,
                     onPressed: () => Navigator.of(context).pop(),
-                    style: TextButton.styleFrom(
-                      backgroundColor: const Color(0xFF8B1A1A),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    child: const Text(
-                      'Cancelar',
-                      style: TextStyle(color: Colors.white),
-                    ),
                   ),
                 ),
               ],

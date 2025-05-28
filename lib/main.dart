@@ -10,26 +10,26 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Configuración específica para plataformas de escritorio
-  if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-    await windowManager.ensureInitialized();
+  // if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+  //   await windowManager.ensureInitialized();
 
-    // Definir opciones de ventana predeterminadas
-    WindowOptions windowOptions = const WindowOptions(
-      size: Size(1820, 960), // Tamaño inicial de la ventana
-      minimumSize: Size(1220, 768), // Tamaño mínimo permitido
-      maximumSize: Size(1920, 1080), // Tamaño maximo permitido
-      center: true, // Centrar la ventana al inicio
-      backgroundColor: Colors.transparent,
-      skipTaskbar: false,
-      titleBarStyle: TitleBarStyle.normal,
-    );
+  //   // Definir opciones de ventana predeterminadas
+  //   WindowOptions windowOptions = const WindowOptions(
+  //     size: Size(1820, 960), // Tamaño inicial de la ventana
+  //     minimumSize: Size(1220, 768), // Tamaño mínimo permitido
+  //     // maximumSize: Size(1920, 1080), // Tamaño maximo permitido
+  //     center: true, // Centrar la ventana al inicio
+  //     backgroundColor: Colors.transparent,
+  //     skipTaskbar: false,
+  //     titleBarStyle: TitleBarStyle.normal,
+  //   );
 
-    // Mostrar y enfocar la ventana una vez que esté lista
-    await windowManager.waitUntilReadyToShow(windowOptions, () async {
-      await windowManager.show();
-      await windowManager.focus();
-    });
-  }
+  //   // Mostrar y enfocar la ventana una vez que esté lista
+  //   await windowManager.waitUntilReadyToShow(windowOptions, () async {
+  //     await windowManager.show();
+  //     await windowManager.focus();
+  //   });
+  // }
 
   runApp(MainApp());
 }
@@ -71,11 +71,12 @@ class _MainAppState extends State<MainApp> {
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: const [
-        Locale('es'), // Españo
+        Locale('es'), // Español
       ],
-      builder: (context, child) {
-        return Container(color: const Color(0xFFF5EDD8), child: child);
-      },
+      // Se elimina el builder personalizado temporalmente para depuración
+      // builder: (context, child) {
+      //   return Container(color: const Color(0xFFF5EDD8), child: child);
+      // },
     );
   }
 }
