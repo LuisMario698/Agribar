@@ -1,4 +1,5 @@
 import 'package:agribar/screens/Login_screen.dart';
+import 'package:agribar/screens/Dashboard_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:agribar/theme/app_styles.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -16,7 +17,7 @@ void main() async {
     // Definir opciones de ventana predeterminadas
     WindowOptions windowOptions = const WindowOptions(
       size: Size(1820, 960), // Tamaño inicial de la venta
-      minimumSize: Size(1220, 770), // Tamaño mínimo permitido 
+      minimumSize: Size(1220, 770), // Tamaño mínimo permitido
       maximumSize: Size(1920, 1080), // Tamaño maximo permitido
       center: true, // Centrar la ventana al inicio
       backgroundColor: Colors.transparent,
@@ -65,6 +66,7 @@ class _MainAppState extends State<MainApp> {
       darkTheme: AppThemes.dark,
       themeMode: _themeMode,
       home: const LoginScreen(),
+
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,

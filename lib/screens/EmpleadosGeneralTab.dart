@@ -41,7 +41,7 @@ class _EmpleadosGeneralTabState extends State<EmpleadosGeneralTab> {
 
   void _filterData() {
     final query = _searchController.text.toLowerCase().trim();
-    
+
     if (query.isEmpty) {
       setState(() {
         _filteredData = widget.empleadosData;
@@ -50,20 +50,23 @@ class _EmpleadosGeneralTabState extends State<EmpleadosGeneralTab> {
     }
 
     setState(() {
-      _filteredData = widget.empleadosData.where((empleado) {
-        final clave = (empleado['clave'] ?? '').toLowerCase();
-        final nombre = (empleado['nombre'] ?? '').toLowerCase();
-        final apellidoPaterno = (empleado['apellidoPaterno'] ?? '').toLowerCase();
-        final apellidoMaterno = (empleado['apellidoMaterno'] ?? '').toLowerCase();
-        final cuadrilla = (empleado['cuadrilla'] ?? '').toLowerCase();
-        
-        return clave.contains(query) ||
-               nombre.contains(query) ||
-               apellidoPaterno.contains(query) ||
-               apellidoMaterno.contains(query) ||
-               cuadrilla.contains(query) ||
-               '$nombre $apellidoPaterno $apellidoMaterno'.contains(query);
-      }).toList();
+      _filteredData =
+          widget.empleadosData.where((empleado) {
+            final clave = (empleado['clave'] ?? '').toLowerCase();
+            final nombre = (empleado['nombre'] ?? '').toLowerCase();
+            final apellidoPaterno =
+                (empleado['apellidoPaterno'] ?? '').toLowerCase();
+            final apellidoMaterno =
+                (empleado['apellidoMaterno'] ?? '').toLowerCase();
+            final cuadrilla = (empleado['cuadrilla'] ?? '').toLowerCase();
+
+            return clave.contains(query) ||
+                nombre.contains(query) ||
+                apellidoPaterno.contains(query) ||
+                apellidoMaterno.contains(query) ||
+                cuadrilla.contains(query) ||
+                '$nombre $apellidoPaterno $apellidoMaterno'.contains(query);
+          }).toList();
     });
   }
 
@@ -121,9 +124,9 @@ class _EmpleadosGeneralTabState extends State<EmpleadosGeneralTab> {
             buildCells: (row, rowIdx) {
               // Buscar el índice real en los datos originales para el toggle
               final originalIndex = widget.empleadosData.indexWhere(
-                (emp) => emp['clave'] == row['clave']
+                (emp) => emp['clave'] == row['clave'],
               );
-              
+
               return [
                 DataCell(Text(row['clave'] ?? '')),
                 DataCell(Text(row['nombre'] ?? '')),

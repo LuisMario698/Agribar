@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:postgres/postgres.dart';
 import 'Dashboard_screen.dart';
@@ -26,10 +25,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       final results = await dbService.connection.query(
         'SELECT * FROM usuarios WHERE nombre_usuario = @nombre AND contraseña = @clave',
-        substitutionValues: {
-          'nombre': username,
-          'clave': password,
-        },
+        substitutionValues: {'nombre': username, 'clave': password},
       );
 
       await dbService.close();
@@ -106,10 +102,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     if (_errorMessage != null) ...[
                       SizedBox(height: 10),
-                      Text(
-                        _errorMessage!,
-                        style: TextStyle(color: Colors.red),
-                      ),
+                      Text(_errorMessage!, style: TextStyle(color: Colors.red)),
                     ],
                     SizedBox(height: 40),
                     Center(

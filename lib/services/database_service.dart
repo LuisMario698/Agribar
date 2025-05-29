@@ -13,7 +13,7 @@ class DatabaseService {
     _connection = PostgreSQLConnection(
       'localhost', // IP del servidor PostgreSQL
       5432,
-      'AGRIBAR',    // Nombre de tu base de datos
+      'Agribar', // Nombre de tu base de datos
       username: 'postgres',
       password: 'admin',
     );

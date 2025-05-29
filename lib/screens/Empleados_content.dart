@@ -133,18 +133,11 @@ class _EmpleadosContentState extends State<EmpleadosContent> {
     }
   }
 
-  void agregarEmpleado(List<String> nuevoEmpleado) {
+  void agregarEmpleado(List<String> nuevoEmpleado) async {
+    // Recargar datos desde la base de datos para mantener sincronización
+    await cargarEmpleadosDesdeBD();
+
     setState(() {
-      empleadosData.add({
-        'clave': nuevoEmpleado[0],
-        'nombre': nuevoEmpleado[1],
-        'apellidoPaterno': nuevoEmpleado[2],
-        'apellidoMaterno': nuevoEmpleado[3],
-        'cuadrilla': nuevoEmpleado[4],
-        'sueldo': nuevoEmpleado[5],
-        'tipo': nuevoEmpleado[6],
-        'habilitado': true, // Por defecto, nuevo empleado está habilitado
-      });
       _selectedTabIndex = 0; // Regresa a la pestaña General
     });
   }
@@ -377,8 +370,6 @@ class _EmpleadosTab extends StatelessWidget {
   }
 }
 
-
-
 class RegistroEmpleadoWizard extends StatefulWidget {
   final void Function(List<String>) onEmpleadoRegistrado;
   const RegistroEmpleadoWizard({Key? key, required this.onEmpleadoRegistrado})
@@ -412,8 +403,6 @@ class _RegistroEmpleadoWizardState extends State<RegistroEmpleadoWizard> {
   String tipoEmpleado = '';
   DateTime? fechaIngreso;
   final TextEditingController fechaIngresoController = TextEditingController();
-  bool inactivo = false;
-  bool deshabilitado = false;
 
   final TextEditingController sueldoController = TextEditingController();
   bool domingoLaboral = false;
@@ -422,7 +411,6 @@ class _RegistroEmpleadoWizardState extends State<RegistroEmpleadoWizard> {
   bool descuentoComedor = false;
   final TextEditingController descuentoComedorController =
       TextEditingController();
-  String tipoDescuentoInfonavit = '';
   final TextEditingController descuentoInfonavitController =
       TextEditingController();
 
@@ -462,78 +450,79 @@ class _RegistroEmpleadoWizardState extends State<RegistroEmpleadoWizard> {
     'Zacatecas',
   ];
 
-  // Tipos de descuento INFONAVIT
-  final List<String> tiposDescuentoInfonavit = [
-    'Porcentaje',
-    'Cuota fija',
-    'Veces salario mínimo (VSM)',
-    'Descuento extraordinario',
-  ];
-
   Future<void> _nextStep() async {
-if (_currentStep < totalSteps - 1) {
-  setState(() => _currentStep++);
-} else {
-final nuevoCodigo = await generarSiguienteCodigoEmpleado();
-final nuevoEmpleado = {
-    'codigo':nuevoCodigo,
-    'nombre': nombreController.text,
-    'apellidoPaterno': apellidoPaternoController.text,
-    'apellidoMaterno': apellidoMaternoController.text,
-    'curp': curpController.text,
-    'rfc': rfcController.text,
-    'nss': nssController.text,
-    'estado': estadoOrigen,
+    if (_currentStep < totalSteps - 1) {
+      setState(() => _currentStep++);
+    } else {
+      final nuevoCodigo = await generarSiguienteCodigoEmpleado();
+      final nuevoEmpleado = {
+        'codigo': nuevoCodigo,
+        'nombre': nombreController.text,
+        'apellidoPaterno': apellidoPaternoController.text,
+        'apellidoMaterno': apellidoMaternoController.text,
+        'curp': curpController.text,
+        'rfc': rfcController.text,
+        'nss': nssController.text,
+        'estado': estadoOrigen,
 
-    'tipo': tipoEmpleado,
-    'idCuadrilla': int.tryParse(cuadrilla) ?? null, // si cuadrilla es ID numérico
-    'fechaIngreso': fechaIngreso?.toIso8601String().split('T').first ?? '',
-    'empresa': empresaController.text,
-    'puesto': puestoController.text,
-    'registroPatronal': registroPatronalController.text,
+        'tipo': tipoEmpleado,
+        'idCuadrilla':
+            int.tryParse(cuadrilla) ?? null, // si cuadrilla es ID numérico
+        'fechaIngreso': fechaIngreso?.toIso8601String().split('T').first ?? '',
+        'empresa': empresaController.text,
+        'puesto': puestoController.text,
+        'registroPatronal': registroPatronalController.text,
 
-    'sueldo': double.tryParse(sueldoController.text) ?? 0.0,
-    'domingoLaboral': domingoLaboral
-        ? double.tryParse(domingoLaboralMontoController.text) ?? 0.0
-        : 0.0,
-    'descuentoComedor': descuentoComedor
-        ? double.tryParse(descuentoComedorController.text) ?? 0.0
-        : 0.0,
-    'tipoDescuento': tipoDescuentoInfonavit,
-    'descuentoInfonavit': double.tryParse(descuentoInfonavitController.text) ?? 0.0,
-  };
+        'sueldo': double.tryParse(sueldoController.text) ?? 0.0,
+        'domingoLaboral':
+            domingoLaboral
+                ? double.tryParse(domingoLaboralMontoController.text) ?? 0.0
+                : 0.0,
+        'descuentoComedor':
+            descuentoComedor
+                ? double.tryParse(descuentoComedorController.text) ?? 0.0
+                : 0.0,
+        'descuentoInfonavit':
+            double.tryParse(descuentoInfonavitController.text) ?? 0.0,
+      };
+      await registrarEmpleadoEnBD(nuevoEmpleado);
 
-  await registrarEmpleadoEnBD(nuevoEmpleado);
-  //await cargarEmpleadosDesdeBD(); // recarga la tabla
+      // Llamar al callback para agregar el empleado a la lista en memoria
+      widget.onEmpleadoRegistrado([
+        nuevoCodigo,
+        nombreController.text,
+        apellidoPaternoController.text, apellidoMaternoController.text,
+        cuadrilla,
+        sueldoController.text,
+        '', // Eliminamos tipoDescuentoInfonavit
+      ]);
 
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text('¡Registro completado!')),
-  );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('¡Registro completado!')));
 
-  setState(() => _currentStep = 0);
-  _limpiarCampos();
-}
-
+      setState(() => _currentStep = 0);
+      _limpiarCampos();
+    }
   }
 
-Future<String> generarSiguienteCodigoEmpleado() async {
-  final db = DatabaseService();
-  await db.connect();
+  Future<String> generarSiguienteCodigoEmpleado() async {
+    final db = DatabaseService();
+    await db.connect();
 
-final result = await db.connection.query(
-  "SELECT codigo FROM empleados WHERE codigo ~ '^EMP[0-9]+\$' ORDER BY CAST(SUBSTRING(codigo FROM 4) AS INTEGER) DESC LIMIT 1;"
-);
+    final result = await db.connection.query(
+      "SELECT codigo FROM empleados WHERE codigo ~ '^EMP[0-9]+\$' ORDER BY CAST(SUBSTRING(codigo FROM 4) AS INTEGER) DESC LIMIT 1;",
+    );
 
-  await db.close();
+    await db.close();
 
-  if (result.isEmpty) return 'EMP001';
+    if (result.isEmpty) return 'EMP001';
 
-  final ultimoCodigo = result.first[0] as String;
-  final numero = int.parse(ultimoCodigo.substring(3));
-  final siguienteNumero = numero + 1;
-  return 'EMP${siguienteNumero.toString().padLeft(3, '0')}';
-}
-
+    final ultimoCodigo = result.first[0] as String;
+    final numero = int.parse(ultimoCodigo.substring(3));
+    final siguienteNumero = numero + 1;
+    return 'EMP${siguienteNumero.toString().padLeft(3, '0')}';
+  }
 
   void _prevStep() {
     if (_currentStep > 0) {
@@ -557,14 +546,11 @@ final result = await db.connection.query(
     tipoEmpleado = '';
     fechaIngreso = null;
     fechaIngresoController.clear();
-    inactivo = false;
-    deshabilitado = false;
     sueldoController.clear();
     domingoLaboral = false;
     domingoLaboralMontoController.clear();
     descuentoComedor = false;
     descuentoComedorController.clear();
-    tipoDescuentoInfonavit = '';
     descuentoInfonavitController.clear();
     setState(() {});
   }
@@ -742,217 +728,448 @@ final result = await db.connection.query(
   }
 
   Widget _datosPersonales(Color grisInput) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Fila 1: Código (más pequeño)
-        Row(
-          children: [
-            Flexible(
-              flex:
-                  1, // Puedes cambiar este valor para hacer el campo 'Código' más chico o grande
-              child: _customInput(codigoController, 'Codigo', grisInput),
-            ),
-            // Si quieres que el campo sea aún más chico, reduce el flex
-            Expanded(flex: 2, child: Container()), // Espacio vacío para alinear
-          ],
-        ),
-        SizedBox(height: 28), // Más espacio entre filas
-        // Fila 2: Apellido Paterno, Apellido Materno, Nombre
-        Row(
-          children: [
-            Expanded(
-              child: _customInput(
-                apellidoPaternoController,
-                'Apellido Paterno',
-                grisInput,
-              ),
-            ),
-            SizedBox(width: 16),
-            Expanded(
-              child: _customInput(
-                apellidoMaternoController,
-                'Apellido Materno',
-                grisInput,
-              ),
-            ),
-            SizedBox(width: 16),
-            Expanded(
-              child: _customInput(nombreController, 'Nombre', grisInput),
-            ),
-          ],
-        ),
-        SizedBox(height: 28),
-        // Fila 3: CURP, RFC
-        Row(
-          children: [
-            Expanded(child: _customInput(curpController, 'CURP', grisInput)),
-            SizedBox(width: 16),
-            Expanded(child: _customInput(rfcController, 'RFC', grisInput)),
-          ],
-        ),
-        SizedBox(height: 28),
-        // Fila 4: NSS, Estado de Origen
-        Row(
-          children: [
-            Expanded(child: _customInput(nssController, 'NSS', grisInput)),
-            SizedBox(width: 16),
-            Expanded(
-              child: DropdownButtonFormField<String>(
-                value: estadoOrigen.isEmpty ? null : estadoOrigen,
-                items:
-                    estadosMexico
-                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                        .toList(),
-                onChanged: (v) => setState(() => estadoOrigen = v ?? ''),
-                decoration: InputDecoration(
-                  labelText: "Estado de Origen",
-                  filled: true,
-                  fillColor: grisInput,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-            ),
-          ],
+    // Estilo de tarjeta
+    BoxDecoration cardDecoration = BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(8),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.05),
+          blurRadius: 4,
+          offset: Offset(0, 2),
         ),
       ],
+    );
+    EdgeInsets cardPadding = const EdgeInsets.all(16);
+
+    return Center(
+      child: Container(
+        width: 800,
+        height: 600,
+        child: Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 32,
+          runSpacing: 32,
+          children: [
+            // Apellido Paterno
+            Container(
+              width: 290,
+              height: 100,
+              decoration: cardDecoration,
+              padding: cardPadding,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Apellido Paterno',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: _customInput(
+                        apellidoPaternoController,
+                        '',
+                        grisInput,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ), // Apellido Materno
+            Container(
+              width: 290,
+              height: 100,
+              decoration: cardDecoration,
+              padding: cardPadding,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Apellido Materno',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: _customInput(
+                        apellidoMaternoController,
+                        '',
+                        grisInput,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ), // Nombre
+            Container(
+              width: 290,
+              height: 100,
+              decoration: cardDecoration,
+              padding: cardPadding,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Nombre',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: _customInput(nombreController, '', grisInput),
+                    ),
+                  ),
+                ],
+              ),
+            ), // CURP
+            Container(
+              width: 290,
+              height: 100,
+              decoration: cardDecoration,
+              padding: cardPadding,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'CURP',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: _customInput(curpController, '', grisInput),
+                    ),
+                  ),
+                ],
+              ),
+            ), // RFC
+            Container(
+              width: 290,
+              height: 100,
+              decoration: cardDecoration,
+              padding: cardPadding,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'RFC',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: _customInput(rfcController, '', grisInput),
+                    ),
+                  ),
+                ],
+              ),
+            ), // NSS
+            Container(
+              width: 290,
+              height: 100,
+              decoration: cardDecoration,
+              padding: cardPadding,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'NSS',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: _customInput(nssController, '', grisInput),
+                    ),
+                  ),
+                ],
+              ),
+            ), // Estado de Origen
+            Container(
+              width: 290,
+              height: 100,
+              decoration: cardDecoration,
+              padding: cardPadding,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Estado de Origen',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: DropdownButtonFormField<String>(
+                        value: estadoOrigen.isEmpty ? null : estadoOrigen,
+                        items:
+                            estadosMexico
+                                .map(
+                                  (e) => DropdownMenuItem(
+                                    value: e,
+                                    child: Text(e),
+                                  ),
+                                )
+                                .toList(),
+                        onChanged:
+                            (v) => setState(() => estadoOrigen = v ?? ''),
+                        decoration: InputDecoration(
+                          labelText: "Estado",
+                          filled: true,
+                          fillColor: grisInput,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
   Widget _datosLaborales(Color grisInput) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Fila 1: Tipo, Cuadrilla, Fecha de Ingreso
-        Row(
-          children: [
-            Expanded(
-              child: DropdownButtonFormField<String>(
-                value: tipoEmpleado.isEmpty ? null : tipoEmpleado,
-                items:
-                    ["Temporal", "Fijo"]
-                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                        .toList(),
-                onChanged: (v) => setState(() => tipoEmpleado = v ?? ''),
-                decoration: InputDecoration(
-                  labelText: "Tipo",
-                  filled: true,
-                  fillColor: grisInput,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-            ),
-            SizedBox(width: 16),
-            Expanded(
-              child: DropdownButtonFormField<String>(
-                value: cuadrilla.isEmpty ? null : cuadrilla,
-                items:
-                    ["Cuadrilla 1", "Cuadrilla 2", "Cuadrilla 3"]
-                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                        .toList(),
-                onChanged: (v) => setState(() => cuadrilla = v ?? ''),
-                decoration: InputDecoration(
-                  labelText: "Cuadrilla",
-                  filled: true,
-                  fillColor: grisInput,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-            ),
-            SizedBox(width: 16),
-            Expanded(
-              child: GestureDetector(
-                onTap: () async {
-                  DateTime? picked = await showDatePicker(
-                    context: context,
-                    initialDate: fechaIngreso ?? DateTime.now(),
-                    firstDate: DateTime(2000),
-                    lastDate: DateTime(2100),
-                  );
-                  if (picked != null) {
-                    setState(() {
-                      fechaIngreso = picked;
-                      fechaIngresoController.text =
-                          "${picked.day.toString().padLeft(2, '0')}/${picked.month.toString().padLeft(2, '0')}/${picked.year}";
-                    });
-                  }
-                },
-                child: AbsorbPointer(
-                  child: TextField(
-                    controller: fechaIngresoController,
-                    decoration: InputDecoration(
-                      labelText: 'Fecha de Ingreso',
-                      filled: true,
-                      fillColor: grisInput,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      suffixIcon: Icon(Icons.calendar_today),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-        SizedBox(height: 28),
-        // Fila 2: Empresa, Puesto, Registro Patronal
-        Row(
-          children: [
-            Expanded(
-              child: _customInput(empresaController, 'Empresa', grisInput),
-            ),
-            SizedBox(width: 16),
-            Expanded(
-              child: _customInput(puestoController, 'Puesto', grisInput),
-            ),
-            SizedBox(width: 16),
-            Expanded(
-              child: _customInput(
-                registroPatronalController,
-                'Registro Patronal',
-                grisInput,
-              ),
-            ),
-          ],
-        ),
-        SizedBox(height: 28),
-        // Fila 3: Inactivo, Deshabilitado
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Expanded(
-              child: SwitchListTile(
-                title: Text("Inactivo"),
-                value: inactivo,
-                onChanged: (v) => setState(() => inactivo = v),
-                activeColor: Color(0xFF8AB531),
-              ),
-            ),
-            SizedBox(width: 16),
-            Expanded(
-              child: SwitchListTile(
-                title: Text("Deshabilitado"),
-                value: deshabilitado,
-                onChanged: (v) => setState(() => deshabilitado = v),
-                activeColor: Color(0xFF8AB531),
-              ),
-            ),
-            SizedBox(width: 16),
-            Expanded(child: Container()),
-          ],
+    // Estilo de tarjeta
+    BoxDecoration cardDecoration = BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(8),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.05),
+          blurRadius: 4,
+          offset: Offset(0, 2),
         ),
       ],
+    );
+    EdgeInsets cardPadding = const EdgeInsets.all(16);
+
+    return Center(
+      child: Container(
+        width: 800,
+        height: 600,
+        child: Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 32,
+          runSpacing: 32,
+          children: [
+            // Tipo de Empleado
+            Container(
+              width: 290,
+              height: 100,
+              decoration: cardDecoration,
+              padding: cardPadding,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Tipo de Empleado',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: DropdownButtonFormField<String>(
+                        value: tipoEmpleado.isEmpty ? null : tipoEmpleado,
+                        items:
+                            ["Temporal", "Fijo"]
+                                .map(
+                                  (e) => DropdownMenuItem(
+                                    value: e,
+                                    child: Text(e),
+                                  ),
+                                )
+                                .toList(),
+                        onChanged:
+                            (v) => setState(() => tipoEmpleado = v ?? ''),
+                        decoration: InputDecoration(
+                          labelText: "Tipo",
+                          filled: true,
+                          fillColor: grisInput,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ), // Cuadrilla
+            Container(
+              width: 290,
+              height: 100,
+              decoration: cardDecoration,
+              padding: cardPadding,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Cuadrilla',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: DropdownButtonFormField<String>(
+                        value: cuadrilla.isEmpty ? null : cuadrilla,
+                        items:
+                            ["Cuadrilla 1", "Cuadrilla 2", "Cuadrilla 3"]
+                                .map(
+                                  (e) => DropdownMenuItem(
+                                    value: e,
+                                    child: Text(e),
+                                  ),
+                                )
+                                .toList(),
+                        onChanged: (v) => setState(() => cuadrilla = v ?? ''),
+                        decoration: InputDecoration(
+                          labelText: "Cuadrilla",
+                          filled: true,
+                          fillColor: grisInput,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ), // Fecha de Ingreso
+            Container(
+              width: 290,
+              height: 100,
+              decoration: cardDecoration,
+              padding: cardPadding,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Fecha de Ingreso',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: GestureDetector(
+                        onTap: () async {
+                          DateTime? picked = await showDatePicker(
+                            context: context,
+                            initialDate: fechaIngreso ?? DateTime.now(),
+                            firstDate: DateTime(2000),
+                            lastDate: DateTime(2100),
+                          );
+                          if (picked != null) {
+                            setState(() {
+                              fechaIngreso = picked;
+                              fechaIngresoController.text =
+                                  "${picked.day.toString().padLeft(2, '0')}/${picked.month.toString().padLeft(2, '0')}/${picked.year}";
+                            });
+                          }
+                        },
+                        child: AbsorbPointer(
+                          child: TextField(
+                            controller: fechaIngresoController,
+                            decoration: InputDecoration(
+                              labelText: 'Fecha',
+                              filled: true,
+                              fillColor: grisInput,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              suffixIcon: Icon(Icons.calendar_today),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Empresa
+            Container(
+              width: 320,
+              height: 140,
+              decoration: cardDecoration,
+              padding: cardPadding,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Empresa',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: _customInput(empresaController, '', grisInput),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Puesto
+            Container(
+              width: 320,
+              height: 140,
+              decoration: cardDecoration,
+              padding: cardPadding,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Puesto',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: _customInput(puestoController, '', grisInput),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Registro Patronal
+            Container(
+              width: 320,
+              height: 140,
+              decoration: cardDecoration,
+              padding: cardPadding,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Registro Patronal',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: _customInput(
+                        registroPatronalController,
+                        '',
+                        grisInput,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -960,188 +1177,184 @@ final result = await db.connection.query(
     // Estilo de tarjeta
     BoxDecoration cardDecoration = BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(8),
       boxShadow: [
-        BoxShadow(color: Colors.black12, blurRadius: 12, offset: Offset(0, 4)),
+        BoxShadow(
+          color: Colors.black.withOpacity(0.05),
+          blurRadius: 4,
+          offset: Offset(0, 2),
+        ),
       ],
     );
-    EdgeInsets cardPadding = const EdgeInsets.all(24);
+    EdgeInsets cardPadding = const EdgeInsets.all(16);
 
     return Center(
-      child: Wrap(
-        alignment: WrapAlignment.center,
-        spacing: 32,
-        runSpacing: 32,
-        children: [
-          // Sueldo
-          Container(
-            width: 320,
-            decoration: cardDecoration,
-            padding: cardPadding,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Sueldo',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
-                ),
-                SizedBox(height: 12),
-                _customInput(sueldoController, '', grisInput),
-              ],
-            ),
-          ),
-          // Domingo Laboral
-          Container(
-            width: 320,
-            decoration: cardDecoration,
-            padding: cardPadding,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Domingo Laboral',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    Switch(
-                      value: domingoLaboral,
-                      onChanged: (v) => setState(() => domingoLaboral = v),
-                      activeColor: verde,
-                    ),
-                  ],
-                ),
-                SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _customInput(
-                        domingoLaboralMontoController,
-                        '',
-                        grisInput,
-                      ),
-                    ),
-                    SizedBox(width: 8),
-                    Text(
-                      '/ hr',
-                      style: TextStyle(fontSize: 16, color: Colors.grey[700]),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          // Descuento Comedor
-          Container(
-            width: 320,
-            decoration: cardDecoration,
-            padding: cardPadding,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Descuento Comedor',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    Switch(
-                      value: descuentoComedor,
-                      onChanged: (v) => setState(() => descuentoComedor = v),
-                      activeColor: verde,
-                    ),
-                  ],
-                ),
-                SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _customInput(
-                        descuentoComedorController,
-                        '',
-                        grisInput,
-                      ),
-                    ),
-                    SizedBox(width: 8),
-                    Text(
-                      '%',
-                      style: TextStyle(fontSize: 16, color: Colors.grey[700]),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          // Tipo Descuento Infonavit y % Descuento Infonavit
-          Container(
-            width: 320,
-            decoration: cardDecoration,
-            padding: cardPadding,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Tipo Descuento Infonavit',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
-                ),
-                SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  value:
-                      tipoDescuentoInfonavit.isEmpty
-                          ? null
-                          : tipoDescuentoInfonavit,
-                  items:
-                      tiposDescuentoInfonavit
-                          .map(
-                            (e) => DropdownMenuItem(value: e, child: Text(e)),
-                          )
-                          .toList(),
-                  onChanged:
-                      (v) => setState(() => tipoDescuentoInfonavit = v ?? ''),
-                  decoration: InputDecoration(
-                    labelText: "Nombre",
-                    filled: true,
-                    fillColor: grisInput,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
+      child: Container(
+        width: 800,
+        height: 600,
+        child: Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 32,
+          runSpacing: 32,
+          children: [
+            // Sueldo
+            Container(
+              width: 320,
+              height: 140,
+              decoration: cardDecoration,
+              padding: cardPadding,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Sueldo',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: _customInput(sueldoController, '', grisInput),
                     ),
                   ),
-                ),
-                SizedBox(height: 18),
-                Text(
-                  'Descuento Infonavit',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
-                ),
-                SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _customInput(
-                        descuentoInfonavitController,
-                        '',
-                        grisInput,
+                ],
+              ),
+            ),
+            // Domingo Laboral
+            Container(
+              width: 320,
+              height: 140,
+              decoration: cardDecoration,
+              padding: cardPadding,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Domingo Laboral',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      Switch(
+                        value: domingoLaboral,
+                        onChanged: (v) => setState(() => domingoLaboral = v),
+                        activeColor: verde,
+                      ),
+                    ],
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: _customInput(
+                              domingoLaboralMontoController,
+                              '',
+                              grisInput,
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            '/ hr',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey[700],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    SizedBox(width: 8),
-                    Text(
-                      '%',
-                      style: TextStyle(fontSize: 16, color: Colors.grey[700]),
-                    ),
-                  ],
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+            // Descuento Comedor
+            Container(
+              width: 320,
+              height: 140,
+              decoration: cardDecoration,
+              padding: cardPadding,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Descuento Comedor',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      Switch(
+                        value: descuentoComedor,
+                        onChanged: (v) => setState(() => descuentoComedor = v),
+                        activeColor: verde,
+                      ),
+                    ],
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: _customInput(
+                              descuentoComedorController,
+                              '',
+                              grisInput,
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            '%',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey[700],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ), // Descuento Infonavit
+            Container(
+              width: 290,
+              height: 100,
+              decoration: cardDecoration,
+              padding: cardPadding,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text(
+                    'Descuento Infonavit',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                  ),
+                  Switch(
+                    value: descuentoInfonavitController.text.isNotEmpty,
+                    onChanged:
+                        (v) => setState(() {
+                          if (v == true) {
+                            descuentoInfonavitController.text = '5.0';
+                          } else {
+                            descuentoInfonavitController.clear();
+                          }
+                        }),
+                    activeColor: verde,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
