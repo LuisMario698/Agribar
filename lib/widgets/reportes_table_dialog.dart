@@ -1,69 +1,67 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
 import '../theme/app_styles.dart';
-import '../widgets/editable_data_table.dart';
+import 'data_table_widget.dart';
 
-/// Diálogo modal para mostrar tablas en pantalla completa.
-///
-/// Este widget implementa un diálogo modal con las siguientes características:
-/// - Efecto de desenfoque en el fondo
-/// - Controladores de scroll independientes (horizontal y vertical)
-/// - Tamaño responsivo basado en las dimensiones de la pantalla
-/// - Botón de cierre para volver a la vista normal
-/// - Animación suave al abrir y cerrar
-///
-/// Se utiliza cuando se necesita ver una tabla grande en pantalla completa,
-/// especialmente útil en las pantallas de:
-/// - Reportes detallados
-/// - Nóminas semanales
-/// - Registros históricos
-class FullscreenTableDialog extends StatefulWidget {
-  /// Lista de empleados a mostrar en la tabla
-  final List<Map<String, dynamic>> empleados;
-  /// Rango de fechas seleccionado
-  final DateTimeRange? semanaSeleccionada;
-  /// Función que se llama cuando hay cambios en la tabla
-  final void Function(int, String, dynamic) onChanged;
+/// Diálogo modal para mostrar tablas de reportes en pantalla completa.
+class ReportesTableDialog extends StatefulWidget {
+  /// Tipo de tabla a mostrar (0: Empleado, 1: Cuadrilla, 2: Actividad)
+  final int selectedFilter;
+  /// Datos a mostrar en la tabla
+  final List<Map<String, String>> data;
   /// Función que se ejecuta al cerrar el diálogo
   final VoidCallback onClose;
   /// Controlador para el scroll horizontal de la tabla
   final ScrollController horizontalController;
   /// Controlador para el scroll vertical de la tabla
   final ScrollController verticalController;
-  const FullscreenTableDialog({
+
+  const ReportesTableDialog({
     Key? key,
-    required this.empleados,
-    required this.semanaSeleccionada,
-    required this.onChanged,
+    required this.selectedFilter,
+    required this.data,
     required this.onClose,
     required this.horizontalController,
     required this.verticalController,
   }) : super(key: key);
 
   @override
-  State<FullscreenTableDialog> createState() => _FullscreenTableDialogState();
+  State<ReportesTableDialog> createState() => _ReportesTableDialogState();
 }
 
-class _FullscreenTableDialogState extends State<FullscreenTableDialog> {
-  final _searchController = TextEditingController();
-  late List<Map<String, dynamic>> _filteredEmpleados;
-
+class _ReportesTableDialogState extends State<ReportesTableDialog> {
+  final TextEditingController _searchController = TextEditingController();
+  late List<Map<String, String>> _filteredData;
+  late List<String> _columns;
+  
   @override
   void initState() {
     super.initState();
-    _filteredEmpleados = List.from(widget.empleados);
+    _filteredData = List.from(widget.data);
+    _initializeColumns();
+  }  void _initializeColumns() {
+    // Definir columnas según el tipo de filtro seleccionado
+    if (widget.selectedFilter == 0) { // Empleados
+      _columns = ['Clave', 'Nombre', 'Apellido Paterno', 'Apellido Materno', 'Cuadrilla', 'Sueldo', 'Tipo'];
+    } else if (widget.selectedFilter == 1) { // Cuadrillas
+      _columns = ['Clave', 'Nombre', 'Responsable', 'Miembros', 'Actividad'];
+    } else if (widget.selectedFilter == 2) { // Actividades
+      _columns = ['Código', 'Nombre', 'Fecha', 'Responsable', 'Cuadrilla'];
+    } else {
+      _columns = [];
+    }
   }
 
-  void _filterEmpleados(String searchText) {
+  void _filterData(String searchText) {
     setState(() {
       if (searchText.isEmpty) {
-        _filteredEmpleados = List.from(widget.empleados);
+        _filteredData = List.from(widget.data);
       } else {
         final query = searchText.toLowerCase();
-        _filteredEmpleados = widget.empleados.where((emp) {
-          final nombre = emp['nombre']?.toString().toLowerCase() ?? '';
-          final clave = emp['clave']?.toString().toLowerCase() ?? '';
-          return nombre.contains(query) || clave.contains(query);
+        _filteredData = widget.data.where((item) {
+          return item.values.any((value) => 
+            value.toLowerCase().contains(query)
+          );
         }).toList();
       }
     });
@@ -71,14 +69,24 @@ class _FullscreenTableDialogState extends State<FullscreenTableDialog> {
 
   @override
   Widget build(BuildContext context) {
+    String title;
+    if (widget.selectedFilter == 0) {
+      title = 'Empleados';
+    } else if (widget.selectedFilter == 1) {
+      title = 'Cuadrillas';
+    } else if (widget.selectedFilter == 2) {
+      title = 'Actividades';
+    } else {
+      title = 'Reporte';
+    }
+
     return Stack(
       children: [
         BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
           child: Container(color: Colors.black.withOpacity(0)),
         ),
-        Center(
-          child: ConstrainedBox(
+        Center(          child: ConstrainedBox(
             constraints: BoxConstraints(
               maxWidth: MediaQuery.of(context).size.width * 0.98,
               maxHeight: MediaQuery.of(context).size.height * 0.95,
@@ -93,7 +101,7 @@ class _FullscreenTableDialogState extends State<FullscreenTableDialog> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Header mejorado
+                    // Header
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
@@ -116,7 +124,7 @@ class _FullscreenTableDialogState extends State<FullscreenTableDialog> {
                                   ),
                                   const SizedBox(width: 12),
                                   Text(
-                                    'Vista Detallada',
+                                    'Reporte de $title',
                                     style: TextStyle(
                                       fontSize: 20,
                                       fontWeight: FontWeight.bold,
@@ -155,13 +163,14 @@ class _FullscreenTableDialogState extends State<FullscreenTableDialog> {
                                   child: TextField(
                                     controller: _searchController,
                                     decoration: InputDecoration(
-                                      hintText: 'Buscar empleado...',
+                                      hintText: 'Buscar ${title.toLowerCase()}...',
                                       hintStyle: TextStyle(color: Colors.grey.shade500),
                                       border: InputBorder.none,
                                       isDense: true,
                                       contentPadding: EdgeInsets.zero,
                                     ),
-                                    style: const TextStyle(fontSize: 14),                                    onChanged: _filterEmpleados,
+                                    style: const TextStyle(fontSize: 14),
+                                    onChanged: _filterData,
                                   ),
                                 ),
                               ],
@@ -169,30 +178,57 @@ class _FullscreenTableDialogState extends State<FullscreenTableDialog> {
                           ),
                         ],
                       ),
-                    ),
-                    // Contenido de la tabla con scroll
+                    ),                    // Contenido de la tabla con scroll
                     Expanded(
                       child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Scrollbar(
-                          controller: widget.horizontalController,
-                          thumbVisibility: true,
-                          child: SingleChildScrollView(
+                        padding: const EdgeInsets.all(16),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey.shade300),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Scrollbar(
                             controller: widget.horizontalController,
-                            scrollDirection: Axis.horizontal,
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(minWidth: 1100),
+                            thumbVisibility: true,
+                            child: SingleChildScrollView(
+                              controller: widget.horizontalController,
+                              scrollDirection: Axis.horizontal,
                               child: Scrollbar(
                                 controller: widget.verticalController,
                                 thumbVisibility: true,
                                 child: SingleChildScrollView(
                                   controller: widget.verticalController,
                                   scrollDirection: Axis.vertical,
-                                  child: EditableDataTableWidget(
-                                    empleados: _filteredEmpleados,
-                                    semanaSeleccionada: widget.semanaSeleccionada,
-                                    onChanged: widget.onChanged,
-                                    isExpanded: true,
+                                  child: DataTableWidget(
+                                    columns: _columns,
+                                    rows: _filteredData.map((item) {
+                                      if (widget.selectedFilter == 0) {  // Empleados
+                                        return [
+                                          item['clave'] ?? '',
+                                          item['nombre'] ?? '',
+                                          item['apPaterno'] ?? '',
+                                          item['apMaterno'] ?? '',
+                                          item['cuadrilla'] ?? '',
+                                          item['sueldo'] ?? '',
+                                          item['tipo'] ?? '',
+                                        ];
+                                      } else if (widget.selectedFilter == 1) {  // Cuadrillas
+                                        return [
+                                          item['clave'] ?? '',
+                                          item['nombre'] ?? '',
+                                          item['responsable'] ?? '',
+                                          item['miembros'] ?? '',
+                                          item['actividad'] ?? '',
+                                        ];
+                                      } else {  // Actividades
+                                        return [
+                                          item['codigo'] ?? '',
+                                          item['nombre'] ?? '',
+                                          item['fecha'] ?? '',
+                                          item['responsable'] ?? '',
+                                          item['cuadrilla'] ?? '',
+                                        ];                                      }
+                                    }).toList(),
                                   ),
                                 ),
                               ),
@@ -209,11 +245,12 @@ class _FullscreenTableDialogState extends State<FullscreenTableDialog> {
         ),
       ],
     );
+    }
+  
+    @override
+    void dispose() {
+      _searchController.dispose();
+      super.dispose();
+    }
   }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-}
+  
