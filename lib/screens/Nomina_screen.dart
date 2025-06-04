@@ -76,13 +76,90 @@ class _NominaScreenState extends State<NominaScreen> {  bool showTablaPrincipal 
   // Variables para manejo de empleados y cuadrillas
   bool showArmarCuadrilla = false;
   List<Map<String, dynamic>> todosLosEmpleados = [
-    {'id': '1', 'nombre': 'Juan Pérez López', 'puesto': 'Jornalero', 'seleccionado': false},
-    {'id': '2', 'nombre': 'María González Ruiz', 'puesto': 'Jornalero', 'seleccionado': false},
-    {'id': '3', 'nombre': 'Roberto Sánchez Vega', 'puesto': 'Operador', 'seleccionado': false},
-    {'id': '4', 'nombre': 'Ana Torres Mendoza', 'puesto': 'Jornalero', 'seleccionado': false},
-    {'id': '5', 'nombre': 'Carlos Ramírez Ortiz', 'puesto': 'Operador', 'seleccionado': false},
-    {'id': '6', 'nombre': 'Laura Flores Castro', 'puesto': 'Jornalero', 'seleccionado': false},
-    {'id': '7', 'nombre': 'Miguel Ángel Díaz', 'puesto': 'Operador', 'seleccionado': false},
+    {
+      'id': '1',
+      'nombre': 'Juan Pérez López',
+      'puesto': 'Jornalero',
+      'seleccionado': false,
+      'curp': 'PELJ850615HDFXPN09',
+      'numeroEmpleado': '001',
+      'lugarProcedencia': 'Michoacán',
+      'rfc': 'PELJ850615HDF',
+      'nss': '12345678901',
+      'tipoEmpleado': 'Fijo'
+    },
+    {
+      'id': '2',
+      'nombre': 'María González Ruiz',
+      'puesto': 'Jornalero',
+      'seleccionado': false,
+      'curp': 'GORM880824MDFNZR03',
+      'numeroEmpleado': '002',
+      'lugarProcedencia': 'Guanajuato',
+      'rfc': 'GORM880824MDF',
+      'nss': '23456789012',
+      'tipoEmpleado': 'Temporal'
+    },
+    {
+      'id': '3',
+      'nombre': 'Roberto Sánchez Vega',
+      'puesto': 'Operador',
+      'seleccionado': false,
+      'curp': 'SAVR900112HDFNGB07',
+      'numeroEmpleado': '003',
+      'lugarProcedencia': 'Jalisco',
+      'rfc': 'SAVR900112HDF',
+      'nss': '34567890123',
+      'tipoEmpleado': 'Fijo'
+    },
+    {
+      'id': '4',
+      'nombre': 'Ana Torres Mendoza',
+      'puesto': 'Jornalero',
+      'seleccionado': false,
+      'curp': 'TOMA910723MDFRNL05',
+      'numeroEmpleado': '004',
+      'lugarProcedencia': 'Querétaro',
+      'rfc': 'TOMA910723MDF',
+      'nss': '45678901234',
+      'tipoEmpleado': 'Temporal'
+    },
+    {
+      'id': '5',
+      'nombre': 'Carlos Ramírez Ortiz',
+      'puesto': 'Operador',
+      'seleccionado': false,
+      'curp': 'RAOC870305HDFMRR01',
+      'numeroEmpleado': '005',
+      'lugarProcedencia': 'Estado de México',
+      'rfc': 'RAOC870305HDF',
+      'nss': '56789012345',
+      'tipoEmpleado': 'Fijo'
+    },
+    {
+      'id': '6',
+      'nombre': 'Laura Flores Castro',
+      'puesto': 'Jornalero',
+      'seleccionado': false,
+      'curp': 'FOCL920418MDFLSR08',
+      'numeroEmpleado': '006',
+      'lugarProcedencia': 'Hidalgo',
+      'rfc': 'FOCL920418MDF',
+      'nss': '67890123456',
+      'tipoEmpleado': 'Temporal'
+    },
+    {
+      'id': '7',
+      'nombre': 'Miguel Ángel Díaz',
+      'puesto': 'Operador',
+      'seleccionado': false,
+      'curp': 'DIAM890210HDFZGM04',
+      'numeroEmpleado': '007',
+      'lugarProcedencia': 'Puebla',
+      'rfc': 'DIAM890210HDF',
+      'nss': '78901234567',
+      'tipoEmpleado': 'Fijo'
+    },
   ];
   List<Map<String, dynamic>> empleadosEnCuadrilla = [];
   
@@ -857,6 +934,148 @@ class _NominaScreenState extends State<NominaScreen> {  bool showTablaPrincipal 
           ),
         );
       },
+    );
+  }
+
+  // Función para mostrar detalles del empleado  
+  void _mostrarDetallesEmpleado(BuildContext context, Map<String, dynamic> empleado) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierColor: Colors.black.withOpacity(0.5),
+      builder: (BuildContext context) {
+        return BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+          child: Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppDimens.cardRadius),
+            ),
+            elevation: 0,
+            backgroundColor: Colors.white.withOpacity(0.95),
+            child: Container(
+              width: 400,
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 24,
+                            backgroundColor: AppColors.green.withOpacity(0.1),
+                            child: Text(
+                              empleado['nombre'].toString().split(' ').map((e) => e[0]).take(2).join('').toUpperCase(),
+                              style: TextStyle(
+                                color: AppColors.greenDark,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                empleado['nombre'],
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                empleado['puesto'] ?? 'Jornalero',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.close),
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.grey.shade100,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(AppDimens.cardRadius),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: Column(
+                      children: [
+                        _buildDetalleRow('Número de Empleado:', empleado['numeroEmpleado']),
+                        _buildDivider(),
+                        _buildDetalleRow('CURP:', empleado['curp']),
+                        _buildDivider(),
+                        _buildDetalleRow('RFC:', empleado['rfc']),
+                        _buildDivider(),
+                        _buildDetalleRow('NSS:', empleado['nss']),
+                        _buildDivider(),
+                        _buildDetalleRow('Lugar de Procedencia:', empleado['lugarProcedencia']),
+                        _buildDivider(),
+                        _buildDetalleRow('Tipo de Empleado:', empleado['tipoEmpleado']),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDetalleRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 140,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontWeight: FontWeight.w500,
+                color: Colors.grey,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDivider() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Divider(
+        height: 1,
+        color: Colors.grey.shade200,
+      ),
     );
   }
 
@@ -1744,12 +1963,22 @@ class _NominaScreenState extends State<NominaScreen> {  bool showTablaPrincipal 
                                                           empleado['puesto'],
                                                           style:
                                                               TextStyle(color: Colors.grey.shade600),
-                                                        ),
-                                                        trailing: IconButton(
-                                                          icon: const Icon(Icons.add_circle_outline),
-                                                          color: AppColors.green,
-                                                          onPressed: () =>
-                                                              _toggleSeleccionEmpleado(empleado),
+                                                        ),                                                        trailing: Row(
+                                                          mainAxisSize: MainAxisSize.min,
+                                                          children: [
+                                                            IconButton(
+                                                              icon: const Icon(Icons.visibility_outlined),
+                                                              color: Colors.blue,
+                                                              onPressed: () => _mostrarDetallesEmpleado(context, empleado),
+                                                              tooltip: 'Ver detalles',
+                                                            ),
+                                                            IconButton(
+                                                              icon: const Icon(Icons.add_circle_outline),
+                                                              color: AppColors.green,
+                                                              onPressed: () => _toggleSeleccionEmpleado(empleado),
+                                                              tooltip: 'Agregar a cuadrilla',
+                                                            ),
+                                                          ],
                                                         ),
                                                       ),
                                                     );
@@ -1919,12 +2148,22 @@ class _NominaScreenState extends State<NominaScreen> {  bool showTablaPrincipal 
                                                           empleado['puesto'] ?? 'Jornalero',
                                                           style:
                                                               TextStyle(color: Colors.grey.shade600),
-                                                        ),
-                                                        trailing: IconButton(
-                                                          icon: const Icon(Icons.remove_circle_outline),
-                                                          color: Colors.red,
-                                                          onPressed: () =>
-                                                              _toggleSeleccionEmpleado(empleado),
+                                                        ),                                                        trailing: Row(
+                                                          mainAxisSize: MainAxisSize.min,
+                                                          children: [
+                                                            IconButton(
+                                                              icon: const Icon(Icons.visibility_outlined),
+                                                              color: Colors.blue,
+                                                              onPressed: () => _mostrarDetallesEmpleado(context, empleado),
+                                                              tooltip: 'Ver detalles',
+                                                            ),
+                                                            IconButton(
+                                                              icon: const Icon(Icons.remove_circle_outline),
+                                                              color: Colors.red,
+                                                              onPressed: () => _toggleSeleccionEmpleado(empleado),
+                                                              tooltip: 'Quitar de cuadrilla',
+                                                            ),
+                                                          ],
                                                         ),
                                                       ),
                                                     );
