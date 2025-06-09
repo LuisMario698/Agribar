@@ -1256,7 +1256,8 @@ class _NominaScreenState extends State<NominaScreen> {  bool showTablaPrincipal 
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 12),                                  CustomDropdownMenu(
+                                  const SizedBox(height: 12),                                  
+                                  CustomDropdownMenu(
                                     options: _optionsCuadrilla,
                                     selectedOption: _selectedCuadrilla['nombre'] == '' ? null : _selectedCuadrilla,
                                     onOptionSelected: (Map<String, dynamic>? option) {
