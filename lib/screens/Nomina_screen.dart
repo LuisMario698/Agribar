@@ -3,6 +3,7 @@
 /// incluyendo captura de días, cálculos y gestión de deducciones.
 
 import 'package:agribar/services/database_service.dart';
+import 'package:agribar/services/semana_service.dart';
 import 'package:flutter/material.dart';
 import 'dart:ui';
 import '../widgets/editable_data_table.dart';
@@ -20,6 +21,15 @@ import '../widgets/fullscreen_table_dialog.dart';
 /// - Captura de días trabajados
 /// - Cálculo de percepciones y deducciones
 /// - Vista normal y expandida de la información
+///
+///variables de estado en _NominaScreenState
+DateTime? _startDate;
+DateTime? _endDate;
+bool _isWeekClosed = false;
+bool _cargandoSemana = true; // para mostrar loading mientras carga
+String _semanaFormateada = 'Seleccionar semana';
+bool semanaActiva = false;
+bool _haySemanaActiva = false;
 class NominaScreen extends StatefulWidget {
   const NominaScreen({
     super.key,
@@ -90,10 +100,10 @@ class _NominaScreenState extends State<NominaScreen> {
   void initState() {
     super.initState();
     // _selectedCuadrilla = {'nombre': '', 'empleados': []};
-  
     _cargarCuadrillasHabilitadas();
-        _loadInitialData();
-
+    _loadInitialData();
+    
+    verificarSemanaActiva();
     _selectedCuadrilla = {'nombre': '', 'empleados': []};
     _startDate = null;
     _endDate = null;
@@ -102,6 +112,26 @@ class _NominaScreenState extends State<NominaScreen> {
     empleadosDisponiblesFiltrados = List.from(todosLosEmpleados);
     empleadosEnCuadrillaFiltrados = [];
   }
+
+ void verificarSemanaActiva() async {
+  final semana = await obtenerSemanaAbierta();
+
+  if (semana != null) {
+    setState(() {
+      _startDate = semana['fechaInicio'];
+      _endDate = semana['fechaFin'];
+      _isWeekClosed = semana['cerrada'] ?? false;
+      _haySemanaActiva = true;
+    });
+  } else {
+    setState(() {
+      _haySemanaActiva = false;
+    });
+  }
+}
+
+  // Cargar semana activa automáticamente al abrir pantalla
+ 
 
   Future<void> _cargarCuadrillasHabilitadas() async {
     final cuadrillasBD = await obtenerCuadrillasHabilitadas();
@@ -135,13 +165,35 @@ class _NominaScreenState extends State<NominaScreen> {
         return Center(child: SizedBox(width: 500, height: 420, child: child));
       },
     );
+
     if (picked != null) {
-      setState(() {
-        _startDate = picked.start;
-        _endDate = picked.end;
-        _isWeekClosed =
-            false; // Reiniciar el estado al seleccionar nueva semana
-      });
+      // Guardar en la base de datos
+      final nuevaSemana = await SemanaService().crearNuevaSemana(
+        picked.start,
+        picked.end,
+      );
+
+      if (nuevaSemana != null) {
+        setState(() {
+          _startDate = nuevaSemana['fechaInicio'];
+          _endDate = nuevaSemana['fechaFin'];
+          _isWeekClosed = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Semana creada correctamente.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('❌ Error al guardar la semana en la base de datos.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -1195,10 +1247,7 @@ class _NominaScreenState extends State<NominaScreen> {
                                         ),
                                         const SizedBox(height: 12),
                                         InkWell(
-                                          onTap: _seleccionarSemana,
-                                          borderRadius: BorderRadius.circular(
-                                            AppDimens.buttonRadius,
-                                          ),
+                                         onTap: (!semanaActiva) ? _seleccionarSemana : null,
                                           child: Container(
                                             padding: const EdgeInsets.symmetric(
                                               horizontal: 16,
@@ -1219,23 +1268,21 @@ class _NominaScreenState extends State<NominaScreen> {
                                                   MainAxisAlignment
                                                       .spaceBetween,
                                               children: [
-                                                Text(
-                                                  _startDate != null &&
-                                                          _endDate != null
-                                                      ? '${_startDate!.day}/${_startDate!.month} - ${_endDate!.day}/${_endDate!.month}/${_endDate!.year}'
-                                                      : 'Seleccionar semana',
-                                                  style: const TextStyle(
-                                                    fontSize: 14,
+                                               Text( 
+                                                  _startDate != null && _endDate != null
+      ? '${_startDate!.day}/${_startDate!.month} - ${_endDate!.day}/${_endDate!.month}/${_endDate!.year}'
+      : 'Seleccionar semana',
+),
+                                                if (!_haySemanaActiva)
+                                                  const Icon(
+                                                    Icons.arrow_drop_down,
+                                                    size: 24,
                                                   ),
-                                                ),
-                                                const Icon(
-                                                  Icons.arrow_drop_down,
-                                                  size: 24,
-                                                ),
                                               ],
                                             ),
                                           ),
                                         ),
+
                                         if (_startDate != null &&
                                             _endDate != null) ...[
                                           const SizedBox(height: 12),

@@ -52,8 +52,8 @@ Future<List<Map<String, dynamic>>> obtenerEmpleadosHabilitados() async {
     final results = await db.connection.query('''
       SELECT 
         e.id_empleado,
-        e.nombre,
-        dl.puesto,
+        e.nombre ||' '|| e.apellido_paterno ||' '|| e.apellido_materno as nombre,
+        'ID: ' ||CAST(dl.id_empleado AS TEXT) ||' Puesto '|| dl.puesto as puesto,
         e.curp,
         e.rfc,
         e.nss,
@@ -86,64 +86,3 @@ Future<List<Map<String, dynamic>>> obtenerEmpleadosHabilitados() async {
   }
 }
 
-
-class NominaLogic {
-  // Verifica si hay una semana abierta
-  Future<Map<String, dynamic>?> obtenerSemanaAbierta() async {
-    final db = DatabaseService();
-    await db.connect();
-
-    final result = await db.connection.query('''
-      SELECT id_semana, fecha_inicio, fecha_fin
-      FROM semanas_nomina
-      WHERE esta_cerrada = false
-      ORDER BY fecha_inicio DESC
-      LIMIT 1;
-    ''');
-
-    await db.close();
-
-    if (result.isEmpty) return null;
-
-    final row = result.first;
-    return {
-      'id_semana': row[0],
-      'fecha_inicio': row[1],
-      'fecha_fin': row[2],
-    };
-  }
-
-  // Guarda una nueva semana abierta
-  Future<int?> crearSemana(DateTime inicio, DateTime fin) async {
-    final db = DatabaseService();
-    await db.connect();
-
-    final result = await db.connection.query('''
-      INSERT INTO semanas_nomina (fecha_inicio, fecha_fin, esta_cerrada)
-      VALUES (@inicio, @fin, false)
-      RETURNING id_semana;
-    ''', substitutionValues: {
-      'inicio': inicio.toIso8601String(),
-      'fin': fin.toIso8601String(),
-    });
-
-    await db.close();
-    return result.isNotEmpty ? result.first[0] : null;
-  }
-
-  // Cierra la semana actual (requiere validación previa del supervisor)
-  Future<void> cerrarSemana(int idSemana) async {
-    final db = DatabaseService();
-    await db.connect();
-
-    await db.connection.query('''
-      UPDATE semanas_nomina
-      SET esta_cerrada = true
-      WHERE id_semana = @id;
-    ''', substitutionValues: {
-      'id': idSemana,
-    });
-
-    await db.close();
-  }
-}
