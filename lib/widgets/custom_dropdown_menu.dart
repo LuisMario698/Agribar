@@ -68,182 +68,212 @@ class _CustomDropdownMenuState<T> extends State<CustomDropdownMenu<T>> {
     
     final RenderBox renderBox = context.findRenderObject() as RenderBox;
     final size = renderBox.size;
-
+    
     _overlayEntry = OverlayEntry(
       builder: (context) {
-        return Positioned(
-          width: widget.width ?? size.width,
-          child: CompositedTransformFollower(
-            link: _layerLink,
-            showWhenUnlinked: false,
-            offset: Offset(0.0, size.height),
-            child: Material(
-              elevation: 4.0,
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(AppDimens.buttonRadius),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (widget.searchHint != null)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                controller: _searchController,
-                                focusNode: _searchFocusNode,
-                                decoration: InputDecoration(
-                                  hintText: widget.searchHint,
-                                  hintStyle: TextStyle(color: Colors.grey.shade500),
-                                  prefixIcon: Icon(Icons.search, color: Colors.grey.shade600, size: 20),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(AppDimens.buttonRadius),
-                                    borderSide: BorderSide(color: Colors.grey.shade300),
+        return GestureDetector(
+          onTap: _hideOverlay, // Cerrar al tocar fuera del dropdown
+          behavior: HitTestBehavior.translucent,
+          child: Container(
+            width: MediaQuery.of(context).size.width,
+            height: MediaQuery.of(context).size.height,
+            color: Colors.transparent,
+            child: Stack(
+              children: [
+                // El dropdown real
+                Positioned(
+                  width: widget.width ?? size.width,
+                  child: CompositedTransformFollower(
+                    link: _layerLink,
+                    showWhenUnlinked: false,
+                    offset: Offset(0.0, size.height + 2),
+                    child: GestureDetector(
+                      onTap: () {}, // Evitar que se propague el tap al contenedor padre
+                      behavior: HitTestBehavior.opaque,
+                      child: Material(
+                        elevation: 8.0,
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(AppDimens.buttonRadius),
+                        child: Container(
+                          constraints: const BoxConstraints(maxHeight: 300),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Campo de búsqueda
+                              if (widget.searchHint != null)
+                                Padding(
+                                  padding: const EdgeInsets.all(12.0),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: TextField(
+                                          controller: _searchController,
+                                          focusNode: _searchFocusNode,
+                                          decoration: InputDecoration(
+                                            hintText: widget.searchHint,
+                                            hintStyle: TextStyle(color: Colors.grey.shade500),
+                                            prefixIcon: Icon(Icons.search, color: Colors.grey.shade600, size: 20),
+                                            border: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(AppDimens.buttonRadius),
+                                              borderSide: BorderSide(color: Colors.grey.shade300),
+                                            ),
+                                            enabledBorder: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(AppDimens.buttonRadius),
+                                              borderSide: BorderSide(color: Colors.grey.shade300),
+                                            ),
+                                            focusedBorder: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(AppDimens.buttonRadius),
+                                              borderSide: BorderSide(color: AppColors.greenDark),
+                                            ),
+                                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                          ),
+                                          style: const TextStyle(fontSize: 14),
+                                          onChanged: _filterOptions,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.green.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Text(
+                                          '${_filteredOptions.length}',
+                                          style: TextStyle(
+                                            color: AppColors.greenDark,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(AppDimens.buttonRadius),
-                                    borderSide: BorderSide(color: Colors.grey.shade300),
-                                  ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(AppDimens.buttonRadius),
-                                    borderSide: BorderSide(color: AppColors.greenDark),
-                                  ),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                 ),
-                                style: const TextStyle(fontSize: 14),
-                                onChanged: _filterOptions,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: AppColors.green.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                '${_filteredOptions.length}',
-                                style: TextStyle(
-                                  color: AppColors.greenDark,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    if (_filteredOptions.isNotEmpty)
-                      Container(
-                        constraints: BoxConstraints(
-                          maxHeight: 250,
-                        ),
-                        child: ListView.builder(
-                          padding: EdgeInsets.zero,
-                          shrinkWrap: true,
-                          itemCount: _filteredOptions.length,
-                          itemBuilder: (context, index) {
-                            final option = _filteredOptions[index];
-                            final bool isSelected = widget.selectedOption != null &&
-                                widget.selectedOption![widget.valueKey] == option[widget.valueKey];
-                            
-                            return InkWell(
-                              onTap: () {
-                                _selectOption(option);
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
-                                color: isSelected ? AppColors.green.withOpacity(0.1) : Colors.transparent,
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      option[widget.displayKey].toString(),
+                              
+                              // Lista de opciones
+                              if (_filteredOptions.isNotEmpty)
+                                Flexible(
+                                  child: ListView.builder(
+                                    padding: EdgeInsets.zero,
+                                    shrinkWrap: true,
+                                    itemCount: _filteredOptions.length,
+                                    itemBuilder: (context, index) {
+                                      final option = _filteredOptions[index];
+                                      final bool isSelected = widget.selectedOption != null &&
+                                          widget.selectedOption![widget.valueKey] == option[widget.valueKey];
+                                      
+                                      return InkWell(
+                                        onTap: () => _selectOption(option),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
+                                          color: isSelected ? AppColors.green.withOpacity(0.1) : Colors.transparent,
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  option[widget.displayKey].toString(),
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                                    color: isSelected ? AppColors.greenDark : Colors.black87,
+                                                  ),
+                                                ),
+                                              ),
+                                              if (isSelected)
+                                                Icon(
+                                                  Icons.check,
+                                                  color: AppColors.greenDark,
+                                                  size: 20,
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                )
+                              else
+                                Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Center(
+                                    child: Text(
+                                      'No se encontraron opciones',
                                       style: TextStyle(
+                                        color: Colors.grey.shade700,
                                         fontSize: 14,
-                                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                        color: isSelected ? AppColors.greenDark : Colors.black87,
                                       ),
                                     ),
-                                    if (isSelected)
-                                      Icon(
-                                        Icons.check,
-                                        color: AppColors.greenDark,
-                                        size: 20,
+                                  ),
+                                ),
+                              
+                              // Opción de deseleccionar
+                              if (widget.allowDeselect && widget.selectedOption != null)
+                                Column(
+                                  children: [
+                                    Divider(color: Colors.grey.shade300, height: 1),
+                                    InkWell(
+                                      onTap: () => _selectOption(null),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              Icons.clear,
+                                              color: Colors.red.shade400,
+                                              size: 20,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              'Deseleccionar',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                color: Colors.red.shade400,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
+                                    ),
                                   ],
                                 ),
-                              ),
-                            );
-                          },
-                        ),
-                      )
-                    else
-                      Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Center(
-                          child: Text(
-                            'No se encontraron opciones',
-                            style: TextStyle(
-                              color: Colors.grey.shade700,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
-                      ),
-                    if (widget.allowDeselect && widget.selectedOption != null && widget.selectedOption![widget.valueKey] != null)
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 0.0),
-                        child: Divider(color: Colors.grey.shade300),
-                      ),
-                    if (widget.allowDeselect && widget.selectedOption != null && widget.selectedOption![widget.valueKey] != null)
-                      InkWell(
-                        onTap: () {
-                          _selectOption(null);
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.clear,
-                                color: Colors.red.shade400,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Deseleccionar',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.red.shade400,
-                                ),
-                              ),
+                                
                             ],
                           ),
                         ),
                       ),
-                  ],
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
         );
       },
     );
+  
 
     Overlay.of(context).insert(_overlayEntry!);
-    _isOpen = true;
-    _searchFocusNode.requestFocus();
+    setState(() {
+      _isOpen = true;
+    });
+    
+    // Enfocar el campo de búsqueda si existe
+    if (widget.searchHint != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _searchFocusNode.requestFocus();
+      });
+    }
   }
 
   void _hideOverlay() {
     if (_overlayEntry != null) {
       _overlayEntry!.remove();
       _overlayEntry = null;
-      _isOpen = false;
+      setState(() {
+        _isOpen = false;
+      });
     }
   }
 
@@ -297,26 +327,31 @@ class _CustomDropdownMenuState<T> extends State<CustomDropdownMenu<T>> {
               width: _isOpen ? 2 : 1,
             ),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: Row(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),          child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  widget.icon,
-                  const SizedBox(width: 12),
-                  Text(
-                    widget.selectedOption != null && widget.selectedOption![widget.displayKey] != null
-                        ? widget.selectedOption![widget.displayKey].toString()
-                        : widget.hint,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: widget.selectedOption != null && widget.selectedOption![widget.displayKey] != null
-                          ? Colors.black87
-                          : Colors.grey.shade600,
+              Expanded(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    widget.icon,
+                    const SizedBox(width: 12),
+                    Flexible(
+                      child: Text(
+                        widget.selectedOption != null && widget.selectedOption![widget.displayKey] != null
+                            ? widget.selectedOption![widget.displayKey].toString()
+                            : widget.hint,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: widget.selectedOption != null && widget.selectedOption![widget.displayKey] != null
+                              ? Colors.black87
+                              : Colors.grey.shade600,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               Icon(
                 _isOpen ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
