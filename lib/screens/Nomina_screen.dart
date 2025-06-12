@@ -579,22 +579,6 @@ class _NominaScreenState extends State<NominaScreen> {
     );
   }
 
-  void _toggleDiasTrabajados() {
-    setState(() {
-      showDiasTrabajados = !showDiasTrabajados;
-      if (showDiasTrabajados) {
-        // Al abrir la tabla, solo asegurarse que tengamos acceso a los empleados
-        if (empleadosFiltrados.isEmpty) {
-          empleadosFiltrados = List<Map<String, dynamic>>.from(
-            _selectedCuadrilla['empleados'] ?? [],
-          );
-        }
-      }
-      // Ya no actualizamos la cuadrilla al cerrar la tabla
-      // Los datos se actualizan mediante el callback onChanged de DiasTrabajadosTable
-    });
-  }
-
   void _toggleArmarCuadrilla() {
     if (showArmarCuadrilla) {
       // Cuando ya está abierto, guardar cambios
@@ -1590,33 +1574,8 @@ class _NominaScreenState extends State<NominaScreen> {
                                         ),
                                       ),
                                     ],
-                                  ),
-                                  Row(
+                                  ),                                  Row(
                                     children: [
-                                      FilledButton.icon(
-                                        onPressed:
-                                            (_startDate != null &&
-                                                    _endDate != null)
-                                                ? _toggleDiasTrabajados
-                                                : null,
-                                        icon: const Icon(Icons.calendar_today),
-                                        label: const Text(
-                                          'Ver días trabajados',
-                                        ),
-                                        style: FilledButton.styleFrom(
-                                          backgroundColor:
-                                              (_startDate != null &&
-                                                      _endDate != null)
-                                                  ? Colors.orange.shade600
-                                                  : Colors.grey.shade400,
-                                          foregroundColor:
-                                              (_startDate != null &&
-                                                      _endDate != null)
-                                                  ? Colors.white
-                                                  : Colors.grey.shade600,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
                                       IconButton(
                                         icon: const Icon(Icons.fullscreen),
                                         onPressed: () {
