@@ -7,7 +7,6 @@ class ActionButtons extends StatelessWidget {
   final VoidCallback onPdfExport;
   final VoidCallback onExcelExport;
   final VoidCallback onExpandTable;
-  final VoidCallback onViewDaysWorked;
 
   const ActionButtons({
     Key? key,
@@ -15,7 +14,6 @@ class ActionButtons extends StatelessWidget {
     required this.onPdfExport,
     required this.onExcelExport,
     required this.onExpandTable,
-    required this.onViewDaysWorked,
   }) : super(key: key);
 
   @override
@@ -48,23 +46,12 @@ class ActionButtons extends StatelessWidget {
         // Right side - Action buttons
         Row(
           mainAxisSize: MainAxisSize.min,
-          children: [
-            AppButton(
+          children: [            AppButton(
               label: 'Expandir tabla',
               icon: Icons.open_in_full,
               onPressed: onExpandTable,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blueGrey,
-                foregroundColor: Colors.white,
-              ),
-            ),
-            const SizedBox(width: 12),
-            AppButton(
-              label: 'Ver días trabajados',
-              icon: Icons.calendar_today,
-              onPressed: onViewDaysWorked,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange,
                 foregroundColor: Colors.white,
               ),
             ),
