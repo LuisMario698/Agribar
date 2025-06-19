@@ -133,12 +133,12 @@ Future<bool> haySemanaActiva() async {
   return count > 0;
 }
 
-Future<Map<String, dynamic>?> obtenerSemanaAbierta() async {
+Future<Map<String, dynamic>?>   obtenerSemanaAbierta() async {
   final db = DatabaseService();
   await db.connect();
 
   final result = await db.connection.query('''
-    SELECT id_semana, fecha_inicio, fecha_fin, esta_cerrada
+ SELECT id_semana, fecha_inicio, fecha_fin, esta_cerrada
     FROM semanas_nomina
     WHERE esta_cerrada = false
     ORDER BY creado_en DESC
@@ -156,4 +156,58 @@ Future<Map<String, dynamic>?> obtenerSemanaAbierta() async {
     'fechaFin': row[2],
     'cerrada': row[3],
   };
+}
+
+Future<void> guardarEmpleadosCuadrillaSemana({
+  required int semanaId,
+  required int cuadrillaId,
+  required List<Map<String, dynamic>> empleados,
+}) async {
+  final db = DatabaseService();
+  await db.connect();
+
+  // Eliminar registros anteriores de esa cuadrilla en esa semana
+  await db.connection.query('''
+    DELETE FROM nomina_empleados_semanal
+    WHERE id_semana  = @semanaId AND id_cuadrilla = @cuadrillaId;
+  ''', substitutionValues: {
+    'semanaId': semanaId,
+    'cuadrillaId': cuadrillaId,
+  });
+
+  // Insertar nuevos empleados
+  for (final empleado in empleados) {
+    await db.connection.query('''
+      INSERT INTO nomina_empleados_semanal (id_semana, id_cuadrilla, id_empleado)
+      VALUES (@semanaId, @cuadrillaId, @empleadoId);
+    ''', substitutionValues: {
+      'semanaId': semanaId,
+      'cuadrillaId': cuadrillaId,
+      'empleadoId': empleado['id'],
+    });
+  }
+
+  await db.close();
+}
+Future<List<Map<String, dynamic>>> obtenerCuadrillasDeSemana(int semanaId) async {
+  final db = DatabaseService();
+  await db.connect();
+
+  final result = await db.connection.query('''
+    SELECT c.id_cuadrilla, c.nombre
+    FROM cuadrillas c
+    JOIN nomina_empleados_semanal nes ON c.id_cuadrilla = nes.id_cuadrilla
+    WHERE nes.id_semana = @id_semana
+    GROUP BY c.id_cuadrilla, c.nombre
+    ORDER BY c.nombre;
+  ''', substitutionValues: {
+    'semanaId': semanaId,
+  });
+
+  await db.close();
+
+  return result.map((row) => {
+    'id': row[0],
+    'nombre': row[1],
+  }).toList();
 }

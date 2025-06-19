@@ -1,3 +1,4 @@
+import 'package:agribar/services/semana_service.dart';
 import 'package:flutter/material.dart';
 import 'dart:ui';
 import '../theme/app_styles.dart';
@@ -11,7 +12,8 @@ class NominaArmarCuadrillaWidget extends StatefulWidget {
   final Map<String, dynamic> selectedCuadrilla;
   final List<Map<String, dynamic>> todosLosEmpleados;
   final List<Map<String, dynamic>> empleadosEnCuadrilla;
-  final Function(Map<String, dynamic>, List<Map<String, dynamic>>) onCuadrillaSaved;
+  final Function(Map<String, dynamic>, List<Map<String, dynamic>>)
+  onCuadrillaSaved;
   final VoidCallback onClose;
   final Function(BuildContext, Map<String, dynamic>) onMostrarDetallesEmpleado;
 
@@ -26,31 +28,39 @@ class NominaArmarCuadrillaWidget extends StatefulWidget {
     required this.onMostrarDetallesEmpleado,
   }) : super(key: key);
   @override
-  State<NominaArmarCuadrillaWidget> createState() => _NominaArmarCuadrillaWidgetState();
+  State<NominaArmarCuadrillaWidget> createState() =>
+      _NominaArmarCuadrillaWidgetState();
 }
 
-class _NominaArmarCuadrillaWidgetState extends State<NominaArmarCuadrillaWidget> {
+class _NominaArmarCuadrillaWidgetState
+    extends State<NominaArmarCuadrillaWidget> {
   // Variables locales para el manejo del widget
   List<Map<String, dynamic>> empleadosDisponiblesFiltrados = [];
   List<Map<String, dynamic>> empleadosEnCuadrillaFiltrados = [];
   List<Map<String, dynamic>> empleadosEnCuadrillaLocal = [];
   Map<String, dynamic> selectedCuadrillaLocal = {};
-  
-  final TextEditingController _buscarDisponiblesController = TextEditingController();
-  final TextEditingController _buscarEnCuadrillaController = TextEditingController();
+
+  final TextEditingController _buscarDisponiblesController =
+      TextEditingController();
+  final TextEditingController _buscarEnCuadrillaController =
+      TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    
+
     // Inicializar estados locales
-    selectedCuadrillaLocal = Map<String, dynamic>.from(widget.selectedCuadrilla);
-    empleadosEnCuadrillaLocal = List<Map<String, dynamic>>.from(widget.empleadosEnCuadrilla);
-    
+    selectedCuadrillaLocal = Map<String, dynamic>.from(
+      widget.selectedCuadrilla,
+    );
+    empleadosEnCuadrillaLocal = List<Map<String, dynamic>>.from(
+      widget.empleadosEnCuadrilla,
+    );
+
     // Inicializar listas filtradas
     empleadosDisponiblesFiltrados = List.from(widget.todosLosEmpleados);
     empleadosEnCuadrillaFiltrados = List.from(empleadosEnCuadrillaLocal);
-    
+
     // Asegurar que cada empleado en la cuadrilla tenga el campo 'puesto'
     for (var empleado in empleadosEnCuadrillaLocal) {
       empleado['puesto'] = empleado['puesto'] ?? 'Jornalero';
@@ -90,8 +100,10 @@ class _NominaArmarCuadrillaWidgetState extends State<NominaArmarCuadrillaWidget>
         } else {
           // Si hay filtro activo, verificamos si el empleado cumple con el criterio
           final query = _buscarEnCuadrillaController.text.toLowerCase();
-          final nombre = empleadoCopia['nombre']?.toString().toLowerCase() ?? '';
-          final puesto = empleadoCopia['puesto']?.toString().toLowerCase() ?? '';
+          final nombre =
+              empleadoCopia['nombre']?.toString().toLowerCase() ?? '';
+          final puesto =
+              empleadoCopia['puesto']?.toString().toLowerCase() ?? '';
           if (nombre.contains(query) || puesto.contains(query)) {
             empleadosEnCuadrillaFiltrados.add(empleadoCopia);
           }
@@ -188,7 +200,19 @@ class _NominaArmarCuadrillaWidgetState extends State<NominaArmarCuadrillaWidget>
     );
   }
 
-  void _guardarCambios() {
+  void _guardarCambios() async {
+    final semanaId =
+        await obtenerSemanaAbierta(); //obtenerIdSemanaActiva(); // Debes tenerla
+    final cuadrillaId = selectedCuadrillaLocal['id'];
+
+    if (semanaId == null || cuadrillaId == null) return;
+
+    await guardarEmpleadosCuadrillaSemana(
+      semanaId: semanaId['id'],
+      cuadrillaId: cuadrillaId,
+      empleados: empleadosEnCuadrillaLocal,
+    );
+
     widget.onCuadrillaSaved(selectedCuadrillaLocal, empleadosEnCuadrillaLocal);
   }
 
@@ -215,11 +239,7 @@ class _NominaArmarCuadrillaWidgetState extends State<NominaArmarCuadrillaWidget>
                     children: [
                       Row(
                         children: [
-                          Icon(
-                            Icons.groups,
-                            size: 28,
-                            color: AppColors.green,
-                          ),
+                          Icon(Icons.groups, size: 28, color: AppColors.green),
                           const SizedBox(width: 12),
                           Text(
                             'Armar Cuadrilla',
@@ -246,19 +266,14 @@ class _NominaArmarCuadrillaWidgetState extends State<NominaArmarCuadrillaWidget>
                     elevation: 0,
                     color: Colors.grey.shade50,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(
-                        AppDimens.cardRadius,
-                      ),
+                      borderRadius: BorderRadius.circular(AppDimens.cardRadius),
                       side: BorderSide(color: Colors.grey.shade200),
                     ),
                     child: Padding(
                       padding: const EdgeInsets.all(12.0),
                       child: Row(
                         children: [
-                          Icon(
-                            Icons.swap_horiz,
-                            color: AppColors.greenDark,
-                          ),
+                          Icon(Icons.swap_horiz, color: AppColors.greenDark),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
@@ -275,9 +290,10 @@ class _NominaArmarCuadrillaWidgetState extends State<NominaArmarCuadrillaWidget>
                             flex: 3,
                             child: CustomDropdownMenu(
                               options: widget.optionsCuadrilla,
-                              selectedOption: selectedCuadrillaLocal['nombre'] == ''
-                                  ? null
-                                  : selectedCuadrillaLocal,
+                              selectedOption:
+                                  selectedCuadrillaLocal['nombre'] == ''
+                                      ? null
+                                      : selectedCuadrillaLocal,
                               onOptionSelected: (Map<String, dynamic>? option) {
                                 setState(() {
                                   if (option == null) {
@@ -286,15 +302,22 @@ class _NominaArmarCuadrillaWidgetState extends State<NominaArmarCuadrillaWidget>
                                       'empleados': [],
                                     };
                                     empleadosEnCuadrillaLocal = [];
-                                    empleadosDisponiblesFiltrados = List.from(widget.todosLosEmpleados);
+                                    empleadosDisponiblesFiltrados = List.from(
+                                      widget.todosLosEmpleados,
+                                    );
                                     empleadosEnCuadrillaFiltrados = [];
                                   } else {
                                     selectedCuadrillaLocal = option;
-                                    empleadosEnCuadrillaLocal = List<Map<String, dynamic>>.from(
-                                      option['empleados'] ?? [],
+                                    empleadosEnCuadrillaLocal =
+                                        List<Map<String, dynamic>>.from(
+                                          option['empleados'] ?? [],
+                                        );
+                                    empleadosDisponiblesFiltrados = List.from(
+                                      widget.todosLosEmpleados,
                                     );
-                                    empleadosDisponiblesFiltrados = List.from(widget.todosLosEmpleados);
-                                    empleadosEnCuadrillaFiltrados = List.from(empleadosEnCuadrillaLocal);
+                                    empleadosEnCuadrillaFiltrados = List.from(
+                                      empleadosEnCuadrillaLocal,
+                                    );
                                     _buscarDisponiblesController.clear();
                                     _buscarEnCuadrillaController.clear();
                                   }
@@ -325,7 +348,9 @@ class _NominaArmarCuadrillaWidgetState extends State<NominaArmarCuadrillaWidget>
                           child: Card(
                             elevation: 0,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(AppDimens.cardRadius),
+                              borderRadius: BorderRadius.circular(
+                                AppDimens.cardRadius,
+                              ),
                               side: BorderSide(color: Colors.grey.shade200),
                             ),
                             child: Column(
@@ -337,7 +362,9 @@ class _NominaArmarCuadrillaWidgetState extends State<NominaArmarCuadrillaWidget>
                                   decoration: BoxDecoration(
                                     color: AppColors.tableHeader,
                                     borderRadius: BorderRadius.vertical(
-                                      top: Radius.circular(AppDimens.cardRadius),
+                                      top: Radius.circular(
+                                        AppDimens.cardRadius,
+                                      ),
                                     ),
                                   ),
                                   child: Row(
@@ -366,8 +393,12 @@ class _NominaArmarCuadrillaWidgetState extends State<NominaArmarCuadrillaWidget>
                                   ),
                                   decoration: BoxDecoration(
                                     color: Colors.white,
-                                    borderRadius: BorderRadius.circular(AppDimens.buttonRadius),
-                                    border: Border.all(color: Colors.grey.shade300),
+                                    borderRadius: BorderRadius.circular(
+                                      AppDimens.buttonRadius,
+                                    ),
+                                    border: Border.all(
+                                      color: Colors.grey.shade300,
+                                    ),
                                   ),
                                   child: Row(
                                     children: [
@@ -389,18 +420,39 @@ class _NominaArmarCuadrillaWidgetState extends State<NominaArmarCuadrillaWidget>
                                             contentPadding: EdgeInsets.zero,
                                           ),
                                           style: const TextStyle(fontSize: 14),
-                                          controller: _buscarDisponiblesController,
+                                          controller:
+                                              _buscarDisponiblesController,
                                           onChanged: (value) {
                                             setState(() {
                                               if (value.isEmpty) {
-                                                empleadosDisponiblesFiltrados = List.from(widget.todosLosEmpleados);
+                                                empleadosDisponiblesFiltrados =
+                                                    List.from(
+                                                      widget.todosLosEmpleados,
+                                                    );
                                               } else {
-                                                final query = value.toLowerCase();
-                                                empleadosDisponiblesFiltrados = widget.todosLosEmpleados.where((emp) {
-                                                  final nombre = emp['nombre']?.toString().toLowerCase() ?? '';
-                                                  final puesto = emp['puesto']?.toString().toLowerCase() ?? '';
-                                                  return nombre.contains(query) || puesto.contains(query);
-                                                }).toList();
+                                                final query =
+                                                    value.toLowerCase();
+                                                empleadosDisponiblesFiltrados =
+                                                    widget.todosLosEmpleados.where((
+                                                      emp,
+                                                    ) {
+                                                      final nombre =
+                                                          emp['nombre']
+                                                              ?.toString()
+                                                              .toLowerCase() ??
+                                                          '';
+                                                      final puesto =
+                                                          emp['puesto']
+                                                              ?.toString()
+                                                              .toLowerCase() ??
+                                                          '';
+                                                      return nombre.contains(
+                                                            query,
+                                                          ) ||
+                                                          puesto.contains(
+                                                            query,
+                                                          );
+                                                    }).toList();
                                               }
                                             });
                                           },
@@ -411,84 +463,151 @@ class _NominaArmarCuadrillaWidgetState extends State<NominaArmarCuadrillaWidget>
                                 ),
                                 // Lista de empleados disponibles
                                 Expanded(
-                                  child: empleadosDisponiblesFiltrados
-                                          .where((e) => !empleadosEnCuadrillaLocal.any((ec) => ec['id'] == e['id']))
-                                          .isEmpty
-                                      ? Center(
-                                          child: Column(
-                                            mainAxisAlignment: MainAxisAlignment.center,
-                                            children: [
-                                              Icon(
-                                                Icons.person_add_disabled,
-                                                size: 48,
-                                                color: Colors.grey.shade400,
-                                              ),
-                                              const SizedBox(height: 16),
-                                              Text(
-                                                widget.todosLosEmpleados.isEmpty
-                                                    ? 'No hay empleados disponibles'
-                                                    : (empleadosEnCuadrillaLocal.length == widget.todosLosEmpleados.length)
-                                                        ? 'Todos los empleados ya están en la cuadrilla'
-                                                        : 'No hay resultados para esta búsqueda',
-                                                style: TextStyle(
-                                                  color: Colors.grey.shade600,
-                                                  fontSize: 16,
+                                  child:
+                                      empleadosDisponiblesFiltrados
+                                              .where(
+                                                (e) =>
+                                                    !empleadosEnCuadrillaLocal
+                                                        .any(
+                                                          (ec) =>
+                                                              ec['id'] ==
+                                                              e['id'],
+                                                        ),
+                                              )
+                                              .isEmpty
+                                          ? Center(
+                                            child: Column(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: [
+                                                Icon(
+                                                  Icons.person_add_disabled,
+                                                  size: 48,
+                                                  color: Colors.grey.shade400,
                                                 ),
-                                              ),
-                                            ],
-                                          ),
-                                        )
-                                      : ListView.builder(
-                                          itemCount: empleadosDisponiblesFiltrados
-                                              .where((e) => !empleadosEnCuadrillaLocal.any((ec) => ec['id'] == e['id']))
-                                              .length,
-                                          itemBuilder: (context, index) {
-                                            final empleadosDisponibles = empleadosDisponiblesFiltrados
-                                                .where((e) => !empleadosEnCuadrillaLocal.any((ec) => ec['id'] == e['id']))
-                                                .toList();
-                                            final empleado = empleadosDisponibles[index];
-                                            return Card(
-                                              margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                              child: ListTile(
-                                                leading: CircleAvatar(
-                                                  backgroundColor: AppColors.green.withOpacity(0.1),
-                                                  child: Text(
-                                                    empleado['nombre'].substring(0, 1).toUpperCase(),
-                                                    style: TextStyle(
-                                                      color: AppColors.green,
-                                                      fontWeight: FontWeight.bold,
-                                                    ),
+                                                const SizedBox(height: 16),
+                                                Text(
+                                                  widget
+                                                          .todosLosEmpleados
+                                                          .isEmpty
+                                                      ? 'No hay empleados disponibles'
+                                                      : (empleadosEnCuadrillaLocal
+                                                              .length ==
+                                                          widget
+                                                              .todosLosEmpleados
+                                                              .length)
+                                                      ? 'Todos los empleados ya están en la cuadrilla'
+                                                      : 'No hay resultados para esta búsqueda',
+                                                  style: TextStyle(
+                                                    color: Colors.grey.shade600,
+                                                    fontSize: 16,
                                                   ),
                                                 ),
-                                                title: Text(
-                                                  empleado['nombre'],
-                                                  style: const TextStyle(fontWeight: FontWeight.w500),
-                                                ),
-                                                subtitle: Text(
-                                                  empleado['puesto'],
-                                                  style: TextStyle(color: Colors.grey.shade600),
-                                                ),
-                                                trailing: Row(
-                                                  mainAxisSize: MainAxisSize.min,
-                                                  children: [
-                                                    IconButton(
-                                                      icon: const Icon(Icons.visibility_outlined),
-                                                      color: Colors.blue,
-                                                      onPressed: () => widget.onMostrarDetallesEmpleado(context, empleado),
-                                                      tooltip: 'Ver detalles',
+                                              ],
+                                            ),
+                                          )
+                                          : ListView.builder(
+                                            itemCount:
+                                                empleadosDisponiblesFiltrados
+                                                    .where(
+                                                      (e) =>
+                                                          !empleadosEnCuadrillaLocal
+                                                              .any(
+                                                                (ec) =>
+                                                                    ec['id'] ==
+                                                                    e['id'],
+                                                              ),
+                                                    )
+                                                    .length,
+                                            itemBuilder: (context, index) {
+                                              final empleadosDisponibles =
+                                                  empleadosDisponiblesFiltrados
+                                                      .where(
+                                                        (e) =>
+                                                            !empleadosEnCuadrillaLocal
+                                                                .any(
+                                                                  (ec) =>
+                                                                      ec['id'] ==
+                                                                      e['id'],
+                                                                ),
+                                                      )
+                                                      .toList();
+                                              final empleado =
+                                                  empleadosDisponibles[index];
+                                              return Card(
+                                                margin:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 4,
                                                     ),
-                                                    IconButton(
-                                                      icon: const Icon(Icons.add_circle_outline),
-                                                      color: AppColors.green,
-                                                      onPressed: () => _toggleSeleccionEmpleado(empleado),
-                                                      tooltip: 'Agregar a cuadrilla',
+                                                child: ListTile(
+                                                  leading: CircleAvatar(
+                                                    backgroundColor: AppColors
+                                                        .green
+                                                        .withOpacity(0.1),
+                                                    child: Text(
+                                                      empleado['nombre']
+                                                          .substring(0, 1)
+                                                          .toUpperCase(),
+                                                      style: TextStyle(
+                                                        color: AppColors.green,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                      ),
                                                     ),
-                                                  ],
+                                                  ),
+                                                  title: Text(
+                                                    empleado['nombre'],
+                                                    style: const TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                  subtitle: Text(
+                                                    empleado['puesto'],
+                                                    style: TextStyle(
+                                                      color:
+                                                          Colors.grey.shade600,
+                                                    ),
+                                                  ),
+                                                  trailing: Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      IconButton(
+                                                        icon: const Icon(
+                                                          Icons
+                                                              .visibility_outlined,
+                                                        ),
+                                                        color: Colors.blue,
+                                                        onPressed:
+                                                            () => widget
+                                                                .onMostrarDetallesEmpleado(
+                                                                  context,
+                                                                  empleado,
+                                                                ),
+                                                        tooltip: 'Ver detalles',
+                                                      ),
+                                                      IconButton(
+                                                        icon: const Icon(
+                                                          Icons
+                                                              .add_circle_outline,
+                                                        ),
+                                                        color: AppColors.green,
+                                                        onPressed:
+                                                            () =>
+                                                                _toggleSeleccionEmpleado(
+                                                                  empleado,
+                                                                ),
+                                                        tooltip:
+                                                            'Agregar a cuadrilla',
+                                                      ),
+                                                    ],
+                                                  ),
                                                 ),
-                                              ),
-                                            );
-                                          },
-                                        ),
+                                              );
+                                            },
+                                          ),
                                 ),
                               ],
                             ),
@@ -500,7 +619,9 @@ class _NominaArmarCuadrillaWidgetState extends State<NominaArmarCuadrillaWidget>
                           child: Card(
                             elevation: 0,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(AppDimens.cardRadius),
+                              borderRadius: BorderRadius.circular(
+                                AppDimens.cardRadius,
+                              ),
                               side: BorderSide(color: Colors.grey.shade200),
                             ),
                             child: Column(
@@ -512,7 +633,9 @@ class _NominaArmarCuadrillaWidgetState extends State<NominaArmarCuadrillaWidget>
                                   decoration: BoxDecoration(
                                     color: AppColors.tableHeader,
                                     borderRadius: BorderRadius.vertical(
-                                      top: Radius.circular(AppDimens.cardRadius),
+                                      top: Radius.circular(
+                                        AppDimens.cardRadius,
+                                      ),
                                     ),
                                   ),
                                   child: Row(
@@ -531,10 +654,17 @@ class _NominaArmarCuadrillaWidgetState extends State<NominaArmarCuadrillaWidget>
                                       ),
                                       const Spacer(),
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 6,
+                                        ),
                                         decoration: BoxDecoration(
-                                          color: AppColors.green.withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(12),
+                                          color: AppColors.green.withOpacity(
+                                            0.1,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
                                         ),
                                         child: Text(
                                           '${empleadosEnCuadrillaLocal.length}',
@@ -550,11 +680,18 @@ class _NominaArmarCuadrillaWidgetState extends State<NominaArmarCuadrillaWidget>
                                 // Barra de búsqueda para cuadrilla
                                 Container(
                                   margin: const EdgeInsets.all(16),
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 8,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: Colors.white,
-                                    borderRadius: BorderRadius.circular(AppDimens.buttonRadius),
-                                    border: Border.all(color: Colors.grey.shade300),
+                                    borderRadius: BorderRadius.circular(
+                                      AppDimens.buttonRadius,
+                                    ),
+                                    border: Border.all(
+                                      color: Colors.grey.shade300,
+                                    ),
                                   ),
                                   child: Row(
                                     children: [
@@ -568,24 +705,47 @@ class _NominaArmarCuadrillaWidgetState extends State<NominaArmarCuadrillaWidget>
                                         child: TextField(
                                           decoration: InputDecoration(
                                             hintText: 'Buscar en cuadrilla...',
-                                            hintStyle: TextStyle(color: Colors.grey.shade500),
+                                            hintStyle: TextStyle(
+                                              color: Colors.grey.shade500,
+                                            ),
                                             border: InputBorder.none,
                                             isDense: true,
                                             contentPadding: EdgeInsets.zero,
                                           ),
                                           style: const TextStyle(fontSize: 14),
-                                          controller: _buscarEnCuadrillaController,
+                                          controller:
+                                              _buscarEnCuadrillaController,
                                           onChanged: (value) {
                                             setState(() {
                                               if (value.isEmpty) {
-                                                empleadosEnCuadrillaFiltrados = List.from(empleadosEnCuadrillaLocal);
+                                                empleadosEnCuadrillaFiltrados =
+                                                    List.from(
+                                                      empleadosEnCuadrillaLocal,
+                                                    );
                                               } else {
-                                                final query = value.toLowerCase();
-                                                empleadosEnCuadrillaFiltrados = empleadosEnCuadrillaLocal.where((emp) {
-                                                  final nombre = emp['nombre']?.toString().toLowerCase() ?? '';
-                                                  final puesto = emp['puesto']?.toString().toLowerCase() ?? '';
-                                                  return nombre.contains(query) || puesto.contains(query);
-                                                }).toList();
+                                                final query =
+                                                    value.toLowerCase();
+                                                empleadosEnCuadrillaFiltrados =
+                                                    empleadosEnCuadrillaLocal.where((
+                                                      emp,
+                                                    ) {
+                                                      final nombre =
+                                                          emp['nombre']
+                                                              ?.toString()
+                                                              .toLowerCase() ??
+                                                          '';
+                                                      final puesto =
+                                                          emp['puesto']
+                                                              ?.toString()
+                                                              .toLowerCase() ??
+                                                          '';
+                                                      return nombre.contains(
+                                                            query,
+                                                          ) ||
+                                                          puesto.contains(
+                                                            query,
+                                                          );
+                                                    }).toList();
                                               }
                                             });
                                           },
@@ -596,75 +756,114 @@ class _NominaArmarCuadrillaWidgetState extends State<NominaArmarCuadrillaWidget>
                                 ),
                                 // Lista de empleados en cuadrilla
                                 Expanded(
-                                  child: empleadosEnCuadrillaFiltrados.isEmpty
-                                      ? Center(
-                                          child: Column(
-                                            mainAxisAlignment: MainAxisAlignment.center,
-                                            children: [
-                                              Icon(
-                                                Icons.group_add,
-                                                size: 48,
-                                                color: Colors.grey.shade400,
-                                              ),
-                                              const SizedBox(height: 16),
-                                              Text(
-                                                empleadosEnCuadrillaLocal.isEmpty
-                                                    ? 'Añade empleados a la cuadrilla'
-                                                    : 'No hay resultados para esta búsqueda',
-                                                style: TextStyle(
-                                                  color: Colors.grey.shade600,
-                                                  fontSize: 16,
+                                  child:
+                                      empleadosEnCuadrillaFiltrados.isEmpty
+                                          ? Center(
+                                            child: Column(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: [
+                                                Icon(
+                                                  Icons.group_add,
+                                                  size: 48,
+                                                  color: Colors.grey.shade400,
                                                 ),
-                                              ),
-                                            ],
-                                          ),
-                                        )
-                                      : ListView.builder(
-                                          itemCount: empleadosEnCuadrillaFiltrados.length,
-                                          itemBuilder: (context, index) {
-                                            final empleado = empleadosEnCuadrillaFiltrados[index];
-                                            return Card(
-                                              margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                              child: ListTile(
-                                                leading: CircleAvatar(
-                                                  backgroundColor: Colors.green.withOpacity(0.1),
-                                                  child: Text(
-                                                    empleado['nombre'].substring(0, 1).toUpperCase(),
-                                                    style: TextStyle(
-                                                      color: AppColors.green,
-                                                      fontWeight: FontWeight.bold,
-                                                    ),
+                                                const SizedBox(height: 16),
+                                                Text(
+                                                  empleadosEnCuadrillaLocal
+                                                          .isEmpty
+                                                      ? 'Añade empleados a la cuadrilla'
+                                                      : 'No hay resultados para esta búsqueda',
+                                                  style: TextStyle(
+                                                    color: Colors.grey.shade600,
+                                                    fontSize: 16,
                                                   ),
                                                 ),
-                                                title: Text(
-                                                  empleado['nombre'],
-                                                  style: const TextStyle(fontWeight: FontWeight.w500),
-                                                ),
-                                                subtitle: Text(
-                                                  empleado['puesto'] ?? 'Jornalero',
-                                                  style: TextStyle(color: Colors.grey.shade600),
-                                                ),
-                                                trailing: Row(
-                                                  mainAxisSize: MainAxisSize.min,
-                                                  children: [
-                                                    IconButton(
-                                                      icon: const Icon(Icons.visibility_outlined),
-                                                      color: Colors.blue,
-                                                      onPressed: () => widget.onMostrarDetallesEmpleado(context, empleado),
-                                                      tooltip: 'Ver detalles',
+                                              ],
+                                            ),
+                                          )
+                                          : ListView.builder(
+                                            itemCount:
+                                                empleadosEnCuadrillaFiltrados
+                                                    .length,
+                                            itemBuilder: (context, index) {
+                                              final empleado =
+                                                  empleadosEnCuadrillaFiltrados[index];
+                                              return Card(
+                                                margin:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 4,
                                                     ),
-                                                    IconButton(
-                                                      icon: const Icon(Icons.remove_circle_outline),
-                                                      color: Colors.red,
-                                                      onPressed: () => _toggleSeleccionEmpleado(empleado),
-                                                      tooltip: 'Quitar de cuadrilla',
+                                                child: ListTile(
+                                                  leading: CircleAvatar(
+                                                    backgroundColor: Colors
+                                                        .green
+                                                        .withOpacity(0.1),
+                                                    child: Text(
+                                                      empleado['nombre']
+                                                          .substring(0, 1)
+                                                          .toUpperCase(),
+                                                      style: TextStyle(
+                                                        color: AppColors.green,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                      ),
                                                     ),
-                                                  ],
+                                                  ),
+                                                  title: Text(
+                                                    empleado['nombre'],
+                                                    style: const TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                  subtitle: Text(
+                                                    empleado['puesto'] ??
+                                                        'Jornalero',
+                                                    style: TextStyle(
+                                                      color:
+                                                          Colors.grey.shade600,
+                                                    ),
+                                                  ),
+                                                  trailing: Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      IconButton(
+                                                        icon: const Icon(
+                                                          Icons
+                                                              .visibility_outlined,
+                                                        ),
+                                                        color: Colors.blue,
+                                                        onPressed:
+                                                            () => widget
+                                                                .onMostrarDetallesEmpleado(
+                                                                  context,
+                                                                  empleado,
+                                                                ),
+                                                        tooltip: 'Ver detalles',
+                                                      ),
+                                                      IconButton(
+                                                        icon: const Icon(
+                                                          Icons
+                                                              .remove_circle_outline,
+                                                        ),
+                                                        color: Colors.red,
+                                                        onPressed:
+                                                            () =>
+                                                                _toggleSeleccionEmpleado(
+                                                                  empleado,
+                                                                ),
+                                                        tooltip:
+                                                            'Quitar de cuadrilla',
+                                                      ),
+                                                    ],
+                                                  ),
                                                 ),
-                                              ),
-                                            );
-                                          },
-                                        ),
+                                              );
+                                            },
+                                          ),
                                 ),
                               ],
                             ),
@@ -694,7 +893,7 @@ class _NominaArmarCuadrillaWidgetState extends State<NominaArmarCuadrillaWidget>
                       FilledButton.icon(
                         onPressed: _guardarCambios,
                         icon: const Icon(Icons.check),
-                        label: const Text('Guardar Cambios'),
+                        label: const Text('Guardar Cambioss'),
                         style: FilledButton.styleFrom(
                           backgroundColor: AppColors.green,
                           padding: const EdgeInsets.symmetric(

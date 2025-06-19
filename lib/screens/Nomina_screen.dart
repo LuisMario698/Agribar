@@ -33,6 +33,7 @@ DateTime? _endDate;
 bool _isWeekClosed = false;
 bool semanaActiva = false;
 bool _haySemanaActiva = false;
+Map<String, dynamic>? semanaSeleccionada;
 class NominaScreen extends StatefulWidget {
   const NominaScreen({
     super.key,
@@ -108,11 +109,22 @@ class _NominaScreenState extends State<NominaScreen> {
       _isWeekClosed = semana['cerrada'] ?? false;
       _haySemanaActiva = true;
     });
+
+    // 🚨 Agrega esta línea justo aquí:
+    await _cargarCuadrillasSemana(semana['id']);
   } else {
     setState(() {
       _haySemanaActiva = false;
     });
   }
+}
+Future<void> _cargarCuadrillasSemana(int semanaId) async {
+  final cuadrillasGuardadas = await obtenerCuadrillasDeSemana(semanaId);
+
+  setState(() {
+    _optionsCuadrilla.clear();
+    _optionsCuadrilla.addAll(cuadrillasGuardadas);
+  });
 }
 
   // Cargar semana activa automáticamente al abrir pantalla
@@ -163,7 +175,10 @@ class _NominaScreenState extends State<NominaScreen> {
           _startDate = nuevaSemana['fechaInicio'];
           _endDate = nuevaSemana['fechaFin'];
           _isWeekClosed = false;
-        });
+        }
+        
+        );
+  await _cargarCuadrillasSemana(nuevaSemana['id']);
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -193,7 +208,55 @@ class _NominaScreenState extends State<NominaScreen> {
     }
     _showSupervisorLoginDialog();
   }
+Future<List<Map<String, dynamic>>> obtenerNominaEmpleadosDeCuadrilla(
+      int semanaId, int cuadrillaId) async {
+    final db = DatabaseService();
+    await db.connect();
 
+    final result = await db.connection.query('''
+      SELECT 
+        e.id_empleado,
+        e.nombre,
+        e.codigo,
+        n.lunes,
+        n.martes,
+        n.miercoles,
+        n.jueves,
+        n.viernes,
+        n.sabado,
+        n.domingo,
+        n.total,
+        n.debe,
+        n.subtotal,
+        n.descuento_comedor
+      FROM nomina_empleados_semanal n
+      JOIN empleados e ON e.id_empleado = n.empleado_id
+      WHERE n.semana_id = @semanaId AND n.cuadrilla_id = @cuadrillaId;
+    ''', substitutionValues: {
+      'semanaId': semanaId,
+      'cuadrillaId': cuadrillaId,
+    });
+
+    await db.close();
+
+    return result.map((row) => {
+      'id': row[0],
+      'nombre': row[1],
+      'codigo': row[2],
+      'lunes': row[3],
+      'martes': row[4],
+      'miercoles': row[5],
+      'jueves': row[6],
+      'viernes': row[7],
+      'sabado': row[8],
+      'domingo': row[9],
+      'total': row[10],
+      'debe': row[11],
+      'subtotal': row[12],
+      'comedor': row[13],
+    }).toList();
+  }
+  
   void _cerrarSemanaActual() {
     if (_startDate == null || _endDate == null) return;
 
@@ -555,6 +618,7 @@ class _NominaScreenState extends State<NominaScreen> {
                         Expanded(
                           flex: 2,
                           child: NominaCuadrillaSelectionCard(
+
                             optionsCuadrilla: _optionsCuadrilla,
                             selectedCuadrilla: _selectedCuadrilla,
                             empleadosEnCuadrilla: empleadosEnCuadrilla,
@@ -596,6 +660,7 @@ class _NominaScreenState extends State<NominaScreen> {
                                 }
                               });
                             },
+                             semanaSeleccionada: semanaSeleccionada, // ✅ <--- Agregado aquí
                             onToggleArmarCuadrilla: _toggleArmarCuadrilla,
                           ),
                         ),
