@@ -234,8 +234,7 @@ Future<List<Map<String, dynamic>>> obtenerNominaEmpleadosDeCuadrilla(
     final result = await db.connection.query('''
       SELECT 
         e.id_empleado,
-        e.nombre,
-        e.codigo,
+CONCAT(e.nombre, ' ', e.apellido_paterno, ' ', e.apellido_materno) AS nombre,        e.codigo,
         n.dia_1,
         n.dia_2,
         n.dia_3,
@@ -260,7 +259,7 @@ Future<List<Map<String, dynamic>>> obtenerNominaEmpleadosDeCuadrilla(
     return result.map((row) => {
       'id': row[0],
       'nombre': row[1],
-      'codigo': row[2],
+      'clave': row[2],
       'lunes': row[3],
       'martes': row[4],
       'miercoles': row[5],
