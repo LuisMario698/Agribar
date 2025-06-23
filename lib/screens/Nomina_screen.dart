@@ -63,8 +63,12 @@ class _NominaScreenState extends State<NominaScreen> {
   List<Map<String, dynamic>> empleadosEnCuadrillaFiltrados = [];
   final TextEditingController _buscarDisponiblesController = TextEditingController();
   final TextEditingController _buscarEnCuadrillaController = TextEditingController();
+List<Map<String, dynamic>> empleadosNomina = [];
 
-  final List<Map<String, dynamic>> _optionsCuadrilla = [
+Map<String, dynamic>? semanaSeleccionada;
+int? idSemanaSeleccionada;
+Map<String, dynamic>? cuadrillaSeleccionada;
+  final List<Map<String, dynamic>> _optionsCuadrilla = [  
     {'nombre': 'Indirectos', 'empleados': []},
     {'nombre': 'Linea 1', 'empleados': []},
     {'nombre': 'Linea 3', 'empleados': []},
@@ -98,7 +102,18 @@ class _NominaScreenState extends State<NominaScreen> {
     empleadosDisponiblesFiltrados = List.from(todosLosEmpleados);
     empleadosEnCuadrillaFiltrados = [];
   }
+Future<void> cargarDatosNomina() async {
+  if (semanaSeleccionada != null && cuadrillaSeleccionada != null) {
+    final data = await obtenerNominaEmpleadosDeCuadrilla(
+      semanaSeleccionada!['id'],
+      cuadrillaSeleccionada!['id'],
+    );
 
+    setState(() {
+      empleadosNomina = data;
+    });
+  }
+}
  void verificarSemanaActiva() async {
   final semana = await obtenerSemanaAbierta();
 
@@ -108,6 +123,9 @@ class _NominaScreenState extends State<NominaScreen> {
       _endDate = semana['fechaFin'];
       _isWeekClosed = semana['cerrada'] ?? false;
       _haySemanaActiva = true;
+          idSemanaSeleccionada = semana['id']; // ✅ Aquí
+
+
     });
 
     // 🚨 Agrega esta línea justo aquí:
@@ -218,20 +236,20 @@ Future<List<Map<String, dynamic>>> obtenerNominaEmpleadosDeCuadrilla(
         e.id_empleado,
         e.nombre,
         e.codigo,
-        n.lunes,
-        n.martes,
-        n.miercoles,
-        n.jueves,
-        n.viernes,
-        n.sabado,
-        n.domingo,
+        n.dia_1,
+        n.dia_2,
+        n.dia_3,
+        n.dia_4,
+        n.dia_5,
+        n.dia_6,
+        n.dia_7,
         n.total,
         n.debe,
         n.subtotal,
-        n.descuento_comedor
+        n.comedor
       FROM nomina_empleados_semanal n
-      JOIN empleados e ON e.id_empleado = n.empleado_id
-      WHERE n.semana_id = @semanaId AND n.cuadrilla_id = @cuadrillaId;
+      JOIN empleados e ON e.id_empleado = n.id_empleado
+      WHERE n.id_semana = @semanaId AND n.id_cuadrilla = @cuadrillaId;
     ''', substitutionValues: {
       'semanaId': semanaId,
       'cuadrillaId': cuadrillaId,
@@ -506,16 +524,17 @@ Future<List<Map<String, dynamic>>> obtenerNominaEmpleadosDeCuadrilla(
 
   void _onTableChange(int index, String key, dynamic value) {
     setState(() {
-      if (key == 'comedor') {
-        // Para checkbox de comedor, asegurar que sea booleano
-        empleadosFiltrados[index][key] = value as bool;
-      } else if (key.startsWith('dia_') || key == 'debe') {
-        // Para días trabajados y debe, convertir a número
-        empleadosFiltrados[index][key] = int.tryParse(value.toString()) ?? 0;
-      } else {
-        // Para otros campos, usar el valor como viene
-        empleadosFiltrados[index][key] = value;
-      }
+     if (index >= 0 && index < empleadosFiltrados.length) {
+  setState(() {
+    if (key == 'comedor') {
+      empleadosFiltrados[index][key] = value as bool;
+    } else if (key.startsWith('dia_') || key == 'debe') {
+      empleadosFiltrados[index][key] = int.tryParse(value.toString()) ?? 0;
+    } else {
+      empleadosFiltrados[index][key] = value;
+    }
+  });
+}
     });
   }
   // Mostrar diálogo para reiniciar semana con opciones
@@ -569,6 +588,7 @@ Future<List<Map<String, dynamic>>> obtenerNominaEmpleadosDeCuadrilla(
     return Scaffold(
       body: Stack(
         children: [
+          
           // Main content
           Padding(
             padding: const EdgeInsets.all(16.0),
@@ -622,44 +642,48 @@ Future<List<Map<String, dynamic>>> obtenerNominaEmpleadosDeCuadrilla(
                             optionsCuadrilla: _optionsCuadrilla,
                             selectedCuadrilla: _selectedCuadrilla,
                             empleadosEnCuadrilla: empleadosEnCuadrilla,
-                            onCuadrillaSelected: (Map<String, dynamic>? option) {
-                              setState(() {
-                                if (option == null) {
-                                  // Handle deselection by setting an empty cuadrilla
-                                  _selectedCuadrilla = {
-                                    'nombre': '',
-                                    'empleados': [],
-                                  };
-                                  empleadosFiltrados = [];
-                                  empleadosEnCuadrilla = [];
-                                  // También limpiar las listas filtradas
-                                  empleadosDisponiblesFiltrados =
-                                      List.from(todosLosEmpleados);
-                                  empleadosEnCuadrillaFiltrados = [];
-                                } else {
-                                  // Handle selection
-                                  _selectedCuadrilla = option;
-                                  empleadosFiltrados =
-                                      List<Map<String, dynamic>>.from(
-                                        option['empleados'] ?? [],
-                                      );
-                                  empleadosEnCuadrilla =
-                                      List<Map<String, dynamic>>.from(
-                                        option['empleados'] ?? [],
-                                      );
+                           onCuadrillaSelected: (Map<String, dynamic>? option) async {
+  setState(() {
+    if (option == null) {
+      // Deseleccionar cuadrilla
+      _selectedCuadrilla = {
+        'nombre': '',
+        'empleados': [],
+      };
+      empleadosFiltrados = [];
+      empleadosEnCuadrilla = [];
 
-                                  // Actualizar también las listas filtradas
-                                  empleadosDisponiblesFiltrados =
-                                      List.from(todosLosEmpleados);
-                                  empleadosEnCuadrillaFiltrados =
-                                      List.from(empleadosEnCuadrilla);
+      empleadosDisponiblesFiltrados = List.from(todosLosEmpleados);
+      empleadosEnCuadrillaFiltrados = [];
 
-                                  // Limpiar los filtros de búsqueda
-                                  _buscarDisponiblesController.clear();
-                                  _buscarEnCuadrillaController.clear();
-                                }
-                              });
-                            },
+      empleadosNomina = []; // ← Limpiar también la tabla si no hay cuadrilla
+    } else {
+      // Seleccionar cuadrilla
+      _selectedCuadrilla = option;
+      empleadosFiltrados = List<Map<String, dynamic>>.from(option['empleados'] ?? []);
+      empleadosEnCuadrilla = List<Map<String, dynamic>>.from(option['empleados'] ?? []);
+
+      empleadosDisponiblesFiltrados = List.from(todosLosEmpleados);
+      empleadosEnCuadrillaFiltrados = List.from(empleadosEnCuadrilla);
+
+      _buscarDisponiblesController.clear();
+      _buscarEnCuadrillaController.clear();
+    }
+  });
+
+  // 🔄 Cargar nómina solo si hay cuadrilla y semana seleccionada
+  if (option != null && idSemanaSeleccionada != null) {
+    final data = await obtenerNominaEmpleadosDeCuadrilla(
+      idSemanaSeleccionada!,
+      option['id'],
+    );
+
+    setState(() {
+      _selectedCuadrilla = option;
+      empleadosNomina = data;
+    });
+  }
+},
                              semanaSeleccionada: semanaSeleccionada, // ✅ <--- Agregado aquí
                             onToggleArmarCuadrilla: _toggleArmarCuadrilla,
                           ),
@@ -679,15 +703,16 @@ Future<List<Map<String, dynamic>>> obtenerNominaEmpleadosDeCuadrilla(
                       ],
                     ),
                     const SizedBox(height: 24),                    // Table section with modular design
-                    Expanded(
-                      child: NominaMainTableSection(
-                        empleadosFiltrados: empleadosFiltrados,
-                        startDate: _startDate,
-                        endDate: _endDate,
-                        onTableChange: _onTableChange,
-                        onMostrarSemanasCerradas: _mostrarSemanasCerradas,
-                      ),
-                    ),                    // Export section
+                  Expanded(
+  child: NominaMainTableSection(
+    empleadosFiltrados: empleadosFiltrados,
+    empleadosNomina: empleadosNomina, // ← ✅ Agregado aquí
+    startDate: _startDate,
+    endDate: _endDate,
+    onTableChange: _onTableChange,
+    onMostrarSemanasCerradas: _mostrarSemanasCerradas,
+  ),
+),                  // Export section
                     const SizedBox(height: 24),
                     const NominaExportSection(),
                   ],

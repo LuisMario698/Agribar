@@ -156,16 +156,18 @@ class _EditableDataTableWidgetState extends State<EditableDataTableWidget> {
   }
 
   List<DataRow> _buildRows() {
+    
     return widget.empleados.asMap().entries.map((entry) {
       final index = entry.key;
       final empleado = entry.value;
 
       // Calcular valores
       final total = empleado['total'] ?? 0;
-      final debe = empleado['debe'] ?? 0;
-      final subtotal = empleado['subtotal'] ?? 0;
-      final comedorValue = empleado['comedor'] == true ? 400 : 0;
+final debe = double.tryParse(empleado['debe'].toString()) ?? 0.0;
+final subtotal = double.tryParse(empleado['subtotal'].toString()) ?? 0.0;
+final comedorValue = double.tryParse(empleado['comedor'].toString()) ?? 0.0;
       final totalNeto = empleado['totalNeto'] ?? subtotal - comedorValue;
+      
 
       return DataRow(
         cells: [
@@ -218,7 +220,7 @@ class _EditableDataTableWidgetState extends State<EditableDataTableWidget> {
           DataCell(SizedBox(
             width: widget.isExpanded ? 100 : 85,
             child: Text(
-              _formatCurrency(total),
+              _formatCurrency(double.tryParse(total.toString()) ?? 0.0),
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontWeight: FontWeight.w500,

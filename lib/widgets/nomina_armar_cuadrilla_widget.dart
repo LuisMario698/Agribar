@@ -1,3 +1,4 @@
+import 'package:agribar/services/database_service.dart';
 import 'package:agribar/services/semana_service.dart';
 import 'package:flutter/material.dart';
 import 'dart:ui';
@@ -30,6 +31,53 @@ class NominaArmarCuadrillaWidget extends StatefulWidget {
   @override
   State<NominaArmarCuadrillaWidget> createState() =>
       _NominaArmarCuadrillaWidgetState();
+}
+Future<List<Map<String, dynamic>>> obtenerNominaEmpleadosDeCuadrilla(int semanaId, int cuadrillaId) async {
+  final db = DatabaseService();
+  await db.connect();
+
+  final result = await db.connection.query('''
+    SELECT 
+      e.id_empleado,
+      e.nombre,
+      e.codigo,
+      n.lunes,
+      n.martes,
+      n.miercoles,
+      n.jueves,
+      n.viernes,
+      n.sabado,
+      n.domingo,
+      n.total,
+      n.debe,
+      n.subtotal,
+      n.descuento_comedor
+    FROM nomina_empleados_semanal n
+    JOIN empleados e ON e.id_empleado = n.empleado_id
+    WHERE n.semana_id = @semanaId AND n.cuadrilla_id = @cuadrillaId;
+  ''', substitutionValues: {
+    'semanaId': semanaId,
+    'cuadrillaId': cuadrillaId,
+  });
+
+  await db.close();
+
+  return result.map((row) => {
+    'id': row[0],
+    'nombre': row[1],
+    'codigo': row[2],
+    'lunes': row[3],
+    'martes': row[4],
+    'miercoles': row[5],
+    'jueves': row[6],
+    'viernes': row[7],
+    'sabado': row[8],
+    'domingo': row[9],
+    'total': row[10],
+    'debe': row[11],
+    'subtotal': row[12],
+    'comedor': row[13],
+  }).toList();
 }
 
 class _NominaArmarCuadrillaWidgetState

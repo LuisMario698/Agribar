@@ -11,6 +11,7 @@ class NominaMainTableSection extends StatelessWidget {
   final DateTime? endDate;
   final Function(int, String, dynamic) onTableChange;
   final VoidCallback onMostrarSemanasCerradas;
+final List<Map<String, dynamic>> empleadosNomina;
 
   const NominaMainTableSection({
     super.key,
@@ -18,6 +19,7 @@ class NominaMainTableSection extends StatelessWidget {
     this.startDate,
     this.endDate,
     required this.onTableChange,
+    required this.empleadosNomina, 
     required this.onMostrarSemanasCerradas,
   });
 
@@ -123,7 +125,8 @@ class NominaMainTableSection extends StatelessWidget {
                     ],
                   ),
                   child: EditableDataTableWidget(
-                    empleados: empleadosFiltrados,
+                    //empleados: empleadosFiltrados,
+                     empleados: empleadosNomina, 
                     semanaSeleccionada: startDate != null && endDate != null
                         ? DateTimeRange(start: startDate!, end: endDate!)
                         : null,
