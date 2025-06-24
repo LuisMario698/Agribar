@@ -111,10 +111,11 @@ Future<void> cargarDatosNomina() async {
 
     setState(() {
       empleadosNomina = data;
+      // ✅ También actualizar empleadosFiltrados para habilitar el botón guardar
+      empleadosFiltrados = List<Map<String, dynamic>>.from(data);
     });
   }
-}
- void verificarSemanaActiva() async {
+}void verificarSemanaActiva() async {
   final semana = await obtenerSemanaAbierta();
 
   if (semana != null) {
@@ -123,9 +124,8 @@ Future<void> cargarDatosNomina() async {
       _endDate = semana['fechaFin'];
       _isWeekClosed = semana['cerrada'] ?? false;
       _haySemanaActiva = true;
-          idSemanaSeleccionada = semana['id']; // ✅ Aquí
-
-
+      idSemanaSeleccionada = semana['id'];
+      semanaSeleccionada = semana; // ✅ Asignar semanaSeleccionada
     });
 
     // 🚨 Agrega esta línea justo aquí:
@@ -133,6 +133,7 @@ Future<void> cargarDatosNomina() async {
   } else {
     setState(() {
       _haySemanaActiva = false;
+      semanaSeleccionada = null;
     });
   }
 }
@@ -186,17 +187,16 @@ Future<void> _cargarCuadrillasSemana(int semanaId) async {
       final nuevaSemana = await SemanaService().crearNuevaSemana(
         picked.start,
         picked.end,
-      );
-
-      if (nuevaSemana != null) {
+      );      if (nuevaSemana != null) {
         setState(() {
           _startDate = nuevaSemana['fechaInicio'];
           _endDate = nuevaSemana['fechaFin'];
           _isWeekClosed = false;
-        }
+          idSemanaSeleccionada = nuevaSemana['id'];
+          semanaSeleccionada = nuevaSemana; // ✅ Asignar semanaSeleccionada
+        });
         
-        );
-  await _cargarCuadrillasSemana(nuevaSemana['id']);
+        await _cargarCuadrillasSemana(nuevaSemana['id']);
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -520,7 +520,6 @@ CONCAT(e.nombre, ' ', e.apellido_paterno, ' ', e.apellido_materno) AS nombre,   
         }
       });
     }  }
-
   void _onTableChange(int index, String key, dynamic value) {
     setState(() {
      if (index >= 0 && index < empleadosFiltrados.length) {
@@ -535,6 +534,62 @@ CONCAT(e.nombre, ' ', e.apellido_paterno, ' ', e.apellido_materno) AS nombre,   
   });
 }
     });
+  }
+
+  // Función para guardar los datos de nómina
+  Future<void> _guardarNomina() async {
+    if (_startDate == null || _endDate == null || _selectedCuadrilla['nombre'] == '') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Debe seleccionar una semana y una cuadrilla'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    try {
+      // Aquí iría la lógica para guardar en la base de datos
+      // Por ejemplo, usando el servicio de semana
+      await guardarEmpleadosCuadrillaSemana(
+        semanaId: idSemanaSeleccionada!,
+        cuadrillaId: _selectedCuadrilla['id'],
+        empleados: empleadosFiltrados,
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Datos de nómina guardados correctamente'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Error al guardar: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+  // Función para determinar si se puede guardar
+  bool get _canSave {
+    // Verificar que hay semana seleccionada
+    bool hasSemana = _startDate != null && _endDate != null && semanaSeleccionada != null;
+    
+    // Verificar que hay cuadrilla seleccionada
+    bool hasCuadrilla = cuadrillaSeleccionada != null && 
+                        cuadrillaSeleccionada!['nombre'] != null &&
+                        cuadrillaSeleccionada!['nombre'] != '';
+    
+    // Verificar que hay empleados en la cuadrilla
+    bool hasEmpleados = empleadosFiltrados.isNotEmpty || 
+                        empleadosNomina.isNotEmpty ||
+                        (cuadrillaSeleccionada != null && 
+                         cuadrillaSeleccionada!['empleados'] != null &&
+                         (cuadrillaSeleccionada!['empleados'] as List).isNotEmpty);
+    
+    return hasSemana && hasCuadrilla && hasEmpleados;
   }
   // Mostrar diálogo para reiniciar semana con opciones
   void _mostrarDialogoReiniciarSemana() {
@@ -640,8 +695,7 @@ CONCAT(e.nombre, ' ', e.apellido_paterno, ' ', e.apellido_materno) AS nombre,   
 
                             optionsCuadrilla: _optionsCuadrilla,
                             selectedCuadrilla: _selectedCuadrilla,
-                            empleadosEnCuadrilla: empleadosEnCuadrilla,
-                           onCuadrillaSelected: (Map<String, dynamic>? option) async {
+                            empleadosEnCuadrilla: empleadosEnCuadrilla,                           onCuadrillaSelected: (Map<String, dynamic>? option) async {
   setState(() {
     if (option == null) {
       // Deseleccionar cuadrilla
@@ -649,6 +703,7 @@ CONCAT(e.nombre, ' ', e.apellido_paterno, ' ', e.apellido_materno) AS nombre,   
         'nombre': '',
         'empleados': [],
       };
+      cuadrillaSeleccionada = null; // ✅ Asignar cuadrillaSeleccionada
       empleadosFiltrados = [];
       empleadosEnCuadrilla = [];
 
@@ -659,6 +714,7 @@ CONCAT(e.nombre, ' ', e.apellido_paterno, ' ', e.apellido_materno) AS nombre,   
     } else {
       // Seleccionar cuadrilla
       _selectedCuadrilla = option;
+      cuadrillaSeleccionada = option; // ✅ Asignar cuadrillaSeleccionada
       empleadosFiltrados = List<Map<String, dynamic>>.from(option['empleados'] ?? []);
       empleadosEnCuadrilla = List<Map<String, dynamic>>.from(option['empleados'] ?? []);
 
@@ -679,8 +735,14 @@ CONCAT(e.nombre, ' ', e.apellido_paterno, ' ', e.apellido_materno) AS nombre,   
 
     setState(() {
       _selectedCuadrilla = option;
+      cuadrillaSeleccionada = option; // ✅ Asignar cuadrillaSeleccionada
       empleadosNomina = data;
+      // ✅ También actualizar empleadosFiltrados para habilitar el botón guardar
+      empleadosFiltrados = List<Map<String, dynamic>>.from(data);
     });
+    
+    // ✅ Cargar datos de nómina después de seleccionar cuadrilla
+    await cargarDatosNomina();
   }
 },
                              semanaSeleccionada: semanaSeleccionada, // ✅ <--- Agregado aquí
@@ -713,7 +775,20 @@ CONCAT(e.nombre, ' ', e.apellido_paterno, ' ', e.apellido_materno) AS nombre,   
   ),
 ),                  // Export section
                     const SizedBox(height: 24),
-                    const NominaExportSection(),
+                    NominaExportSection(
+                      canSave: _canSave,
+                      startDate: _startDate,
+                      endDate: _endDate,
+                      cuadrillaSeleccionada: cuadrillaSeleccionada,
+                      empleadosFiltrados: empleadosFiltrados,
+                      onGuardar: _guardarNomina,
+                      onExportPdf: () {
+                        // TODO: Implementar exportación a PDF
+                      },
+                      onExportExcel: () {
+                        // TODO: Implementar exportación a Excel
+                      },
+                    ),
                   ],
                 ),
               ),
