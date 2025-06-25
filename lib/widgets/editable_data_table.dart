@@ -173,7 +173,7 @@ final comedorValue = double.tryParse(empleado['comedor'].toString()) ?? 0.0;
         cells: [
           DataCell(SizedBox(
             width: widget.isExpanded ? 90 : 75,
-            child: Text(empleado['clave']?.toString() ?? '', 
+            child: Text(empleado['codigo']?.toString() ?? '', 
               textAlign: TextAlign.center
             ),
           )),
@@ -184,38 +184,36 @@ final comedorValue = double.tryParse(empleado['comedor'].toString()) ?? 0.0;
             ),
           )),
           ...List.generate(_numDays, (i) =>
-            DataCell(SizedBox(
-              width: widget.isExpanded ? 90 : 75,
-              child: widget.readOnly
-                ? Text(
-                    _formatCurrency(int.tryParse(empleado['dia_$i']?.toString() ?? '0') ?? 0),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: widget.isExpanded ? 15 : 13),
-                  )
-                : TextFormField(
-                    key: ValueKey('dia_${empleado['id']}_$i'),
-                    controller: TextEditingController(
-                      text: _formatCurrency(int.tryParse(empleado['dia_$i']?.toString() ?? '0') ?? 0)
-                    )..selection = TextSelection.collapsed(
-                      offset: _formatCurrency(int.tryParse(empleado['dia_$i']?.toString() ?? '0') ?? 0).length
-                    ),
-                    textAlign: TextAlign.center,
-                    keyboardType: TextInputType.number,
-                    style: TextStyle(fontSize: widget.isExpanded ? 15 : 13),
-                    decoration: InputDecoration(
-                      isDense: true,
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: widget.isExpanded ? 12 : 8
-                      ),
-                      border: const OutlineInputBorder(),
-                    ),
-                    onChanged: (value) {
-                      final numStr = value.replaceAll(RegExp(r'[^\d.]'), '');
-                      _handleValueChange(empleado, index, 'dia_$i', numStr);
-                    },
-                  ),
-            ))
+          DataCell(
+  SizedBox(
+    width: widget.isExpanded ? 90 : 75,
+    child: widget.readOnly
+        ? Text(
+            _formatCurrency(int.tryParse(empleado['dia_$i']?.toString() ?? '0') ?? 0),
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: widget.isExpanded ? 15 : 13),
+          )
+        : TextFormField(
+            key: ValueKey('dia_${empleado['id']}_$i'),
+            initialValue: empleado['dia_$i']?.toString() ?? '0',
+            textAlign: TextAlign.center,
+            keyboardType: TextInputType.number,
+            style: TextStyle(fontSize: widget.isExpanded ? 15 : 13),
+            decoration: InputDecoration(
+              isDense: true,
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: widget.isExpanded ? 12 : 8,
+              ),
+              border: const OutlineInputBorder(),
+            ),
+            onChanged: (value) {
+              final numStr = value.replaceAll(RegExp(r'[^\d]'), '');
+              _handleValueChange(empleado, index, 'dia_$i', numStr);
+            },
+          ),
+  ),
+)
           ),
           DataCell(SizedBox(
             width: widget.isExpanded ? 100 : 85,

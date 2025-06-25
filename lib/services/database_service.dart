@@ -23,6 +23,7 @@ class DatabaseService {
     print('❌ Conexión cerrada');
   }
 }
+
 Future<List<Map<String, dynamic>>> obtenerCuadrillasHabilitadas() async {
   final db = DatabaseService();
   await db.connect();
@@ -36,11 +37,9 @@ Future<List<Map<String, dynamic>>> obtenerCuadrillasHabilitadas() async {
 
   await db.close();
 
-  return results.map((row) => {
-    'id': row[0],
-    'nombre': row[1],
-    'empleados': [],
-  }).toList();
+  return results
+      .map((row) => {'id': row[0], 'nombre': row[1], 'empleados': []})
+      .toList();
 }
 
 Future<List<Map<String, dynamic>>> obtenerEmpleadosHabilitados() async {
@@ -67,22 +66,91 @@ Future<List<Map<String, dynamic>>> obtenerEmpleadosHabilitados() async {
 
     await db.close();
 
-    return results.map((row) => {
-      'id': row[0].toString(),
-      'nombre': row[1],
-      'puesto': row[2],
-      'curp': row[3],
-      'rfc': row[4],
-      'nss': row[5],
-      'lugarProcedencia': row[6],
-      'tipoEmpleado': row[7],
-      'numeroEmpleado': row[8],
-      'seleccionado': false,
-    }).toList();
+    return results
+        .map(
+          (row) => {
+            'id': row[0].toString(),
+            'nombre': row[1],
+            'puesto': row[2],
+            'curp': row[3],
+            'rfc': row[4],
+            'nss': row[5],
+            'lugarProcedencia': row[6],
+            'tipoEmpleado': row[7],
+            'numeroEmpleado': row[8],
+            'seleccionado': false,
+          },
+        )
+        .toList();
   } catch (e) {
     print('❌ Error al obtener empleados habilitados: $e');
     await db.close();
     return [];
   }
+}
+
+Future<List<Map<String, String>>> obtenerReportePorCuadrilla() async {
+  final db = DatabaseService();
+  await db.connect();
+
+  final results = await db.connection.mappedResultsQuery('''
+       SELECT 
+      c.id_cuadrilla,
+      c.nombre AS cuadrilla,
+      SUM(n.total) AS suma
+    FROM nomina_empleados_historial n
+    JOIN cuadrillas c ON c.id_cuadrilla = n.id_cuadrilla
+    GROUP BY c.id_cuadrilla, c.nombre
+    ORDER BY c.nombre;
+    ''');
+
+  await db.close();
+
+  return results.map<Map<String, String>>((row) {
+    final flatRow = {...?row['cuadrillas'], ...?row['']}; // Une los dos mapas
+
+    return {
+      'id_cuadrilla': '${flatRow['id_cuadrilla']}',
+      'cuadrilla': '${flatRow['cuadrilla'] ?? ''}',
+      'total': '${flatRow['suma'] ?? '0'}',
+    };
+  }).toList();
+}
+
+Future<List<Map<String, String>>> obtenerReportePorEmpleado() async {
+  final db = DatabaseService();
+  await db.connect();
+
+  final results = await db.connection.mappedResultsQuery('''
+    SELECT 
+      e.id_empleado,
+      e.codigo,
+      CONCAT(e.nombre, ' ', e.apellido_paterno, ' ', e.apellido_materno) AS nombre,
+      n.fecha_cierre,
+      n.total AS suma
+    FROM nomina_empleados_historial n
+    JOIN empleados e ON e.id_empleado = n.id_empleado
+    ORDER BY e.nombre
+  ''');
+
+  await db.close();
+
+  return results.map<Map<String, String>>((row) {
+    // Une los submapas en uno solo
+    final flatRow = row.entries
+        .expand((entry) => entry.value.entries)
+        .fold<Map<String, dynamic>>({}, (acc, entry) {
+          acc[entry.key] = entry.value;
+          return acc;
+        });
+
+    return {
+      'id_empleado': '${flatRow['id_empleado']}',
+      'codigo': '${flatRow['codigo']}',
+      'nombre': '${flatRow['nombre']}',
+      'fecha': '${flatRow['fecha_cierre']}',
+      'total': '${flatRow['suma'] ?? '0'}',
+    };
+  }).toList();
 }
 
