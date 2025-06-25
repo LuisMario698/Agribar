@@ -259,13 +259,13 @@ class _NominaScreenState extends State<NominaScreen> {
         'id_empleado': idEmpleado,
         'id_semana': idSemana,
         'id_cuadrilla': idCuadrilla,
-        'dia_0': empleado['dia_0'] ?? 0,
-        'dia_1': empleado['dia_1'] ?? 0,
-        'dia_2': empleado['dia_2'] ?? 0,
-        'dia_3': empleado['dia_3'] ?? 0,
-        'dia_4': empleado['dia_4'] ?? 0,
-        'dia_5': empleado['dia_5'] ?? 0,
-        'dia_6': empleado['dia_6'] ?? 0,
+        'dia_1': empleado['dia_0'] ?? 0,
+        'dia_2': empleado['dia_1'] ?? 0,
+        'dia_3': empleado['dia_2'] ?? 0,
+        'dia_4': empleado['dia_3'] ?? 0,
+        'dia_5': empleado['dia_4'] ?? 0,
+        'dia_6': empleado['dia_5'] ?? 0,
+        'dia_7': empleado['dia_6'] ?? 0,
         'total': empleado['total'] ?? 0,
         'debe': empleado['debe'] ?? 0,
         'subtotal': empleado['subtotal'] ?? 0,
@@ -283,6 +283,7 @@ class _NominaScreenState extends State<NominaScreen> {
     dia_4 = @d4,
     dia_5 = @d5,
     dia_6 = @d6,
+    dia_7 = @d7,
                total = @total, debe = @debe, subtotal = @subtotal, comedor = @comedor, total_neto = @neto,
                id_cuadrilla = @idCuadrilla
            WHERE id_empleado = @idEmp AND id_semana = @idSemana
@@ -305,7 +306,7 @@ class _NominaScreenState extends State<NominaScreen> {
             'idSemana': idSemana,
           },
         );
-      } else {
+      } /*else {
         // Si no existe, inserta
         await db.connection.query(
           '''INSERT INTO nomina_empleados_semanal (
@@ -335,7 +336,7 @@ class _NominaScreenState extends State<NominaScreen> {
             'neto': data['total_neto'],
           },
         );
-      }
+      }*/
     }
   await db.close(); // 🧼 Cierra conexión al final
     print("Nómina guardada correctamente.");
@@ -351,8 +352,9 @@ class _NominaScreenState extends State<NominaScreen> {
     final result = await db.connection.query(
       '''
       SELECT 
-        e.id_empleado,
-CONCAT(e.nombre, ' ', e.apellido_paterno, ' ', e.apellido_materno) AS nombre,        e.codigo,
+       e.codigo,
+CONCAT(e.nombre, ' ', e.apellido_paterno, ' ', e.apellido_materno) AS nombre,  
+ e.id_empleado,      
         n.dia_1,
         n.dia_2,
         n.dia_3,
@@ -376,9 +378,9 @@ CONCAT(e.nombre, ' ', e.apellido_paterno, ' ', e.apellido_materno) AS nombre,   
     return result
         .map(
           (row) => {
-            'id': row[0],
+            'codigo': row[0],
             'nombre': row[1],
-            'codigo': row[2],
+            'id': row[2],
             'dia_1': row[3],
             'dia_2': row[4],
             'dia_3': row[5],
