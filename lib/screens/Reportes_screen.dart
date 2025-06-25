@@ -1,11 +1,13 @@
 import 'package:agribar/services/database_service.dart';
+import 'package:excel/excel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:path_provider/path_provider.dart';
 import 'dart:ui';
 import '../widgets/custom_search_bar.dart';
 import '../widgets/filter_button.dart';
 import '../widgets/date_selector.dart';
-
+import 'dart:io';
 import '../widgets/export_button_group.dart';
 
 
@@ -63,8 +65,55 @@ List<Map<String, String>> reporteData = [];
     super.dispose();
   }
 
+Future<void> exportarReporteAExcel() async {
+  List<Map<String, String>> dataExportar;
+
+  String nombreArchivo;
+  List<String> headers;
+
+  switch (selectedFilter) {
+    case 0:
+      dataExportar = empleadosData;
+      nombreArchivo = 'reporte_empleados';
+      headers = ['id_empleado', 'codigo', 'nombre', 'fecha', 'total'];
+      break;
+    case 1:
+      dataExportar = cuadrillasData;
+      nombreArchivo = 'reporte_cuadrillas';
+      headers = ['id_cuadrilla', 'cuadrilla', 'total'];
+      break;
+    case 2:
+      dataExportar = actividadesData;
+      nombreArchivo = 'reporte_actividades';
+      headers = ['codigo', 'nombre', 'fecha', 'responsable', 'cuadrilla'];
+      break;
+    default:
+      return;
+  }
+
+  final excel = Excel.createExcel();
+  final sheet = excel[excel.getDefaultSheet()!];
+
+  // Encabezados
+  sheet.appendRow(headers);
+
+  // Datos
+  for (var row in dataExportar) {
+    final rowData = headers.map((h) => row[h] ?? '').toList();
+    sheet.appendRow(rowData);
+  }
+
+  // Guardar archivo
+ final directory = Directory.current.path;
+final filePath = '$directory/$nombreArchivo.xlsx';
+  final fileBytes = excel.encode();
+
+  final file = File(filePath);
+  await file.writeAsBytes(fileBytes!);
+
+  print('📁 Archivo exportado en: $filePath');
+}
   // Datos de ejemplo para cada filtro
- 
 
    List<Map<String, String>> cuadrillasData = [];
 
@@ -529,7 +578,7 @@ List<Map<String, String>> reporteData = [];
                         // TODO: Implement PDF export functionality
                       },
                       onExcelExport: () {
-                        // TODO: Implement Excel export functionality
+                exportarReporteAExcel();
                       },
                     ),
                   ],

@@ -13,7 +13,8 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   window_manager: ^0.3.8
-  
+  excel: ^2.1.0
+  path_provider: ^2.1.1
 
 dev_dependencies:
   flutter_test:
