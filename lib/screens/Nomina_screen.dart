@@ -463,7 +463,7 @@ CONCAT(e.nombre, ' ', e.apellido_paterno, ' ', e.apellido_materno) AS nombre,
       empleadosFiltrados = [];
       empleadosEnCuadrilla = [];
       showArmarCuadrilla = false;
-      _selectedCuadrilla = Map<String, dynamic>.from(_optionsCuadrilla[0]);
+      //_selectedCuadrilla = Map<String, dynamic>.from(_optionsCuadrilla[0]);
 
       // Limpiar las cuadrillas
       for (var cuadrilla in _optionsCuadrilla) {

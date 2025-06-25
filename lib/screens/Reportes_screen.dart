@@ -1,3 +1,4 @@
+import 'package:agribar/services/database_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'dart:ui';
@@ -47,6 +48,9 @@ class _ReportesScreenState extends State<ReportesScreen> {
   final TextEditingController searchController = TextEditingController();
   DateTime? startDate;
   DateTime? endDate;
+  int tipoReporteSeleccionado = 0;// 0: Empleado, 1: Cuadrilla, 2: Actividad
+List<Map<String, String>> empleadosData = [];
+List<Map<String, String>> reporteData = [];
 
   // Controladores para el scroll de la tabla
   final ScrollController _horizontalController = ScrollController();
@@ -60,349 +64,9 @@ class _ReportesScreenState extends State<ReportesScreen> {
   }
 
   // Datos de ejemplo para cada filtro
-  final List<Map<String, String>> empleadosData = [
-    {
-      'clave': '*390',
-      'nombre': 'Juan Carlos',
-      'apPaterno': 'Rodríguez',
-      'apMaterno': 'Fierro',
-      'cuadrilla': 'JOSE FRANCISCO GONZALES REA',
-      'sueldo': '24 1.00',
-      'tipo': 'Fijo',
-    },
-    {
-      'clave': '000001*390',
-      'nombre': 'Celestino',
-      'apPaterno': 'Hernandez',
-      'apMaterno': 'Martinez',
-      'cuadrilla': 'Indirectos',
-      'sueldo': '24 375.00',
-      'tipo': 'Fijo',
-    },
-    {
-      'clave': '000002*390',
-      'nombre': 'Ines',
-      'apPaterno': 'Cruz',
-      'apMaterno': 'Quiroz',
-      'cuadrilla': 'Indirectos',
-      'sueldo': '24 375.00',
-      'tipo': 'Fijo',
-    },
-    {
-      'clave': '000003*390',
-      'nombre': 'Feliciano',
-      'apPaterno': 'Cruz',
-      'apMaterno': 'Quiroz',
-      'cuadrilla': 'Indirectos',
-      'sueldo': '24 375.00',
-      'tipo': 'Fijo',
-    },
-    {
-      'clave': '000003*390',
-      'nombre': 'Refugio Socorro',
-      'apPaterno': 'Ramirez',
-      'apMaterno': 'Carre--o',
-      'cuadrilla': 'Indirectos',
-      'sueldo': '24 375.00',
-      'tipo': 'Fijo',
-    },
-    {
-      'clave': '000004*390',
-      'nombre': 'Adela',
-      'apPaterno': 'Rodriguez',
-      'apMaterno': 'Ramirez',
-      'cuadrilla': 'Indirectos',
-      'sueldo': '24 375.00',
-      'tipo': 'Fijo',
-    },
-    {
-      'clave': '000005*390',
-      'nombre': 'Luis',
-      'apPaterno': 'Gomez',
-      'apMaterno': 'Santos',
-      'cuadrilla': 'Linea 1',
-      'sueldo': '24 400.00',
-      'tipo': 'Fijo',
-    },
-    {
-      'clave': '000006*390',
-      'nombre': 'Maria',
-      'apPaterno': 'Lopez',
-      'apMaterno': 'Perez',
-      'cuadrilla': 'Linea 2',
-      'sueldo': '24 410.00',
-      'tipo': 'Fijo',
-    },
-    {
-      'clave': '000007*390',
-      'nombre': 'Pedro',
-      'apPaterno': 'Martinez',
-      'apMaterno': 'Gonzalez',
-      'cuadrilla': 'Linea 3',
-      'sueldo': '24 420.00',
-      'tipo': 'Fijo',
-    },
-    {
-      'clave': '000008*390',
-      'nombre': 'Ana',
-      'apPaterno': 'Ramirez',
-      'apMaterno': 'Sanchez',
-      'cuadrilla': 'Linea 4',
-      'sueldo': '24 430.00',
-      'tipo': 'Fijo',
-    },
-    {
-      'clave': '000009*390',
-      'nombre': 'Jorge',
-      'apPaterno': 'Serrano',
-      'apMaterno': 'Mora',
-      'cuadrilla': 'Linea 5',
-      'sueldo': '24 440.00',
-      'tipo': 'Fijo',
-    },
-    {
-      'clave': '000010*390',
-      'nombre': 'Carmen',
-      'apPaterno': 'Vega',
-      'apMaterno': 'López',
-      'cuadrilla': 'Linea 6',
-      'sueldo': '24 450.00',
-      'tipo': 'Fijo',
-    },
-    {
-      'clave': '000011*390',
-      'nombre': 'Raúl',
-      'apPaterno': 'García',
-      'apMaterno': 'Pérez',
-      'cuadrilla': 'Linea 7',
-      'sueldo': '24 460.00',
-      'tipo': 'Fijo',
-    },
-    {
-      'clave': '000012*390',
-      'nombre': 'Patricia',
-      'apPaterno': 'Santos',
-      'apMaterno': 'Martínez',
-      'cuadrilla': 'Linea 8',
-      'sueldo': '24 470.00',
-      'tipo': 'Fijo',
-    },
-    {
-      'clave': '000013*390',
-      'nombre': 'Ricardo',
-      'apPaterno': 'Luna',
-      'apMaterno': 'Gómez',
-      'cuadrilla': 'Linea 9',
-      'sueldo': '24 480.00',
-      'tipo': 'Fijo',
-    },
-    {
-      'clave': '000014*390',
-      'nombre': 'Sandra',
-      'apPaterno': 'Mendoza',
-      'apMaterno': 'Ruiz',
-      'cuadrilla': 'Linea 10',
-      'sueldo': '24 490.00',
-      'tipo': 'Fijo',
-    },
-    {
-      'clave': '000015*390',
-      'nombre': 'Hugo',
-      'apPaterno': 'Castro',
-      'apMaterno': 'Jiménez',
-      'cuadrilla': 'Linea 11',
-      'sueldo': '24 500.00',
-      'tipo': 'Fijo',
-    },
-    {
-      'clave': '000016*390',
-      'nombre': 'Paola',
-      'apPaterno': 'Flores',
-      'apMaterno': 'Sánchez',
-      'cuadrilla': 'Linea 12',
-      'sueldo': '24 510.00',
-      'tipo': 'Fijo',
-    },
-    {
-      'clave': '000017*390',
-      'nombre': 'Alfredo',
-      'apPaterno': 'Reyes',
-      'apMaterno': 'Ortiz',
-      'cuadrilla': 'Linea 13',
-      'sueldo': '24 520.00',
-      'tipo': 'Fijo',
-    },
-    {
-      'clave': '000018*390',
-      'nombre': 'Gabriela',
-      'apPaterno': 'Silva',
-      'apMaterno': 'Navarro',
-      'cuadrilla': 'Linea 14',
-      'sueldo': '24 530.00',
-      'tipo': 'Fijo',
-    },
-    {
-      'clave': '000019*390',
-      'nombre': 'Manuel',
-      'apPaterno': 'Vargas',
-      'apMaterno': 'Cruz',
-      'cuadrilla': 'Linea 15',
-      'sueldo': '24 540.00',
-      'tipo': 'Fijo',
-    },
-    {
-      'clave': '000020*390',
-      'nombre': 'Leticia',
-      'apPaterno': 'Ramos',
-      'apMaterno': 'Peña',
-      'cuadrilla': 'Linea 16',
-      'sueldo': '24 550.00',
-      'tipo': 'Fijo',
-    },
-  ];
+ 
 
-  final List<Map<String, String>> cuadrillasData = [
-    {
-      'clave': 'C-01',
-      'nombre': 'Cuadrilla Norte',
-      'responsable': 'Juan Pérez',
-      'miembros': '12',
-      'actividad': 'Cosecha',
-    },
-    {
-      'clave': 'C-02',
-      'nombre': 'Cuadrilla Sur',
-      'responsable': 'Ana López',
-      'miembros': '9',
-      'actividad': 'Siembra',
-    },
-    {
-      'clave': 'C-03',
-      'nombre': 'Cuadrilla Centro',
-      'responsable': 'Carlos Ruiz',
-      'miembros': '15',
-      'actividad': 'Riego',
-    },
-    {
-      'clave': 'C-04',
-      'nombre': 'Cuadrilla Este',
-      'responsable': 'Laura Torres',
-      'miembros': '10',
-      'actividad': 'Fertilización',
-    },
-    {
-      'clave': 'C-05',
-      'nombre': 'Cuadrilla Oeste',
-      'responsable': 'Miguel Díaz',
-      'miembros': '8',
-      'actividad': 'Poda',
-    },
-    {
-      'clave': 'C-06',
-      'nombre': 'Cuadrilla Altiplano',
-      'responsable': 'Sofía Jiménez',
-      'miembros': '11',
-      'actividad': 'Cosecha',
-    },
-    {
-      'clave': 'C-07',
-      'nombre': 'Cuadrilla Bajío',
-      'responsable': 'Andrés Herrera',
-      'miembros': '13',
-      'actividad': 'Siembra',
-    },
-    {
-      'clave': 'C-08',
-      'nombre': 'Cuadrilla Valle',
-      'responsable': 'Patricia Ríos',
-      'miembros': '14',
-      'actividad': 'Riego',
-    },
-    {
-      'clave': 'C-09',
-      'nombre': 'Cuadrilla Montaña',
-      'responsable': 'Roberto Castro',
-      'miembros': '7',
-      'actividad': 'Fertilización',
-    },
-    {
-      'clave': 'C-10',
-      'nombre': 'Cuadrilla Costa',
-      'responsable': 'Elena Vargas',
-      'miembros': '16',
-      'actividad': 'Poda',
-    },
-    {
-      'clave': 'C-11',
-      'nombre': 'Cuadrilla Altos',
-      'responsable': 'Mario Díaz',
-      'miembros': '10',
-      'actividad': 'Cosecha',
-    },
-    {
-      'clave': 'C-12',
-      'nombre': 'Cuadrilla Bajos',
-      'responsable': 'Lucía Torres',
-      'miembros': '12',
-      'actividad': 'Siembra',
-    },
-    {
-      'clave': 'C-13',
-      'nombre': 'Cuadrilla Llanos',
-      'responsable': 'Javier Pérez',
-      'miembros': '11',
-      'actividad': 'Riego',
-    },
-    {
-      'clave': 'C-14',
-      'nombre': 'Cuadrilla Sierra',
-      'responsable': 'Rosa Jiménez',
-      'miembros': '13',
-      'actividad': 'Fertilización',
-    },
-    {
-      'clave': 'C-15',
-      'nombre': 'Cuadrilla Bosque',
-      'responsable': 'Pedro Romero',
-      'miembros': '9',
-      'actividad': 'Poda',
-    },
-    {
-      'clave': 'C-16',
-      'nombre': 'Cuadrilla Playa',
-      'responsable': 'Teresa Vargas',
-      'miembros': '14',
-      'actividad': 'Cosecha',
-    },
-    {
-      'clave': 'C-17',
-      'nombre': 'Cuadrilla Río',
-      'responsable': 'Sergio Castro',
-      'miembros': '8',
-      'actividad': 'Siembra',
-    },
-    {
-      'clave': 'C-18',
-      'nombre': 'Cuadrilla Lago',
-      'responsable': 'Patricia León',
-      'miembros': '15',
-      'actividad': 'Riego',
-    },
-    {
-      'clave': 'C-19',
-      'nombre': 'Cuadrilla Volcán',
-      'responsable': 'Alma Flores',
-      'miembros': '7',
-      'actividad': 'Fertilización',
-    },
-    {
-      'clave': 'C-20',
-      'nombre': 'Cuadrilla Desierto',
-      'responsable': 'Héctor Ruiz',
-      'miembros': '16',
-      'actividad': 'Poda',
-    },
-  ];
+   List<Map<String, String>> cuadrillasData = [];
 
   final List<Map<String, String>> actividadesData = [
     {
@@ -447,55 +111,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
       'responsable': 'Sofía Jiménez',
       'cuadrilla': 'Cuadrilla Altiplano',
     },
-    {
-      'codigo': 'A-07',
-      'nombre': 'Siembra',
-      'fecha': '13/06/2024',
-      'responsable': 'Andrés Herrera',
-      'cuadrilla': 'Cuadrilla Bajío',
-    },
-    {
-      'codigo': 'A-08',
-      'nombre': 'Riego',
-      'fecha': '15/06/2024',
-      'responsable': 'Patricia Ríos',
-      'cuadrilla': 'Cuadrilla Valle',
-    },
-    {
-      'codigo': 'A-09',
-      'nombre': 'Fertilización',
-      'fecha': '17/06/2024',
-      'responsable': 'Roberto Castro',
-      'cuadrilla': 'Cuadrilla Montaña',
-    },
-    {
-      'codigo': 'A-10',
-      'nombre': 'Poda',
-      'fecha': '19/06/2024',
-      'responsable': 'Elena Vargas',
-      'cuadrilla': 'Cuadrilla Costa',
-    },
-    {
-      'codigo': 'A-11',
-      'nombre': 'Fumigación',
-      'fecha': '21/06/2024',
-      'responsable': 'Mario Díaz',
-      'cuadrilla': 'Cuadrilla Altos',
-    },
-    {
-      'codigo': 'A-12',
-      'nombre': 'Transplante',
-      'fecha': '23/06/2024',
-      'responsable': 'Lucía Torres',
-      'cuadrilla': 'Cuadrilla Bajos',
-    },
-    {
-      'codigo': 'A-13',
-      'nombre': 'Cosecha',
-      'fecha': '25/06/2024',
-      'responsable': 'Javier Pérez',
-      'cuadrilla': 'Cuadrilla Llanos',
-    },
+   
     {
       'codigo': 'A-14',
       'nombre': 'Siembra',
@@ -510,34 +126,8 @@ class _ReportesScreenState extends State<ReportesScreen> {
       'responsable': 'Pedro Romero',
       'cuadrilla': 'Cuadrilla Bosque',
     },
-    {
-      'codigo': 'A-16',
-      'nombre': 'Fertilización',
-      'fecha': '01/07/2024',
-      'responsable': 'Teresa Vargas',
-      'cuadrilla': 'Cuadrilla Playa',
-    },
-    {
-      'codigo': 'A-17',
-      'nombre': 'Poda',
-      'fecha': '03/07/2024',
-      'responsable': 'Sergio Castro',
-      'cuadrilla': 'Cuadrilla Río',
-    },
-    {
-      'codigo': 'A-18',
-      'nombre': 'Cosecha',
-      'fecha': '05/07/2024',
-      'responsable': 'Patricia León',
-      'cuadrilla': 'Cuadrilla Lago',
-    },
-    {
-      'codigo': 'A-19',
-      'nombre': 'Siembra',
-      'fecha': '07/07/2024',
-      'responsable': 'Alma Flores',
-      'cuadrilla': 'Cuadrilla Volcán',
-    },
+   
+   
     {
       'codigo': 'A-20',
       'nombre': 'Riego',
@@ -664,10 +254,37 @@ class _ReportesScreenState extends State<ReportesScreen> {
                     // Filtros y fechas centrados
                     Center(
                       child: Column(
-                        children: [                          FilterBar(
-                            filters: const ['Empleado', 'Cuadrilla', 'Actividad'],
+                        children: [                          
+                          FilterBar(
+                            filters: const ['Empleados', 'Cuadrilla', 'Actividad'],
                             selectedIndex: selectedFilter,
-                            onFilterChanged: (index) => setState(() => selectedFilter = index),
+                          onFilterChanged: (index) async {
+  setState(() {
+    selectedFilter = index;
+      tipoReporteSeleccionado = index;
+  });
+  if (index == 0) {
+    // Solo si aún no se ha cargado
+    if (empleadosData.isEmpty) {
+      final data = await obtenerReportePorEmpleado();
+      setState(() {
+        empleadosData = data;
+      });
+    }
+  }
+  if (index == 1) {
+    // Solo si aún no se ha cargado
+    if (cuadrillasData.isEmpty) {
+      final data = await obtenerReportePorCuadrilla();
+      setState(() {
+        cuadrillasData = data;
+      });
+    }
+  }
+}
+
+
+
                           ),
                           const SizedBox(height: 10),                          DateRangeSelector(
                             startDate: startDate,
@@ -934,39 +551,35 @@ class _ReportesScreenState extends State<ReportesScreen> {
     List<List<String>> rows;
     if (selectedFilter == 0) {
       columns = [
-        'Clave',
+        'Id empleado',
+        'Codigo',
         'Nombre',
-        'Apellido Paterno',
-        'Apellido Materno',
-        'Cuadrilla',
-        'Sueldo',
-        'Tipo',
+        'Fecha de pago',
+        'Total',
+       
       ];
       rows =
           filteredData
               .map(
                 (row) => [
-                  row['clave'] ?? '',
+                  row['id_empleado'] ?? '',
+                  row['codigo'] ?? '',
                   row['nombre'] ?? '',
-                  row['apPaterno'] ?? '',
-                  row['apMaterno'] ?? '',
-                  row['cuadrilla'] ?? '',
-                  row['sueldo'] ?? '',
-                  row['tipo'] ?? '',
+                  row['fecha'] ?? '',
+                  row['total'] ?? '',
+                 
                 ],
               )
               .toList();
     } else if (selectedFilter == 1) {
-      columns = ['Clave', 'Nombre', 'Responsable', 'Miembros', 'Actividad'];
+      columns = ['ID Cuadrilla', 'Nombre', 'Total'];
       rows =
           filteredData
               .map(
                 (row) => [
-                  row['clave'] ?? '',
-                  row['nombre'] ?? '',
-                  row['responsable'] ?? '',
-                  row['miembros'] ?? '',
-                  row['actividad'] ?? '',
+                  row['id_cuadrilla'] ?? '',
+                  row['cuadrilla'] ?? '',
+                  row['total'] ?? '',
                 ],
               )
               .toList();
