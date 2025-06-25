@@ -6,7 +6,7 @@ class DatabaseService {
 
   Future<void> connect() async {
     _connection = PostgreSQLConnection(
-      'localhost',
+      'localhost',  // Host
       5432,
       'AGRIBAR',
       username: 'postgres',
