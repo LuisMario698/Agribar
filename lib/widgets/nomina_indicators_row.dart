@@ -56,12 +56,13 @@ class _NominaIndicatorsRowState extends State<NominaIndicatorsRow> {
         ? widget.endDate!.difference(widget.startDate!).inDays + 1
         : 7;
     
+    // Solo sumar las celdas "S", ignorar las celdas "ID"
     final total = List.generate(
       numDays,
-      (i) => int.tryParse(emp['dia_$i']?.toString() ?? '0') ?? 0,
+      (i) => int.tryParse(emp['dia_${i}_s']?.toString() ?? '0') ?? 0,
     ).reduce((a, b) => a + b);
     
-    final debe = int.tryParse(emp['debe']?.toString() ?? '0') ?? 0;
+    final debe = double.tryParse(emp['debe']?.toString() ?? '0') ?? 0;
     final subtotal = total - debe;
     // Cambiar para usar el valor numérico del comedor en lugar de boolean
     final comedorValue = double.tryParse(emp['comedor']?.toString() ?? '0') ?? 0;
@@ -74,7 +75,14 @@ class _NominaIndicatorsRowState extends State<NominaIndicatorsRow> {
   double _calcularAcumuladoCuadrilla() {
     return widget.empleadosFiltrados.fold<double>(
       0,
-      (sum, emp) => sum + _calcularTotalEmpleado(emp),
+      (sum, emp) {
+        // Usar el totalNeto ya calculado en el empleado si existe, 
+        // de lo contrario calcularlo aquí
+        final totalNeto = emp['totalNeto'] != null 
+            ? (emp['totalNeto'] as num).toDouble()
+            : _calcularTotalEmpleado(emp);
+        return sum + totalNeto;
+      },
     );
   }
 

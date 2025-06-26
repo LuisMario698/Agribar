@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-/// Widget modular para edición en la tabla de nómina.
+/// Widget mejorado para mostrar y editar datos tabulares de empleados con funcionalidades avanzadas
 class EditableDataTableWidget extends StatefulWidget {
   final List<Map<String, dynamic>> empleados;
   final DateTimeRange? semanaSeleccionada;
@@ -31,7 +31,7 @@ class _EditableDataTableWidgetState extends State<EditableDataTableWidget> {
   }
 
   int get _numDays {
-    return (widget.semanaSeleccionada?.duration.inDays ?? 6) + 1; // Always include an extra day to handle Saturday
+    return (widget.semanaSeleccionada?.duration.inDays ?? 6) + 1;
   }
 
   void _handleValueChange(Map<String, dynamic> empleado, int index, String key, dynamic value) {
@@ -40,11 +40,13 @@ class _EditableDataTableWidgetState extends State<EditableDataTableWidget> {
     setState(() {
       empleado[key] = value;
 
-      // Recalcular totales
+      // Recalcular totales sumando solo las celdas "S" por día
       final diasCount = widget.semanaSeleccionada?.duration.inDays ?? 6;
-      final total = List.generate(diasCount + 1, (i) => 
-        int.tryParse((empleado['dia_$i'] ?? '0').toString()) ?? 0
-      ).reduce((a, b) => a + b);
+      final total = List.generate(diasCount + 1, (i) {
+        // Solo sumar los valores de las celdas "S", ignorar las celdas "ID"
+        final sValue = int.tryParse((empleado['dia_${i}_s'] ?? '0').toString()) ?? 0;
+        return sValue;
+      }).reduce((a, b) => a + b);
       
       final debe = double.tryParse(empleado['debe']?.toString() ?? '0') ?? 0;
       final subtotal = total - debe;
@@ -87,7 +89,7 @@ class _EditableDataTableWidgetState extends State<EditableDataTableWidget> {
             final dateFormat = DateFormat('EEE\nd/M', 'es');
             return DataColumn(
               label: SizedBox(
-                width: widget.isExpanded ? 90 : 75,
+                width: widget.isExpanded ? 130 : 70,
                 child: Text(
                   dateFormat.format(date).toLowerCase(),
                   style: const TextStyle(fontWeight: FontWeight.bold),
@@ -96,21 +98,22 @@ class _EditableDataTableWidgetState extends State<EditableDataTableWidget> {
               ),
             );
           })
-        : ['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom'].map((dia) => 
-            DataColumn(
+        : List.generate(7, (i) {
+            final dias = ['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom'];
+            return DataColumn(
               label: SizedBox(
-                width: widget.isExpanded ? 90 : 75,
+                width: widget.isExpanded ? 130 : 70,
                 child: Text(
-                  dia,
+                  dias[i],
                   style: const TextStyle(fontWeight: FontWeight.bold),
                   textAlign: TextAlign.center,
                 ),
               ),
-            )
-          ).toList(),
+            );
+          }),
       DataColumn(
         label: SizedBox(
-          width: widget.isExpanded ? 100 : 85,
+          width: widget.isExpanded ? 100 : 90,
           child: const Text('Total',
             style: TextStyle(fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
@@ -119,7 +122,7 @@ class _EditableDataTableWidgetState extends State<EditableDataTableWidget> {
       ),
       DataColumn(
         label: SizedBox(
-          width: widget.isExpanded ? 100 : 85,
+          width: widget.isExpanded ? 85 : 70,
           child: const Text('Debe',
             style: TextStyle(fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
@@ -128,7 +131,7 @@ class _EditableDataTableWidgetState extends State<EditableDataTableWidget> {
       ),
       DataColumn(
         label: SizedBox(
-          width: widget.isExpanded ? 100 : 85,
+          width: widget.isExpanded ? 100 : 90,
           child: const Text('Subtotal',
             style: TextStyle(fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
@@ -137,7 +140,7 @@ class _EditableDataTableWidgetState extends State<EditableDataTableWidget> {
       ),
       DataColumn(
         label: SizedBox(
-          width: widget.isExpanded ? 100 : 85,
+          width: widget.isExpanded ? 85 : 70,
           child: const Text('Comedor',
             style: TextStyle(fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
@@ -146,7 +149,7 @@ class _EditableDataTableWidgetState extends State<EditableDataTableWidget> {
       ),
       DataColumn(
         label: SizedBox(
-          width: widget.isExpanded ? 100 : 85,
+          width: widget.isExpanded ? 100 : 90,
           child: const Text('Total\nNeto',
             style: TextStyle(fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
@@ -184,40 +187,145 @@ final comedorValue = double.tryParse(empleado['comedor'].toString()) ?? 0.0;
               textAlign: TextAlign.left
             ),
           )),
-          ...List.generate(_numDays, (i) =>
-          DataCell(
-  SizedBox(
-    width: widget.isExpanded ? 90 : 75,
-    child: widget.readOnly
-        ? Text(
-            _formatCurrency(int.tryParse(empleado['dia_$i']?.toString() ?? '0') ?? 0),
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: widget.isExpanded ? 15 : 13),
-          )
-        : TextFormField(
-            key: ValueKey('dia_${empleado['id']}_$i'),
-            initialValue: empleado['dia_$i']?.toString() ?? '0',
-            textAlign: TextAlign.center,
-            keyboardType: TextInputType.number,
-            style: TextStyle(fontSize: widget.isExpanded ? 15 : 13),
-            decoration: InputDecoration(
-              isDense: true,
-              contentPadding: EdgeInsets.symmetric(
-                horizontal: 8,
-                vertical: widget.isExpanded ? 12 : 8,
+          ...List.generate(_numDays, (i) {
+            return DataCell(
+              SizedBox(
+                width: widget.isExpanded ? 130 : 70,
+                child: widget.isExpanded 
+                    ? Row(
+                        children: [
+                          // Celda ID (solo en modo expandido)
+                          Expanded(
+                            child: widget.readOnly
+                                ? Container(
+                                    height: 44,
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      border: Border(
+                                        right: BorderSide(color: Colors.grey.shade300),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      (double.tryParse(empleado['dia_${i}_id']?.toString() ?? '0') ?? 0).toInt().toString(),
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(fontSize: 13),
+                                    ),
+                                  )
+                                : Container(
+                                    height: 44,
+                                    decoration: BoxDecoration(
+                                      border: Border(
+                                        right: BorderSide(color: Colors.grey.shade300),
+                                      ),
+                                    ),
+                                    child: TextFormField(
+                                      key: ValueKey('dia_${i}_id_${empleado['id']}'),
+                                      controller: TextEditingController(
+                                        text: (double.tryParse(empleado['dia_${i}_id']?.toString() ?? '0') ?? 0).toInt().toString()
+                                      )..selection = TextSelection.collapsed(
+                                        offset: (double.tryParse(empleado['dia_${i}_id']?.toString() ?? '0') ?? 0).toInt().toString().length
+                                      ),
+                                      textAlign: TextAlign.center,
+                                      keyboardType: TextInputType.number,
+                                      style: const TextStyle(fontSize: 13),
+                                      decoration: const InputDecoration(
+                                        isDense: true,
+                                        contentPadding: EdgeInsets.symmetric(
+                                          horizontal: 2,
+                                          vertical: 10,
+                                        ),
+                                        border: OutlineInputBorder(),
+                                      ),
+                                      onChanged: (value) {
+                                        final numStr = value.replaceAll(RegExp(r'[^\d]'), '');
+                                        _handleValueChange(empleado, index, 'dia_${i}_id', numStr);
+                                      },
+                                    ),
+                                  ),
+                          ),
+                          // Celda S
+                          Expanded(
+                            child: widget.readOnly
+                                ? Container(
+                                    height: 44,
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      _formatCurrency(double.tryParse(empleado['dia_${i}_s']?.toString() ?? '0') ?? 0),
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(fontSize: 13),
+                                    ),
+                                  )
+                                : Container(
+                                    height: 44,
+                                    child: TextFormField(
+                                      key: ValueKey('dia_${i}_s_${empleado['id']}'),
+                                      controller: TextEditingController(
+                                        text: _formatCurrency(double.tryParse(empleado['dia_${i}_s']?.toString() ?? '0') ?? 0)
+                                      )..selection = TextSelection.collapsed(
+                                        offset: _formatCurrency(double.tryParse(empleado['dia_${i}_s']?.toString() ?? '0') ?? 0).length
+                                      ),
+                                      textAlign: TextAlign.center,
+                                      keyboardType: TextInputType.number,
+                                      style: const TextStyle(fontSize: 13),
+                                      decoration: const InputDecoration(
+                                        isDense: true,
+                                        contentPadding: EdgeInsets.symmetric(
+                                          horizontal: 2,
+                                          vertical: 10,
+                                        ),
+                                        border: OutlineInputBorder(),
+                                      ),
+                                      onChanged: (value) {
+                                        final numStr = value.replaceAll(RegExp(r'[^\d.]'), '');
+                                        _handleValueChange(empleado, index, 'dia_${i}_s', numStr);
+                                      },
+                                    ),
+                                  ),
+                          ),
+                        ],
+                      )
+                    : // Solo celda S en modo normal
+                      widget.readOnly
+                          ? Container(
+                              height: 40,
+                              alignment: Alignment.center,
+                              child: Text(
+                                _formatCurrency(double.tryParse(empleado['dia_${i}_s']?.toString() ?? '0') ?? 0),
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(fontSize: 11),
+                              ),
+                            )
+                          : Container(
+                              height: 40,
+                              child: TextFormField(
+                                key: ValueKey('dia_${i}_s_${empleado['id']}'),
+                                controller: TextEditingController(
+                                  text: _formatCurrency(double.tryParse(empleado['dia_${i}_s']?.toString() ?? '0') ?? 0)
+                                )..selection = TextSelection.collapsed(
+                                  offset: _formatCurrency(double.tryParse(empleado['dia_${i}_s']?.toString() ?? '0') ?? 0).length
+                                ),
+                                textAlign: TextAlign.center,
+                                keyboardType: TextInputType.number,
+                                style: const TextStyle(fontSize: 11),
+                                decoration: const InputDecoration(
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 2,
+                                    vertical: 8,
+                                  ),
+                                  border: OutlineInputBorder(),
+                                ),
+                                onChanged: (value) {
+                                  final numStr = value.replaceAll(RegExp(r'[^\d.]'), '');
+                                  _handleValueChange(empleado, index, 'dia_${i}_s', numStr);
+                                },
+                              ),
+                            ),
               ),
-              border: const OutlineInputBorder(),
-            ),
-            onChanged: (value) {
-              final numStr = value.replaceAll(RegExp(r'[^\d]'), '');
-              _handleValueChange(empleado, index, 'dia_$i', numStr);
-            },
-          ),
-  ),
-)
-          ),
+            );
+          }),
           DataCell(SizedBox(
-            width: widget.isExpanded ? 100 : 85,
+            width: widget.isExpanded ? 100 : 90,
             child: Text(
               _formatCurrency(double.tryParse(total.toString()) ?? 0.0),
               textAlign: TextAlign.center,
@@ -228,7 +336,7 @@ final comedorValue = double.tryParse(empleado['comedor'].toString()) ?? 0.0;
             ),
           )),
           DataCell(SizedBox(
-            width: widget.isExpanded ? 100 : 85,
+            width: widget.isExpanded ? 85 : 70,
             child: widget.readOnly
               ? Text(
                   _formatCurrency(debe),
@@ -248,7 +356,7 @@ final comedorValue = double.tryParse(empleado['comedor'].toString()) ?? 0.0;
                   decoration: InputDecoration(
                     isDense: true,
                     contentPadding: EdgeInsets.symmetric(
-                      horizontal: 8,
+                      horizontal: 4,
                       vertical: widget.isExpanded ? 12 : 8
                     ),
                     border: const OutlineInputBorder(),
@@ -260,7 +368,7 @@ final comedorValue = double.tryParse(empleado['comedor'].toString()) ?? 0.0;
                 ),
           )),
           DataCell(SizedBox(
-            width: widget.isExpanded ? 100 : 85,
+            width: widget.isExpanded ? 100 : 90,
             child: Text(
               _formatCurrency(subtotal),
               textAlign: TextAlign.center,
@@ -271,7 +379,7 @@ final comedorValue = double.tryParse(empleado['comedor'].toString()) ?? 0.0;
             ),
           )),
           DataCell(SizedBox(
-            width: widget.isExpanded ? 100 : 85,
+            width: widget.isExpanded ? 85 : 70,
             child: widget.readOnly
               ? Text(
                   _formatCurrency(comedorValue),
@@ -291,7 +399,7 @@ final comedorValue = double.tryParse(empleado['comedor'].toString()) ?? 0.0;
                   decoration: InputDecoration(
                     isDense: true,
                     contentPadding: EdgeInsets.symmetric(
-                      horizontal: 8,
+                      horizontal: 4,
                       vertical: widget.isExpanded ? 12 : 8
                     ),
                     border: const OutlineInputBorder(),
@@ -304,7 +412,7 @@ final comedorValue = double.tryParse(empleado['comedor'].toString()) ?? 0.0;
                 ),
           )),
           DataCell(SizedBox(
-            width: widget.isExpanded ? 100 : 85,
+            width: widget.isExpanded ? 100 : 90,
             child: Text(
               _formatCurrency(totalNeto),
               textAlign: TextAlign.center,
@@ -347,23 +455,71 @@ final comedorValue = double.tryParse(empleado['comedor'].toString()) ?? 0.0;
               cells: [
                 DataCell(SizedBox(width: widget.isExpanded ? 90 : 75)),
                 DataCell(SizedBox(width: widget.isExpanded ? 220 : 180)),
-                ...List.generate(_numDays, (i) =>
-                  DataCell(
+                ...List.generate(_numDays, (i) {
+                  return DataCell(
                     Container(
-                      width: widget.isExpanded ? 90 : 75,
-                      alignment: Alignment.center,
-                      child: const Text('TT',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w500,
-                          fontSize: 13,
-                          color: Colors.black54,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
+                      width: widget.isExpanded ? 130 : 70,
+                      child: widget.isExpanded
+                          ? Row(
+                              children: [
+                                Expanded(
+                                  child: Container(
+                                    alignment: Alignment.center,
+                                    padding: const EdgeInsets.symmetric(vertical: 4),
+                                    decoration: BoxDecoration(
+                                      border: Border(
+                                        right: BorderSide(color: Colors.grey.shade300),
+                                      ),
+                                    ),
+                                    child: const Text(
+                                      'ID',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w500,
+                                        fontSize: 12,
+                                        color: Colors.black54,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Container(
+                                    alignment: Alignment.center,
+                                    padding: const EdgeInsets.symmetric(vertical: 4),
+                                    child: const Text(
+                                      'S',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w500,
+                                        fontSize: 12,
+                                        color: Colors.black54,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            )
+                          : Container(
+                              alignment: Alignment.center,
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              child: const Text(
+                                'S',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 12,
+                                  color: Colors.black54,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
                     ),
-                  )
-                ),
-                ...List.generate(5, (i) => DataCell(SizedBox(width: widget.isExpanded ? 100 : 85))),
+                  );
+                }),
+                ...List.generate(5, (i) => DataCell(SizedBox(
+                  width: i == 1 || i == 3 // Debe y Comedor
+                      ? (widget.isExpanded ? 85 : 70)
+                      : (widget.isExpanded ? 100 : 90) // Total, Subtotal, Total Neto
+                ))),
               ],
             ),
             ..._buildRows(),
