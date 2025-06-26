@@ -46,9 +46,10 @@ class _EditableDataTableWidgetState extends State<EditableDataTableWidget> {
         int.tryParse((empleado['dia_$i'] ?? '0').toString()) ?? 0
       ).reduce((a, b) => a + b);
       
-      final debe = int.tryParse(empleado['debe']?.toString() ?? '0') ?? 0;
+      final debe = double.tryParse(empleado['debe']?.toString() ?? '0') ?? 0;
       final subtotal = total - debe;
-      final comedorValue = empleado['comedor'] == true ? 400 : 0;
+      // Cambiar para usar el valor numérico del comedor en lugar de boolean
+      final comedorValue = double.tryParse(empleado['comedor']?.toString() ?? '0') ?? 0;
       final totalNeto = subtotal - comedorValue;
 
       // Actualizar los totales en el empleado
@@ -269,68 +270,39 @@ final comedorValue = double.tryParse(empleado['comedor'].toString()) ?? 0.0;
               ),
             ),
           )),
-          DataCell(
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: widget.readOnly
-                ? Container(
-                    height: widget.isExpanded ? 40 : 36,
-                    width: widget.isExpanded ? 90 : 75,
-                    decoration: BoxDecoration(
-                      color: empleado['comedor'] == true ? const Color(0xFF8AB531) : Colors.grey.shade200,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          empleado['comedor'] == true ? Icons.check_box : Icons.check_box_outline_blank,
-                          size: widget.isExpanded ? 24 : 20,
-                          color: empleado['comedor'] == true ? Colors.white : Colors.grey.shade600,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          _formatCurrency(400),
-                          style: TextStyle(
-                            fontSize: widget.isExpanded ? 15 : 13,
-                            fontWeight: FontWeight.w500,
-                            color: empleado['comedor'] == true ? Colors.white : Colors.grey.shade600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : MaterialButton(
-                    key: ValueKey('comedor_${empleado['id']}_${empleado['comedor']}'),
-                    onPressed: () => _handleValueChange(empleado, index, 'comedor', !(empleado['comedor'] ?? false)),
-                    height: widget.isExpanded ? 40 : 36,
-                    minWidth: widget.isExpanded ? 90 : 75,
-                    color: empleado['comedor'] == true ? const Color(0xFF8AB531) : Colors.grey.shade200,
-                    elevation: 0,
-                    padding: EdgeInsets.zero,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          empleado['comedor'] == true ? Icons.check_box : Icons.check_box_outline_blank,
-                          size: widget.isExpanded ? 24 : 20,
-                          color: empleado['comedor'] == true ? Colors.white : Colors.grey.shade600,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          _formatCurrency(400),
-                          style: TextStyle(
-                            fontSize: widget.isExpanded ? 15 : 13,
-                            fontWeight: FontWeight.w500,
-                            color: empleado['comedor'] == true ? Colors.white : Colors.grey.shade600,
-                          ),
-                        ),
-                      ],
-                    ),
+          DataCell(SizedBox(
+            width: widget.isExpanded ? 100 : 85,
+            child: widget.readOnly
+              ? Text(
+                  _formatCurrency(comedorValue),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: widget.isExpanded ? 15 : 13),
+                )
+              : TextFormField(
+                  key: ValueKey('comedor_${empleado['id']}'),
+                  controller: TextEditingController(
+                    text: _formatCurrency(comedorValue)
+                  )..selection = TextSelection.collapsed(
+                    offset: _formatCurrency(comedorValue).length
                   ),
-            ),
-          ),
+                  textAlign: TextAlign.center,
+                  keyboardType: TextInputType.number,
+                  style: TextStyle(fontSize: widget.isExpanded ? 15 : 13),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: widget.isExpanded ? 12 : 8
+                    ),
+                    border: const OutlineInputBorder(),
+                    hintText: '0',
+                  ),
+                  onChanged: (value) {
+                    final numStr = value.replaceAll(RegExp(r'[^\d.]'), '');
+                    _handleValueChange(empleado, index, 'comedor', numStr);
+                  },
+                ),
+          )),
           DataCell(SizedBox(
             width: widget.isExpanded ? 100 : 85,
             child: Text(
@@ -352,8 +324,10 @@ final comedorValue = double.tryParse(empleado['comedor'].toString()) ?? 0.0;
   Widget build(BuildContext context) {
     return Card(
       child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
+        scrollDirection: Axis.vertical,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: DataTable(
           columnSpacing: widget.isExpanded ? 12 : 8,
           headingRowHeight: widget.isExpanded ? 52 : 48,
           dataRowHeight: widget.isExpanded ? 56 : 52,
@@ -400,6 +374,7 @@ final comedorValue = double.tryParse(empleado['comedor'].toString()) ?? 0.0;
           ),
         ),
       ),
+    ),
     );
   }
 }

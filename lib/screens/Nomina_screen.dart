@@ -121,6 +121,20 @@ class _NominaScreenState extends State<NominaScreen> {
         empleadosNomina = data;
         // ✅ También actualizar empleadosFiltrados para habilitar el botón guardar
         empleadosFiltrados = List<Map<String, dynamic>>.from(data);
+        
+        // ✅ Sincronizar con _optionsCuadrilla para el diálogo de armar cuadrilla
+        final indiceCuadrilla = _optionsCuadrilla.indexWhere(
+          (c) => c['nombre'] == cuadrillaSeleccionada!['nombre'],
+        );
+        
+        if (indiceCuadrilla != -1) {
+          // Actualizar los empleados de la cuadrilla en _optionsCuadrilla
+          _optionsCuadrilla[indiceCuadrilla]['empleados'] = 
+              List<Map<String, dynamic>>.from(data);
+        }
+        
+        // ✅ También sincronizar empleadosEnCuadrilla
+        empleadosEnCuadrilla = List<Map<String, dynamic>>.from(data);
       });
     }
   }
@@ -140,6 +154,8 @@ class _NominaScreenState extends State<NominaScreen> {
 
       // 🚨 Agrega esta línea justo aquí:
       await _cargarCuadrillasSemana(semana['id']);
+      // ✅ Cargar empleados de todas las cuadrillas desde la BD
+      await _cargarEmpleadosDeCuadrillas();
     } else {
       setState(() {
         _haySemanaActiva = false;
@@ -155,6 +171,90 @@ class _NominaScreenState extends State<NominaScreen> {
       _optionsCuadrilla.clear();
       _optionsCuadrilla.addAll(cuadrillasGuardadas);
     });
+  }
+
+  // ✅ Nueva función para cargar empleados básicos de una cuadrilla desde la BD
+  Future<List<Map<String, dynamic>>> obtenerEmpleadosBasicosDeCuadrilla(
+    int semanaId,
+    int cuadrillaId,
+  ) async {
+    final db = DatabaseService();
+    await db.connect();
+
+    final result = await db.connection.query(
+      '''
+      SELECT 
+        e.codigo,
+        CONCAT(e.nombre, ' ', e.apellido_paterno, ' ', e.apellido_materno) AS nombre,  
+        e.id_empleado
+      FROM nomina_empleados_semanal n
+      JOIN empleados e ON e.id_empleado = n.id_empleado
+      WHERE n.id_semana = @semanaId AND n.id_cuadrilla = @cuadrillaId;
+    ''',
+      substitutionValues: {'semanaId': semanaId, 'cuadrillaId': cuadrillaId},
+    );
+
+    await db.close();
+
+    return result
+        .map(
+          (row) => {
+            'codigo': row[0],
+            'clave': row[0],
+            'nombre': row[1],
+            'id': row[2],
+            // Agregar campos por defecto para compatibilidad
+            'puesto': 'Jornalero',
+            'dia_0': 0,
+            'dia_1': 0,
+            'dia_2': 0,
+            'dia_3': 0,
+            'dia_4': 0,
+            'dia_5': 0,
+            'dia_6': 0,
+            'total': 0,
+            'debe': 0,
+            'subtotal': 0,
+            'comedor': 0,
+          },
+        )
+        .toList();
+  }
+
+  // ✅ Nueva función para cargar empleados de todas las cuadrillas desde la BD
+  Future<void> _cargarEmpleadosDeCuadrillas() async {
+    if (idSemanaSeleccionada == null) return;
+
+    try {
+      for (int i = 0; i < _optionsCuadrilla.length; i++) {
+        final cuadrilla = _optionsCuadrilla[i];
+        if (cuadrilla['id'] != null) {
+          // Primero intentar obtener empleados con datos de nómina completos
+          List<Map<String, dynamic>> empleadosCuadrilla = 
+              await obtenerNominaEmpleadosDeCuadrilla(
+                idSemanaSeleccionada!,
+                cuadrilla['id'],
+              );
+          
+          // Si no hay empleados con datos completos, obtener empleados básicos
+          if (empleadosCuadrilla.isEmpty) {
+            empleadosCuadrilla = await obtenerEmpleadosBasicosDeCuadrilla(
+              idSemanaSeleccionada!,
+              cuadrilla['id'],
+            );
+          }
+          
+          // Actualizar la cuadrilla con los empleados de la BD
+          setState(() {
+            _optionsCuadrilla[i]['empleados'] = empleadosCuadrilla;
+          });
+        }
+      }
+      
+      print('🔄 Empleados cargados para todas las cuadrillas desde BD');
+    } catch (e) {
+      print('❌ Error al cargar empleados de cuadrillas: $e');
+    }
   }
 
   // Cargar semana activa automáticamente al abrir pantalla
@@ -208,6 +308,8 @@ class _NominaScreenState extends State<NominaScreen> {
         });
 
         await _cargarCuadrillasSemana(nuevaSemana['id']);
+        // ✅ Cargar empleados de todas las cuadrillas desde la BD
+        await _cargarEmpleadosDeCuadrillas();
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -269,7 +371,7 @@ class _NominaScreenState extends State<NominaScreen> {
         'total': empleado['total'] ?? 0,
         'debe': empleado['debe'] ?? 0,
         'subtotal': empleado['subtotal'] ?? 0,
-        'comedor': (empleado['comedor'] == true) ? 400 : 0,
+        'comedor': double.tryParse(empleado['comedor']?.toString() ?? '0') ?? 0,
         'total_neto': empleado['totalNeto'] ?? 0,
       };
 
@@ -379,15 +481,16 @@ CONCAT(e.nombre, ' ', e.apellido_paterno, ' ', e.apellido_materno) AS nombre,
         .map(
           (row) => {
             'codigo': row[0],
+            'clave': row[0], // ✅ Agregar clave que es lo mismo que código
             'nombre': row[1],
             'id': row[2],
-            'dia_1': row[3],
-            'dia_2': row[4],
-            'dia_3': row[5],
-            'dia_4': row[6],
-            'dia_5': row[7],
-            'dia_6': row[8],
-            'dia_7': row[9],
+            'dia_0': row[3], // ✅ Mapear dia_1 de BD a dia_0 de la app
+            'dia_1': row[4], // ✅ Mapear dia_2 de BD a dia_1 de la app
+            'dia_2': row[5], // ✅ Mapear dia_3 de BD a dia_2 de la app
+            'dia_3': row[6], // ✅ Mapear dia_4 de BD a dia_3 de la app
+            'dia_4': row[7], // ✅ Mapear dia_5 de BD a dia_4 de la app
+            'dia_5': row[8], // ✅ Mapear dia_6 de BD a dia_5 de la app
+            'dia_6': row[9], // ✅ Mapear dia_7 de BD a dia_6 de la app
             'total': row[10],
             'debe': row[11],
             'subtotal': row[12],
@@ -627,10 +730,29 @@ CONCAT(e.nombre, ' ', e.apellido_paterno, ' ', e.apellido_materno) AS nombre,
       setState(() {
         showArmarCuadrilla = true;
 
-        // Inicializamos las listas originales
-        empleadosEnCuadrilla = List<Map<String, dynamic>>.from(
-          _selectedCuadrilla['empleados'] ?? [],
+        // Buscar la cuadrilla actual en _optionsCuadrilla para obtener los empleados más actualizados
+        final cuadrillaActualizada = _optionsCuadrilla.firstWhere(
+          (c) => c['nombre'] == _selectedCuadrilla['nombre'],
+          orElse: () => _selectedCuadrilla,
         );
+
+        print('🔍 Debug - Cuadrilla seleccionada: ${_selectedCuadrilla['nombre']}');
+        print('🔍 Debug - Cuadrilla actualizada encontrada: ${cuadrillaActualizada['nombre']}');
+        print('🔍 Debug - Empleados en cuadrilla actualizada: ${cuadrillaActualizada['empleados']?.length ?? 0}');
+        
+        // ✅ Mostrar detalles de los empleados para debug
+        if (cuadrillaActualizada['empleados'] != null) {
+          for (var emp in cuadrillaActualizada['empleados']) {
+            print('🔍 Debug - Empleado: ${emp['nombre']} (ID: ${emp['id']})');
+          }
+        }
+
+        // Inicializamos las listas originales con los datos más actualizados
+        empleadosEnCuadrilla = List<Map<String, dynamic>>.from(
+          cuadrillaActualizada['empleados'] ?? [],
+        );
+
+        print('🔍 Debug - Empleados en cuadrilla local: ${empleadosEnCuadrilla.length}');
 
         // Inicializamos las listas de visualización filtrada
         empleadosDisponiblesFiltrados = List.from(todosLosEmpleados);
@@ -655,7 +777,9 @@ CONCAT(e.nombre, ' ', e.apellido_paterno, ' ', e.apellido_materno) AS nombre,
       if (index >= 0 && index < empleadosFiltrados.length) {
         setState(() {
           if (key == 'comedor') {
-            empleadosFiltrados[index][key] = value as bool;
+            // Comedor ahora es un valor numérico (para restar del subtotal)
+            empleadosFiltrados[index][key] = 
+                double.tryParse(value.toString()) ?? 0.0;
           } else if (key.startsWith('dia_') || key == 'debe') {
             empleadosFiltrados[index][key] =
                 int.tryParse(value.toString()) ?? 0;
@@ -690,6 +814,13 @@ CONCAT(e.nombre, ' ', e.apellido_paterno, ' ', e.apellido_materno) AS nombre,
         cuadrillaId: _selectedCuadrilla['id'],
         empleados: empleadosFiltrados,
       );*/
+
+      // ✅ Actualizar las cuadrillas después de guardar para refrescar el "Total semana"
+      if (idSemanaSeleccionada != null) {
+        await _cargarCuadrillasSemana(idSemanaSeleccionada!);
+        // ✅ Cargar empleados de todas las cuadrillas desde la BD
+        await _cargarEmpleadosDeCuadrillas();
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -923,6 +1054,7 @@ CONCAT(e.nombre, ' ', e.apellido_paterno, ' ', e.apellido_materno) AS nombre,
                             optionsCuadrilla: _optionsCuadrilla,
                             startDate: _startDate,
                             endDate: _endDate,
+                            semanaId: idSemanaSeleccionada,
                           ),
                         ),
                       ],
@@ -975,22 +1107,37 @@ CONCAT(e.nombre, ' ', e.apellido_paterno, ' ', e.apellido_materno) AS nombre,
               selectedCuadrilla: _selectedCuadrilla,
               todosLosEmpleados: todosLosEmpleados,
               empleadosEnCuadrilla: empleadosEnCuadrilla,
-              onCuadrillaSaved: (cuadrilla, empleados) {
+              onCuadrillaSaved: (cuadrilla, empleados) async {
                 setState(() {
                   // Actualizar la cuadrilla seleccionada con los nuevos empleados
                   _selectedCuadrilla = cuadrilla;
+                  cuadrillaSeleccionada = cuadrilla; // ✅ Asignar cuadrillaSeleccionada también
                   empleadosEnCuadrilla = empleados;
 
-                  // Actualizar la lista en _optionsCuadrilla
-                  _selectedCuadrilla['empleados'] =
-                      List<Map<String, dynamic>>.from(empleados);
+                  // Buscar y actualizar la cuadrilla en _optionsCuadrilla
+                  final indiceCuadrilla = _optionsCuadrilla.indexWhere(
+                    (c) => c['nombre'] == cuadrilla['nombre']
+                  );
+                  
+                  if (indiceCuadrilla != -1) {
+                    // Actualizar la cuadrilla existente en la lista compartida
+                    _optionsCuadrilla[indiceCuadrilla]['empleados'] =
+                        List<Map<String, dynamic>>.from(empleados);
+                  }
 
                   // Cerrar el diálogo
                   showArmarCuadrilla = false;
-
-                  // Llamar a la función existente para manejar los datos
-                  _toggleArmarCuadrilla();
                 });
+                
+                // ✅ Recargar todas las cuadrillas para asegurar sincronización completa
+                if (idSemanaSeleccionada != null) {
+                  await _cargarCuadrillasSemana(idSemanaSeleccionada!);
+                  // ✅ Cargar empleados de todas las cuadrillas desde la BD
+                  await _cargarEmpleadosDeCuadrillas();
+                }
+                
+                // Cargar los datos completos de nómina usando la función existente
+                await cargarDatosNomina();
               },
               onClose: () => setState(() => showArmarCuadrilla = false),
               onMostrarDetallesEmpleado: _mostrarDetallesEmpleado,

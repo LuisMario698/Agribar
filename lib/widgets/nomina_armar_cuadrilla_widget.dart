@@ -3,7 +3,7 @@ import 'package:agribar/services/semana_service.dart';
 import 'package:flutter/material.dart';
 import 'dart:ui';
 import '../theme/app_styles.dart';
-import 'custom_dropdown_menu.dart';
+import 'dropdown_cuadrillas_armar.dart';
 
 /// Widget modular para manejar el diálogo de "Armar Cuadrilla"
 /// Encapsula toda la funcionalidad relacionada con la creación y edición de cuadrillas
@@ -96,7 +96,35 @@ class _NominaArmarCuadrillaWidgetState
   @override
   void initState() {
     super.initState();
+    _inicializarDatos(desdeInitState: true);
+  }
 
+  @override
+  void didUpdateWidget(NominaArmarCuadrillaWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Si los datos del widget han cambiado, actualizar las variables locales
+    if (oldWidget.selectedCuadrilla != widget.selectedCuadrilla ||
+        oldWidget.empleadosEnCuadrilla != widget.empleadosEnCuadrilla ||
+        oldWidget.todosLosEmpleados != widget.todosLosEmpleados) {
+      _inicializarDatos();
+    }
+  }
+
+  /// Inicializa o actualiza los datos locales del widget
+  void _inicializarDatos({bool desdeInitState = false}) {
+    if (desdeInitState) {
+      // Durante initState, no usar setState
+      _actualizarDatosInternos();
+    } else {
+      // Fuera de initState, usar setState para refrescar la UI
+      setState(() {
+        _actualizarDatosInternos();
+      });
+    }
+  }
+
+  /// Actualiza los datos internos sin setState
+  void _actualizarDatosInternos() {
     // Inicializar estados locales
     selectedCuadrillaLocal = Map<String, dynamic>.from(
       widget.selectedCuadrilla,
@@ -113,6 +141,10 @@ class _NominaArmarCuadrillaWidgetState
     for (var empleado in empleadosEnCuadrillaLocal) {
       empleado['puesto'] = empleado['puesto'] ?? 'Jornalero';
     }
+
+    // Limpiar los controladores de búsqueda
+    _buscarDisponiblesController.clear();
+    _buscarEnCuadrillaController.clear();
   }
 
   @override
@@ -336,15 +368,15 @@ class _NominaArmarCuadrillaWidgetState
                           const SizedBox(width: 12),
                           Expanded(
                             flex: 3,
-                            child: CustomDropdownMenu(
-                              options: widget.optionsCuadrilla,
-                              selectedOption:
+                            child: DropdownCuadrillasArmar(
+                              opcionesCuadrillas: widget.optionsCuadrilla,
+                              cuadrillaSeleccionada:
                                   selectedCuadrillaLocal['nombre'] == ''
                                       ? null
                                       : selectedCuadrillaLocal,
-                              onOptionSelected: (Map<String, dynamic>? option) {
+                              alSeleccionarCuadrilla: (Map<String, dynamic>? opcion) {
                                 setState(() {
-                                  if (option == null) {
+                                  if (opcion == null) {
                                     selectedCuadrillaLocal = {
                                       'nombre': '',
                                       'empleados': [],
@@ -355,10 +387,10 @@ class _NominaArmarCuadrillaWidgetState
                                     );
                                     empleadosEnCuadrillaFiltrados = [];
                                   } else {
-                                    selectedCuadrillaLocal = option;
+                                    selectedCuadrillaLocal = opcion;
                                     empleadosEnCuadrillaLocal =
                                         List<Map<String, dynamic>>.from(
-                                          option['empleados'] ?? [],
+                                          opcion['empleados'] ?? [],
                                         );
                                     empleadosDisponiblesFiltrados = List.from(
                                       widget.todosLosEmpleados,
@@ -371,15 +403,9 @@ class _NominaArmarCuadrillaWidgetState
                                   }
                                 });
                               },
-                              displayKey: 'nombre',
-                              valueKey: 'nombre',
-                              hint: 'Seleccionar cuadrilla',
-                              icon: Icon(
-                                Icons.groups,
-                                color: AppColors.greenDark,
-                              ),
-                              allowDeselect: true,
-                              searchHint: 'Buscar cuadrilla...',
+                              textoPlaceholder: 'Seleccionar cuadrilla',
+                              permitirDeseleccion: true,
+                              textoBusqueda: 'Buscar cuadrilla...',
                             ),
                           ),
                         ],
@@ -941,7 +967,7 @@ class _NominaArmarCuadrillaWidgetState
                       FilledButton.icon(
                         onPressed: _guardarCambios,
                         icon: const Icon(Icons.check),
-                        label: const Text('Guardar Cambioss'),
+                        label: const Text('Guardar cambios'),
                         style: FilledButton.styleFrom(
                           backgroundColor: AppColors.green,
                           padding: const EdgeInsets.symmetric(
