@@ -246,12 +246,7 @@ void cargarCuadrillas() async {
               );
           
           // Si no hay empleados con datos completos, obtener empleados básicos
-          if (empleadosCuadrilla.isEmpty) {
-            empleadosCuadrilla = await obtenerEmpleadosBasicosDeCuadrilla(
-              idSemanaSeleccionada!,
-              cuadrilla['id'],
-            );
-          }
+         
           
           // Actualizar la cuadrilla con los empleados de la BD
           setState(() {
@@ -360,7 +355,8 @@ void cargarCuadrillas() async {
     for (int i = 0; i < empleadosFiltrados.length; i++) {
       final empleado = empleadosFiltrados[i];
       final idEmpleado = empleado['id'];
- 
+       empleado['dia_${i}_id'] ??= 0;
+      empleado['dia_${i}_s'] ??= 0;
       final result = await db.connection.query(
         'SELECT id_nomina FROM nomina_empleados_semanal WHERE id_empleado = @idEmp AND id_semana = @idSemana',
         substitutionValues: {'idEmp': idEmpleado, 'idSemana': idSemana},
@@ -370,13 +366,20 @@ void cargarCuadrillas() async {
         'id_empleado': idEmpleado,
         'id_semana': idSemana,
         'id_cuadrilla': idCuadrilla,
-        'dia_1': empleado['dia_0'] ?? 0,
-        'dia_2': empleado['dia_1'] ?? 0,
-        'dia_3': empleado['dia_2'] ?? 0,
-        'dia_4': empleado['dia_3'] ?? 0,
-        'dia_5': empleado['dia_4'] ?? 0,
-        'dia_6': empleado['dia_5'] ?? 0,
-        'dia_7': empleado['dia_6'] ?? 0,
+        'act_1': empleado['dia_0_id'] ?? 0,
+        'dia_1': empleado['dia_0_s'] ?? 0,
+        'act_2': empleado['dia_1_id'] ?? 0,
+        'dia_2': empleado['dia_1_s'] ?? 0,
+        'act_3': empleado['dia_2_id'] ?? 0,
+        'dia_3': empleado['dia_2_s'] ?? 0,
+        'act_4': empleado['dia_3_id'] ?? 0,
+        'dia_4': empleado['dia_3_s'] ?? 0,
+        'act_5': empleado['dia_4_id'] ?? 0,
+        'dia_5': empleado['dia_4_s'] ?? 0,
+        'act_6': empleado['dia_5_id'] ?? 0,
+        'dia_6': empleado['dia_5_s'] ?? 0,
+        'act_7': empleado['dia_6_id'] ?? 0,
+        'dia_7': empleado['dia_6_s'] ?? 0,
         'total': empleado['total'] ?? 0,
         'debe': empleado['debe'] ?? 0,
         'subtotal': empleado['subtotal'] ?? 0,
@@ -388,29 +391,45 @@ void cargarCuadrillas() async {
         // Si existe, actualiza
         await db.connection.query(
           '''UPDATE nomina_empleados_semanal
-           SET dia_1 = @d1,
+    SET 
+    act_1 = @a1,
+    dia_1 = @d1,
+    act_2 = @a2,
     dia_2 = @d2,
+    act_3 = @a3,
     dia_3 = @d3,
+    act_4 = @a4,
     dia_4 = @d4,
+    act_5 = @a5,
     dia_5 = @d5,
+    act_6 = @a6,
     dia_6 = @d6,
+    act_7 = @a7,
     dia_7 = @d7,
                total = @total, debe = @debe, subtotal = @subtotal, comedor = @comedor, total_neto = @neto,
                id_cuadrilla = @idCuadrilla
            WHERE id_empleado = @idEmp AND id_semana = @idSemana
         ''',
           substitutionValues: {
+            'a1': data['act_1'],
             'd1': data['dia_1'],
+            'a2': data['act_2'],
             'd2': data['dia_2'],
+            'a3': data['act_3'],
             'd3': data['dia_3'],
-            'd4': data['dia_3'],
+            'a4': data['act_4'],
+            'd4': data['dia_4'],
+            'a5': data['act_5'],
             'd5': data['dia_5'],
+            'a6': data['act_6'],
             'd6': data['dia_6'],
+            'a7': data['act_7'],
             'd7': data['dia_7'],
+
             'total': data['total'],
             'debe': data['debe'],
             'subtotal': data['subtotal'],
-            'comedor': data['comedor'],
+          'comedor': double.tryParse(data['comedor']?.toString() ?? '0') ?? 0,
             'neto': data['total_neto'],
             'idCuadrilla': idCuadrilla,
             'idEmp': idEmpleado,
