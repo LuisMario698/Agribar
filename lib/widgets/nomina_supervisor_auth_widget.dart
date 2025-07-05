@@ -1,3 +1,4 @@
+import 'package:agribar/services/database_service.dart';
 import 'package:flutter/material.dart';
 import '../theme/app_styles.dart';
 
@@ -32,15 +33,88 @@ class _NominaSupervisorAuthWidgetState extends State<NominaSupervisorAuthWidget>
     super.dispose();
   }
 
-  void _handleAuth() {
+  Future<void> _handleAuth() async {
     if (_userController.text == 'supervisor' && _passwordController.text == '1234') {
       widget.onAuthSuccess();
+      await respaldarYLimpiarNominaUltimaSemana(_userController.text);
     } else {
       setState(() {
         _errorMessage = 'Usuario o contraseña incorrectos';
       });
     }
   }
+Future<void> respaldarYLimpiarNominaUltimaSemana(String usuario) async {
+  final db = DatabaseService();
+  await db.connect();
+
+  int idSemana;
+
+  // 1. Obtener el último id_semana
+  final result = await db.connection.query(
+    '''
+    SELECT id_semana 
+    FROM semanas_nomina 
+    ORDER BY fecha_inicio DESC 
+    LIMIT 1;
+    '''
+  );
+  if (result.isEmpty) {
+    // No hay semanas registradas
+    await db.close();
+    throw Exception('No hay semanas registradas');
+  }
+  idSemana = result.first[0]; // o result.first['id_semana'] según tu driver
+
+  // 2. Inicia la transacción de respaldo, limpieza y cierre
+  await db.connection.transaction((ctx) async {
+    // Respaldar a historial
+    await ctx.query(
+      '''
+      INSERT INTO nomina_empleados_historial (
+        id_empleado, id_semana, id_cuadrilla,
+        dia_1, dia_2, dia_3, dia_4, dia_5, dia_6,
+        total, debe, subtotal, comedor, total_neto,
+        fecha_cierre, usuario_cierre,
+        dia_7,
+        act_1, act_2, act_3, act_4, act_5, act_6, act_7
+      )
+      SELECT
+        id_empleado, id_semana, id_cuadrilla,
+        dia_1, dia_2, dia_3, dia_4, dia_5, dia_6,
+        total, debe, subtotal, comedor, total_neto,
+        NOW(), @usuario,
+        dia_7,
+        act_1, act_2, act_3, act_4, act_5, act_6, act_7
+      FROM nomina_empleados_semanal
+      WHERE id_semana = @id_semana;
+      ''',
+      substitutionValues: {'usuario': usuario, 'id_semana': idSemana},
+    );
+
+    // Eliminar nómina semanal solo de esa semana
+    await ctx.query(
+      '''
+      DELETE FROM nomina_empleados_semanal
+      WHERE id_semana = @id_semana;
+      ''',
+      substitutionValues: {'id_semana': idSemana},
+    );
+
+    // Marcar la semana como cerrada
+    await ctx.query(
+      '''
+      UPDATE semanas_nomina
+      SET esta_cerrada = true,
+          autorizado_por = @usuario,
+          fecha_autorizacion = NOW()
+      WHERE id_semana = @id_semana;
+      ''',
+      substitutionValues: {'usuario': usuario, 'id_semana': idSemana},
+    );
+  });
+
+  await db.close();
+}
 
   @override
   Widget build(BuildContext context) {

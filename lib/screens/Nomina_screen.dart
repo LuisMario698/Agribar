@@ -182,53 +182,6 @@ void cargarCuadrillas() async {
     });
   }
 
-  // ✅ Nueva función para cargar empleados básicos de una cuadrilla desde la BD
-  Future<List<Map<String, dynamic>>> obtenerEmpleadosBasicosDeCuadrilla(
-    int semanaId,
-    int cuadrillaId,
-  ) async {
-    final db = DatabaseService();
-    await db.connect();
-
-    final result = await db.connection.query(
-      '''
-      SELECT 
-        e.codigo,
-        CONCAT(e.nombre, ' ', e.apellido_paterno, ' ', e.apellido_materno) AS nombre,  
-        e.id_empleado
-      FROM nomina_empleados_semanal n
-      JOIN empleados e ON e.id_empleado = n.id_empleado
-      WHERE n.id_semana = @semanaId AND n.id_cuadrilla = @cuadrillaId;
-    ''',
-      substitutionValues: {'semanaId': semanaId, 'cuadrillaId': cuadrillaId},
-    );
-
-    await db.close();
-
-    return result
-        .map(
-          (row) => {
-            'codigo': row[0],
-            'clave': row[0],
-            'nombre': row[1],
-            'id': row[2],
-            // Agregar campos por defecto para compatibilidad
-            'puesto': 'Jornalero',
-            'dia_0': 0,
-            'dia_1': 0,
-            'dia_2': 0,
-            'dia_3': 0,
-            'dia_4': 0,
-            'dia_5': 0,
-            'dia_6': 0,
-            'total': 0,
-            'debe': 0,
-            'subtotal': 0,
-            'comedor': 0,
-          },
-        )
-        .toList();
-  }
 
   // ✅ Nueva función para cargar empleados de todas las cuadrillas desde la BD
   Future<void> _cargarEmpleadosDeCuadrillas() async {
@@ -485,17 +438,17 @@ void cargarCuadrillas() async {
        e.codigo,
 CONCAT(e.nombre, ' ', e.apellido_paterno, ' ', e.apellido_materno) AS nombre,  
  e.id_empleado,      
-        n.dia_1,
-        n.dia_2,
-        n.dia_3,
-        n.dia_4,
-        n.dia_5,
-        n.dia_6,
-        n.dia_7,
+      n.dia_1, n.act_1,
+      n.dia_2, n.act_2,
+      n.dia_3, n.act_3,
+      n.dia_4, n.act_4,
+      n.dia_5, n.act_5,
+      n.dia_6, n.act_6,
+      n.dia_7, n.act_7,
         n.total,
         n.debe,
         n.subtotal,
-        n.comedor
+        n.comedor, total_neto
       FROM nomina_empleados_semanal n
       JOIN empleados e ON e.id_empleado = n.id_empleado
       WHERE n.id_semana = @semanaId AND n.id_cuadrilla = @cuadrillaId;
@@ -512,17 +465,25 @@ CONCAT(e.nombre, ' ', e.apellido_paterno, ' ', e.apellido_materno) AS nombre,
             'clave': row[0], // ✅ Agregar clave que es lo mismo que código
             'nombre': row[1],
             'id': row[2],
-            'dia_0': row[3], // ✅ Mapear dia_1 de BD a dia_0 de la app
-            'dia_1': row[4], // ✅ Mapear dia_2 de BD a dia_1 de la app
-            'dia_2': row[5], // ✅ Mapear dia_3 de BD a dia_2 de la app
-            'dia_3': row[6], // ✅ Mapear dia_4 de BD a dia_3 de la app
-            'dia_4': row[7], // ✅ Mapear dia_5 de BD a dia_4 de la app
-            'dia_5': row[8], // ✅ Mapear dia_6 de BD a dia_5 de la app
-            'dia_6': row[9], // ✅ Mapear dia_7 de BD a dia_6 de la app
-            'total': row[10],
-            'debe': row[11],
-            'subtotal': row[12],
-            'comedor': row[13],
+          'dia_0': row[3],
+          'act_0': row[4],
+          'dia_1': row[5],
+          'act_1': row[6],
+          'dia_2': row[7],
+          'act_2': row[8],
+          'dia_3': row[9],
+          'act_3': row[10],
+          'dia_4': row[11],
+          'act_4': row[12],
+          'dia_5': row[13],
+          'act_5': row[14],
+          'dia_6': row[15],
+          'act_6': row[16],
+          'total': row[17],
+          'debe': row[18],
+          'subtotal': row[19],
+          'comedor': row[20],
+          'total_neto': row[21],
           },
         )
         .toList();
