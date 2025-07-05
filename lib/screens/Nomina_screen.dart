@@ -87,6 +87,9 @@ class _NominaScreenState extends State<NominaScreen> {
   List<Map<String, dynamic>> semanasCerradas = [];
   bool showSemanasCerradas = false;
   int? semanaCerradaSeleccionada;
+//Variables para las cuadrillas 
+List<Map<String, dynamic>> cuadrillas = [];
+bool loading = true;
 
   // Variables para manejo de empleados y cuadrillas
   bool showArmarCuadrilla = false;
@@ -99,7 +102,7 @@ class _NominaScreenState extends State<NominaScreen> {
     // _selectedCuadrilla = {'nombre': '', 'empleados': []};
     _cargarCuadrillasHabilitadas();
     _loadInitialData();
-
+ cargarCuadrillas();
     verificarSemanaActiva();
     _selectedCuadrilla = {'nombre': '', 'empleados': []};
     _startDate = null;
@@ -109,7 +112,13 @@ class _NominaScreenState extends State<NominaScreen> {
     empleadosDisponiblesFiltrados = List.from(todosLosEmpleados);
     empleadosEnCuadrillaFiltrados = [];
   }
-
+void cargarCuadrillas() async {
+  final data = await obtenerCuadrillas();
+  setState(() {
+    cuadrillas = data;
+    loading = false;
+  });
+}
   Future<void> cargarDatosNomina() async {
     if (semanaSeleccionada != null && cuadrillaSeleccionada != null) {
       final data = await obtenerNominaEmpleadosDeCuadrilla(
@@ -440,7 +449,7 @@ class _NominaScreenState extends State<NominaScreen> {
         );
       }*/
     }
-  await db.close(); // 🧼 Cierra conexión al final
+  await db.close(); 
     print("Nómina guardada correctamente.");
   }
 
@@ -911,6 +920,7 @@ CONCAT(e.nombre, ' ', e.apellido_paterno, ' ', e.apellido_materno) AS nombre,
 
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
       body: Stack(
         children: [
@@ -1102,9 +1112,10 @@ CONCAT(e.nombre, ' ', e.apellido_paterno, ' ', e.apellido_materno) AS nombre,
               },
             ), // Diálogo de armar cuadrilla modularizado
           if (showArmarCuadrilla)
+
             NominaArmarCuadrillaWidget(
-              optionsCuadrilla: _optionsCuadrilla,
-              selectedCuadrilla: _selectedCuadrilla,
+              optionsCuadrilla: cuadrillas,
+              selectedCuadrilla: cuadrillas.isNotEmpty ? cuadrillas.first : {},
               todosLosEmpleados: todosLosEmpleados,
               empleadosEnCuadrilla: empleadosEnCuadrilla,
               onCuadrillaSaved: (cuadrilla, empleados) async {

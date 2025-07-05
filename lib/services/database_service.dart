@@ -154,3 +154,14 @@ Future<List<Map<String, String>>> obtenerReportePorEmpleado() async {
   }).toList();
 }
 
+
+Future<List<Map<String, dynamic>>> obtenerCuadrillas() async {
+  final db = DatabaseService();
+  await db.connect();
+  final result = await db.connection.query('SELECT id_cuadrilla, nombre FROM cuadrillas WHERE estado = true ORDER BY nombre;');
+  await db.close();
+  return result.map((row) => {
+    'id': row[0],
+    'nombre': row[1],
+  }).toList();
+}
