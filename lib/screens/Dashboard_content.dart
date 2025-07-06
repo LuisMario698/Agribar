@@ -2,6 +2,7 @@
 /// Muestra información relevante como métricas, gráficos y alertas.
 /// Se adapta a diferentes tamaños de pantalla para una mejor experiencia de usuario.
 
+import 'package:agribar/services/database_service.dart';
 import 'package:flutter/material.dart';
 import 'Dashboard_screen.dart';
 import 'package:agribar/widgets/metric_card.dart';
@@ -18,8 +19,8 @@ class DashboardHomeContent extends StatefulWidget {
   final String userRole; // Rol del usuario (Admin, Supervisor, etc.)
 
   const DashboardHomeContent({
-    this.userName = 'Juan Pérez',
-    this.userRole = 'Supervisor',
+    required this.userName,
+    required this.userRole,
     Key? key,
   }) : super(key: key);
 
@@ -33,6 +34,140 @@ class DashboardHomeContent extends StatefulWidget {
 /// - Actualización de métricas
 class _DashboardHomeContentState extends State<DashboardHomeContent> {
   bool showPercentages = true; // Toggle para mostrar/ocultar porcentajes
+  double totalSemana = 0.0;
+  int totalCuadrillas = 0;
+int totalRegistros = 0;
+int totalActividades = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Cargar el total de nómina al iniciar
+    cargarTotalNomina();
+    cargarTotalCuadrillas();
+    cargarTotalRegistros();
+cargarTotalActividades();
+  }
+  Future<int> obtenerCantidadActividadesDiferentes() async {
+  final dbService = DatabaseService();
+  await dbService.connect();
+
+  final results = await dbService.connection.query(
+    '''
+    SELECT COUNT(DISTINCT actividad)
+    FROM (
+      SELECT act_1 AS actividad FROM nomina_empleados_semanal WHERE id_semana = (SELECT MAX(id_semana) FROM nomina_empleados_semanal)
+      UNION ALL
+      SELECT act_2 AS actividad FROM nomina_empleados_semanal WHERE id_semana = (SELECT MAX(id_semana) FROM nomina_empleados_semanal)
+      UNION ALL
+      SELECT act_3 AS actividad FROM nomina_empleados_semanal WHERE id_semana = (SELECT MAX(id_semana) FROM nomina_empleados_semanal)
+      UNION ALL
+      SELECT act_4 AS actividad FROM nomina_empleados_semanal WHERE id_semana = (SELECT MAX(id_semana) FROM nomina_empleados_semanal)
+      UNION ALL
+      SELECT act_5 AS actividad FROM nomina_empleados_semanal WHERE id_semana = (SELECT MAX(id_semana) FROM nomina_empleados_semanal)
+      UNION ALL
+      SELECT act_6 AS actividad FROM nomina_empleados_semanal WHERE id_semana = (SELECT MAX(id_semana) FROM nomina_empleados_semanal)
+      UNION ALL
+      SELECT act_7 AS actividad FROM nomina_empleados_semanal WHERE id_semana = (SELECT MAX(id_semana) FROM nomina_empleados_semanal)
+    ) AS todas_actividades
+    WHERE actividad <> 0;
+    '''
+  );
+
+  await dbService.close();
+
+  if (results.isNotEmpty) {
+    return int.parse(results.first[0].toString());
+  } else {
+    return 0;
+  }
+}
+void cargarTotalActividades() async {
+  final resultado = await obtenerCantidadActividadesDiferentes();
+  setState(() {
+    totalActividades = resultado;
+  });
+}
+Future<int> obtenerNumeroRegistrosSemanaActual() async {
+  final dbService = DatabaseService();
+  await dbService.connect();
+
+  final results = await dbService.connection.query(
+    '''
+    SELECT COUNT(*)
+    FROM nomina_empleados_semanal
+    WHERE id_semana = (SELECT MAX(id_semana) FROM nomina_empleados_semanal)
+    '''
+  );
+
+  await dbService.close();
+
+  if (results.isNotEmpty) {
+    return int.parse(results.first[0].toString());
+  } else {
+    return 0;
+  }
+}
+
+void cargarTotalRegistros() async {
+  final resultado = await obtenerNumeroRegistrosSemanaActual();
+  setState(() {
+    totalRegistros = resultado;
+  });
+}
+
+  //Metodos
+  Future<double> obtenerTotalNominaSemana() async {
+    final dbService = DatabaseService();
+    await dbService.connect();
+
+    final results = await dbService.connection.query('''
+SELECT total_semana
+    FROM resumen_nomina
+    WHERE id_semana = (SELECT MAX(id_semana) FROM resumen_nomina);
+    ''');
+
+    await dbService.close();
+
+    if (results.isNotEmpty) {
+      return double.parse(results.first[0].toString());
+    } else {
+      return 0.0;
+    }
+  }
+
+  void cargarTotalNomina() async {
+    final resultado = await obtenerTotalNominaSemana();
+    setState(() {
+      totalSemana = resultado;
+    });
+  }
+
+  Future<int> obtenerTotalCuadrillasSemanaActual() async {
+    final dbService = DatabaseService();
+    await dbService.connect();
+
+    final results = await dbService.connection.query('''
+    SELECT COUNT(DISTINCT id_cuadrilla)
+    FROM nomina_empleados_semanal
+    WHERE id_semana = (SELECT MAX(id_semana) FROM nomina_empleados_semanal)
+    ''');
+
+    await dbService.close();
+
+    if (results.isNotEmpty) {
+      return int.parse(results.first[0].toString());
+    } else {
+      return 0;
+    }
+  }
+
+  void cargarTotalCuadrillas() async {
+    final resultado = await obtenerTotalCuadrillasSemanaActual();
+    setState(() {
+      totalCuadrillas = resultado;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -119,7 +254,7 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
                               width: metricCardWidth,
                               child: MetricCard(
                                 title: 'Empleados activos',
-                                value: '87',
+                                value: totalRegistros.toString(),
                                 icon: Icons.person,
                                 iconColor: Color(0xFF6B4F27),
                                 isSmallScreen:
@@ -130,7 +265,7 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
                               width: metricCardWidth,
                               child: MetricCard(
                                 title: 'Cuadrillas activas',
-                                value: '7',
+                                value: totalCuadrillas.toString(),
                                 icon: Icons.agriculture,
                                 iconColor: Color(0xFF6B4F27),
                                 isSmallScreen: isSmallScreen,
@@ -140,7 +275,7 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
                               width: metricCardWidth,
                               child: MetricCard(
                                 title: 'Nómina semanal',
-                                value: '\u0024120,000',
+                                value: '\$${totalSemana.toStringAsFixed(2)}',
                                 icon: Icons.attach_money,
                                 iconColor: Colors.orange,
                                 isSmallScreen: isSmallScreen,
@@ -149,8 +284,8 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
                             SizedBox(
                               width: metricCardWidth,
                               child: MetricCard(
-                                title: 'Actividades hoy',
-                                value: '5',
+                                title: 'Actividades semanales',
+                                value: totalActividades.toString(),
                                 icon: Icons.event_note,
                                 iconColor: Colors.purple,
                                 isSmallScreen: isSmallScreen,

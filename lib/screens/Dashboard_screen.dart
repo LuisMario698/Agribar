@@ -26,11 +26,13 @@ class DashboardScreen extends StatefulWidget {
   final AppTheme appTheme; // Tema actual de la aplicación
   final void Function(AppTheme)?
   onThemeChanged; // Callback para cambiar el tema
-
+ final String nombre;
+  final String rol;
   const DashboardScreen({
     super.key,
     this.appTheme = AppTheme.light, // Por defecto usa el tema claro
     this.onThemeChanged,
+     required this.nombre, required this.rol
   });
 
   @override
@@ -85,7 +87,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _getBodyContent() {
     switch (selectedIndex) {
       case 0:
-        return DashboardHomeContent();
+        return DashboardHomeContent(userName: widget.nombre,userRole: widget.rol,);
       case 1:
         return EmpleadosContent();
       case 2:

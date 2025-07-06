@@ -31,9 +31,19 @@ class _LoginScreenState extends State<LoginScreen> {
       await dbService.close();
 
       if (results.isNotEmpty) {
+         // Obtiene el primer resultado (registro del usuario)
+  final usuario = results.first;
+  final nombre = usuario[1]; // por ejemplo usuario[1]
+  final rol = usuario[4];       // por ejemplo usuario[3]
+  // TIP: usa print(usuario) para ver el orden
+
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => DashboardScreen()),
+          MaterialPageRoute(builder: (context) => DashboardScreen(
+nombre: nombre,
+        rol: rol,
+
+          )),
         );
       } else {
         setState(() {
