@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-
+import '../services/registrar_actividad.dart';
 // Archivo: Actividades_content.dart
 // Pantalla para la gestión de actividades en el sistema Agribar
 // Estructura profesionalizada y documentada en español
@@ -19,23 +19,29 @@ class _ActividadesContentState extends State<ActividadesContent> {
   DateTime? fecha;
   final TextEditingController fechaController = TextEditingController();
   final TextEditingController searchController = TextEditingController();
+@override
+void initState() {
+  super.initState();
+  cargarActividadesDesdeBD();
+}
 
+Future<void> cargarActividadesDesdeBD() async {
+  final resultado = await obtenerActividadesDesdeBD();
+  setState(() {
+    actividades.clear();
+    for (var fila in resultado) {
+      actividades.add([
+        fila['clave'],
+        fila['fecha'],
+        fila['importe'],
+        fila['nombre'],
+      ]);
+    }
+  });
+}
   // Lista de actividades con datos de ejemplo
   final List<List<String>> actividades = [
-    // [Clave, Fecha, Importe, Actividad]
-    ['1', '25/04/2025', '\u024300', 'Destajo'],
-    ['1315', '25/04/2025', '\u024300', 'Tapadora'],
-    ['1305', '25/04/2025', '\u024200', 'Limpieza'],
-    ['1400', '25/04/2025', '\u024500', 'Cosecha'],
-    ['1500', '25/04/2025', '\u024100', 'Riego'],
-    ['1600', '25/04/2025', '\u024350', 'Fertilización'],
-    ['1700', '25/04/2025', '\u024250', 'Poda'],
-    ['1800', '25/04/2025', '\u024400', 'Transplante'],
-    ['1900', '25/04/2025', '\u024150', 'Siembra'],
-    ['2000', '25/04/2025', '\u024300', 'Aplicación de Plaguicida'],
-    ['2100', '25/04/2025', '\u024180', 'Deshierbe'],
-    ['2200', '25/04/2025', '\u024320', 'Empaque'],
-    ['2300', '25/04/2025', '\u024210', 'Carga'],
+ 
   ];
 
   /// Obtiene las actividades filtradas según el texto de búsqueda
@@ -48,39 +54,47 @@ class _ActividadesContentState extends State<ActividadesContent> {
   }
 
   /// Agrega una nueva actividad a la lista
-  void agregarActividad() {
-    if (claveController.text.isEmpty ||
-        importeController.text.isEmpty ||
-        fechaController.text.isEmpty ||
-        nombreController.text.isEmpty) {
-      // Mostrar mensaje de error si hay campos vacíos
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor completa todos los campos'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    setState(() {
-      actividades.add([
-        claveController.text,
-        fechaController.text,
-        importeController.text,
-        nombreController.text,
-      ]);
-      _limpiarCampos();
-    });
-
-    // Mostrar mensaje de éxito
+Future<void> agregarActividad() async {
+  if (importeController.text.isEmpty ||
+      fechaController.text.isEmpty ||
+      nombreController.text.isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Actividad agregada correctamente'),
-        backgroundColor: Color(0xFF23611C),
+        content: Text('Por favor completa todos los campos'),
+        backgroundColor: Colors.red,
+      ),
+    );
+    return;
+  }
+
+  final claveGenerada = await generarSiguienteClaveActividad();
+  final nuevaActividad = {
+    'clave': claveGenerada,
+    'fecha': fechaController.text,
+    'importe': double.tryParse(importeController.text) ?? 0.0,
+    'nombre': nombreController.text,
+  };
+
+  try {
+    await registrarActividadEnBD(nuevaActividad);
+    await cargarActividadesDesdeBD();
+    _limpiarCampos();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Actividad registrada correctamente'),
+        backgroundColor: Colors.green,
+      ),
+    );
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Error al registrar actividad: $e'),
+        backgroundColor: Colors.red,
       ),
     );
   }
+}
 
   /// Limpia todos los campos del formulario
   void _limpiarCampos() {
@@ -418,13 +432,11 @@ class _ActividadesContentState extends State<ActividadesContent> {
             firstDate: DateTime(2000),
             lastDate: DateTime(2100),
           );
-          if (picked != null) {
-            setState(() {
-              fecha = picked;
-              fechaController.text = "${picked.day.toString().padLeft(2, '0')}/${picked.month.toString().padLeft(2, '0')}/${picked.year}";
-            });
-          }
-        },
+          setState(() {
+            fecha = picked;
+            fechaController.text = "${picked?.day.toString().padLeft(2, '0')}/${picked?.month.toString().padLeft(2, '0')}/${picked?.year}";
+          });
+                },
       ),
     );
   }

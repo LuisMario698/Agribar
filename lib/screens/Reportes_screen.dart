@@ -4,10 +4,11 @@ import 'dart:ui';
 import '../widgets/custom_search_bar.dart';
 import '../widgets/filter_button.dart';
 import '../widgets/date_selector.dart';
-import '../widgets/fullscreen_table_dialog.dart';
+
 import '../widgets/export_button_group.dart';
-import '../widgets/data_table_widget.dart';
-import '../widgets/chart_widget.dart';
+
+
+import '../widgets/reportes_table_dialog.dart';
 
 /// Pantalla de reportes del sistema Agribar.
 /// 
@@ -50,6 +51,13 @@ class _ReportesScreenState extends State<ReportesScreen> {
   // Controladores para el scroll de la tabla
   final ScrollController _horizontalController = ScrollController();
   final ScrollController _verticalController = ScrollController();
+
+  @override
+  void dispose() {
+    _horizontalController.dispose();
+    _verticalController.dispose();
+    super.dispose();
+  }
 
   // Datos de ejemplo para cada filtro
   final List<Map<String, String>> empleadosData = [
@@ -586,12 +594,43 @@ class _ReportesScreenState extends State<ReportesScreen> {
     }
   }
 
-  @override
-  void dispose() {
-    _horizontalController.dispose();
-    _verticalController.dispose();
-    super.dispose();
+
+  void showFullScreenDialog() {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext dialogContext) {
+        List<Map<String, String>> tableData = [];
+        final dialogHorizontalController = ScrollController();
+        final dialogVerticalController = ScrollController();
+        
+        switch (selectedFilter) {
+          case 0:
+            tableData = empleadosData;
+            break;
+          case 1:
+            tableData = cuadrillasData;
+            break;
+          case 2:
+            tableData = actividadesData;
+            break;
+        }
+
+        return ReportesTableDialog(
+          selectedFilter: selectedFilter,
+          data: tableData,
+          onClose: () {
+            dialogHorizontalController.dispose();
+            dialogVerticalController.dispose();
+            Navigator.of(dialogContext).pop();
+          },
+          horizontalController: dialogHorizontalController,
+          verticalController: dialogVerticalController,
+        );
+      },
+    );
   }
+
   @override
   Widget build(BuildContext context) {
   return Center(
@@ -647,17 +686,39 @@ class _ReportesScreenState extends State<ReportesScreen> {
                         IconButton(
                           icon: const Icon(Icons.fullscreen, color: Color(0xFF0B7A2F), size: 28),
                           tooltip: 'Expandir tabla',
-                          onPressed: () {
-                            showDialog(
+                          onPressed: () {                            showDialog(
                               context: context,
                               barrierColor: Colors.black.withOpacity(0.2),
                               builder: (context) {
-                                final _modalHorizontal = ScrollController();
-                                final _modalVertical = ScrollController();                                return FullscreenTableDialog(
-                                  table: _buildTableWithBorders(),
-                                  onClose: () => Navigator.of(context).pop(),
-                                  horizontalController: _modalHorizontal,
-                                  verticalController: _modalVertical,
+                                // Crear controladores separados para el diálogo
+                                final dialogHorizontalController = ScrollController();
+                                final dialogVerticalController = ScrollController();
+                                
+                                List<Map<String, String>> tableData = [];
+                                
+                                switch (selectedFilter) {
+                                  case 0:
+                                    tableData = empleadosData;
+                                    break;
+                                  case 1:
+                                    tableData = cuadrillasData;
+                                    break;
+                                  case 2:
+                                    tableData = actividadesData;
+                                    break;
+                                }
+                                
+                                return ReportesTableDialog(
+                                  selectedFilter: selectedFilter,
+                                  data: tableData,
+                                  onClose: () {
+                                    // Asegurarse de liberar los controladores
+                                    dialogHorizontalController.dispose();
+                                    dialogVerticalController.dispose();
+                                    Navigator.of(context).pop();
+                                  },
+                                  horizontalController: dialogHorizontalController,
+                                  verticalController: dialogVerticalController,
                                 );
                               },
                             );

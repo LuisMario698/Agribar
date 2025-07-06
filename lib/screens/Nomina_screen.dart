@@ -2,17 +2,23 @@
 /// Implementa la funcionalidad completa del sistema de nómina,
 /// incluyendo captura de días, cálculos y gestión de deducciones.
 
+import 'package:agribar/services/database_service.dart';
+import 'package:agribar/services/semana_service.dart';
 import 'package:flutter/material.dart';
 import 'dart:ui';
-import 'package:flutter/services.dart';
-import 'package:agribar/widgets/app_button.dart';
-import 'package:agribar/widgets/data_table_widget.dart';
-import 'package:agribar/widgets/indicator_card.dart';
-import 'package:agribar/widgets/dias_trabajados_table.dart';
-import 'package:agribar/widgets/editable_data_table.dart';
-import 'package:agribar/widgets/filter_bar.dart';
-import 'package:agribar/widgets/search_field.dart';
-import 'package:agribar/widgets/export_button_group.dart';
+
+import '../widgets/nomina_historial_semanas_cerradas_widget.dart';
+import '../widgets/nomina_armar_cuadrilla_widget.dart';
+import '../theme/app_styles.dart';
+import '../widgets/nomina_supervisor_auth_widget.dart';
+import '../widgets/nomina_actualizar_cuadrilla_widget.dart';
+import '../widgets/nomina_reiniciar_semana_widget.dart';
+import '../widgets/nomina_detalles_empleado_widget.dart';
+import '../widgets/nomina_week_selection_card.dart';
+import '../widgets/nomina_cuadrilla_selection_card.dart';
+import '../widgets/nomina_indicators_row.dart';
+import '../widgets/nomina_main_table_section.dart';
+import '../widgets/nomina_export_section.dart';
 
 /// Widget principal de la pantalla de nómina.
 /// Gestiona el proceso completo de nómina semanal incluyendo:
@@ -20,6 +26,15 @@ import 'package:agribar/widgets/export_button_group.dart';
 /// - Captura de días trabajados
 /// - Cálculo de percepciones y deducciones
 /// - Vista normal y expandida de la información
+///
+///variables de estado en _NominaScreenState
+DateTime? _startDate;
+DateTime? _endDate;
+bool _isWeekClosed = false;
+bool semanaActiva = false;
+bool _haySemanaActiva = false;
+Map<String, dynamic>? semanaSeleccionada;
+
 class NominaScreen extends StatefulWidget {
   const NominaScreen({
     super.key,
@@ -28,7 +43,7 @@ class NominaScreen extends StatefulWidget {
     this.onOpenFullTable, // Callback al abrir vista completa
   });
 
-  final bool showFullTable; // Estado de la vista de tabla
+  final bool showFullTable;
   final VoidCallback? onCloseFullTable;
   final VoidCallback? onOpenFullTable;
 
@@ -36,186 +51,130 @@ class NominaScreen extends StatefulWidget {
   State<NominaScreen> createState() => _NominaScreenState();
 }
 
-/// Estado del widget NominaScreen que mantiene:
-/// - Selección de cuadrilla y semana
-/// - Datos de empleados y sus registros
-/// - Cálculos de nómina
-/// - Estado de la interfaz
-///
-/// Funcionalidad principal:
-/// - Gestión de captura de días trabajados
-/// - Cálculo automático de percepciones y deducciones
-/// - Exportación de reportes en Excel y PDF
-/// - Vista normal y expandida de la tabla de nómina
-/// - Filtrado y búsqueda de registros
 class _NominaScreenState extends State<NominaScreen> {
-  // Datos de ejemplo de cuadrillas
-  List<Map<String, String>> cuadrillas = [
-    {
-      'nombre': 'Indirectos', // Nombre de la cuadrilla
-      'clave': '000001+390', // Identificador único
-      'grupo': 'Grupo Baranzini', // Grupo al que pertenece
-      'actividad': 'Destajo', // Tipo de actividad
-    },
-    {
-      'nombre': 'Linea 1',
-      'clave': '000002+390',
-      'grupo': 'Grupo Baranzini',
-      'actividad': 'Destajo',
-    },
-    {
-      'nombre': 'Linea 3',
-      'clave': '000003+390',
-      'grupo': 'Grupo Baranzini',
-      'actividad': 'Destajo',
-    },
-  ];
+  bool showTablaPrincipal =
+      true; // true for tabla principal, false for dias trabajados
+  bool isTableExpanded = false;
 
-  String? cuadrillaSeleccionada;
-  DateTimeRange? semanaSeleccionada;
-  final TextEditingController searchController = TextEditingController();
-
-  // Datos de nómina (mock, pero dinámicos)
-  List<Map<String, dynamic>> empleados = [
-    {
-      'clave': '1950',
-      'nombre': 'Adela Rodríguez Ramírez',
-      'dias': [0, 0, 0, 0, 0, 0, 0], // Array para los 7 días
-      'total': 0,
-      'debo': 0,
-      'subtotal': 0,
-      'comedor': 0,
-      'neto': 0,
-      'cuadrilla': 'Indirectos',
-    },
-    {
-      'clave': '2340',
-      'nombre': 'Elizabeth Rodríguez Ramírez',
-      'dias': [0, 0, 0, 0, 0, 0, 0],
-      'total': 0,
-      'debo': 0,
-      'subtotal': 0,
-      'comedor': 0,
-      'neto': 0,
-      'cuadrilla': 'Indirectos',
-    },
-    {
-      'clave': '2730',
-      'nombre': 'Pedro Sanchez Velasco',
-      'dias': [0, 0, 0, 0, 0, 0, 0],
-      'total': 0,
-      'debo': 0,
-      'subtotal': 0,
-      'comedor': 0,
-      'neto': 0,
-      'cuadrilla': 'Linea 1',
-    },
-    {
-      'clave': '3120',
-      'nombre': 'Magdalena Bautista Ramírez',
-      'dias': [0, 0, 0, 0, 0, 0, 0],
-      'total': 0,
-      'debo': 0,
-      'subtotal': 0,
-      'comedor': 0,
-      'neto': 0,
-      'cuadrilla': 'Linea 1',
-    },
-    {
-      'clave': '3510',
-      'nombre': 'Leonides Cruz Quiroz',
-      'dias': [0, 0, 0, 0, 0, 0, 0],
-      'total': 0,
-      'debo': 0,
-      'subtotal': 0,
-      'comedor': 0,
-      'neto': 0,
-      'cuadrilla': 'Linea 3',
-    },
-    {
-      'clave': '3900',
-      'nombre': 'Fabian Cruz Quiroz',
-      'dias': [0, 0, 0, 0, 0, 0, 0],
-      'total': 0,
-      'debo': 0,
-      'subtotal': 0,
-      'comedor': 0,
-      'neto': 0,
-      'cuadrilla': 'Linea 3',
-    },
-  ];
-
+  // Variable principal para empleados en la cuadrilla seleccionada
   List<Map<String, dynamic>> empleadosFiltrados = [];
-  bool isFullScreen = false; // State variable to track full-screen mode
-  bool showDiasTrabajados = false;
-  Map<String, List<List<int>>> diasTrabajadosHPorCuadrilla = {};
-  Map<String, List<List<int>>> diasTrabajadosTTPorCuadrilla = {};
-  List<List<int>>? diasTrabajadosH;
-  List<List<int>>? diasTrabajadosTT;
-  bool showSupervisorLogin = false;
-  final TextEditingController supervisorUserController =
+
+  // Variables para manejo de empleados y cuadrillas
+  List<Map<String, dynamic>> empleadosDisponiblesFiltrados = [];
+  List<Map<String, dynamic>> empleadosEnCuadrillaFiltrados = [];
+  final TextEditingController _buscarDisponiblesController =
       TextEditingController();
-  final TextEditingController supervisorPassController =
+  final TextEditingController _buscarEnCuadrillaController =
       TextEditingController();
-  String? supervisorLoginError;
-  String searchDiasTrabajados = '';
+  List<Map<String, dynamic>> empleadosNomina = [];
+
+  Map<String, dynamic>? semanaSeleccionada;
+  int? idSemanaSeleccionada;
+  Map<String, dynamic>? cuadrillaSeleccionada;
+  final List<Map<String, dynamic>> _optionsCuadrilla = [
+    {'nombre': 'Indirectos', 'empleados': []},
+    {'nombre': 'Linea 1', 'empleados': []},
+    {'nombre': 'Linea 3', 'empleados': []},
+    {'nombre': 'Maquinaria', 'empleados': []},
+    {'nombre': 'Empaque', 'empleados': []},
+    {'nombre': 'Invernadero', 'empleados': []},
+    {'nombre': 'Campo Abierto', 'empleados': []},
+  ];
+  Map<String, dynamic> _selectedCuadrilla = {
+    'nombre': '',
+    'empleados': [],
+  }; // Variables para manejo de semanas cerradas
   List<Map<String, dynamic>> semanasCerradas = [];
   bool showSemanasCerradas = false;
   int? semanaCerradaSeleccionada;
-  String? cuadrillaCerradaSeleccionada;
+
+  // Variables para manejo de empleados y cuadrillas
+  bool showArmarCuadrilla = false;
+  List<Map<String, dynamic>> todosLosEmpleados = [];
+  List<Map<String, dynamic>> empleadosEnCuadrilla = [];
 
   @override
   void initState() {
     super.initState();
-    cuadrillaSeleccionada = cuadrillas.first['nombre'];
-    _filtrarEmpleados();
+    // _selectedCuadrilla = {'nombre': '', 'empleados': []};
+    _cargarCuadrillasHabilitadas();
+    _loadInitialData();
+
+    verificarSemanaActiva();
+    _selectedCuadrilla = {'nombre': '', 'empleados': []};
+    _startDate = null;
+    _endDate = null;
+    empleadosFiltrados = [];
+    empleadosEnCuadrilla = [];
+    empleadosDisponiblesFiltrados = List.from(todosLosEmpleados);
+    empleadosEnCuadrillaFiltrados = [];
   }
 
-  void _filtrarEmpleados() {
-    String query = searchController.text.trim().toLowerCase();
+  Future<void> cargarDatosNomina() async {
+    if (semanaSeleccionada != null && cuadrillaSeleccionada != null) {
+      final data = await obtenerNominaEmpleadosDeCuadrilla(
+        semanaSeleccionada!['id'],
+        cuadrillaSeleccionada!['id'],
+      );
+
+      setState(() {
+        empleadosNomina = data;
+        // ✅ También actualizar empleadosFiltrados para habilitar el botón guardar
+        empleadosFiltrados = List<Map<String, dynamic>>.from(data);
+      });
+    }
+  }
+
+  void verificarSemanaActiva() async {
+    final semana = await obtenerSemanaAbierta();
+
+    if (semana != null) {
+      setState(() {
+        _startDate = semana['fechaInicio'];
+        _endDate = semana['fechaFin'];
+        _isWeekClosed = semana['cerrada'] ?? false;
+        _haySemanaActiva = true;
+        idSemanaSeleccionada = semana['id'];
+        semanaSeleccionada = semana; // ✅ Asignar semanaSeleccionada
+      });
+
+      // 🚨 Agrega esta línea justo aquí:
+      await _cargarCuadrillasSemana(semana['id']);
+    } else {
+      setState(() {
+        _haySemanaActiva = false;
+        semanaSeleccionada = null;
+      });
+    }
+  }
+
+  Future<void> _cargarCuadrillasSemana(int semanaId) async {
+    final cuadrillasGuardadas = await obtenerCuadrillasDeSemana(semanaId);
+
     setState(() {
-      empleadosFiltrados =
-          empleados.where((e) {
-            final matchCuadrilla = e['cuadrilla'] == cuadrillaSeleccionada;
-            final matchNombre = e['nombre'].toLowerCase().contains(query);
-            return matchCuadrilla && (query.isEmpty || matchNombre);
-          }).toList();
-      _ajustarLongitudDiasTT();
+      _optionsCuadrilla.clear();
+      _optionsCuadrilla.addAll(cuadrillasGuardadas);
     });
   }
 
-  void _ajustarLongitudDiasTT() {
-    int diasCount =
-        semanaSeleccionada != null
-            ? semanaSeleccionada!.duration.inDays + 1
-            : 7;
-    void ajustar(List<Map<String, dynamic>> lista) {
-      for (var e in lista) {
-        // Ajustar dias
-        if (e['dias'] is! List) {
-          e['dias'] = List<int>.filled(diasCount, 0);
-        } else if ((e['dias'] as List).length != diasCount) {
-          List<int> oldDias = List<int>.from(e['dias']);
-          e['dias'] = List<int>.filled(diasCount, 0);
-          for (int i = 0; i < diasCount && i < oldDias.length; i++) {
-            e['dias'][i] = oldDias[i];
-          }
-        }
-        // Ajustar tt
-        if (!e.containsKey('tt') || !(e['tt'] is List)) {
-          e['tt'] = List<int>.filled(diasCount, 0);
-        } else if ((e['tt'] as List).length != diasCount) {
-          List<int> oldTT = List<int>.from(e['tt']);
-          e['tt'] = List<int>.filled(diasCount, 0);
-          for (int i = 0; i < diasCount && i < oldTT.length; i++) {
-            e['tt'][i] = oldTT[i];
-          }
-        }
-      }
-    }
+  // Cargar semana activa automáticamente al abrir pantalla
 
-    ajustar(empleados);
-    ajustar(empleadosFiltrados);
+  Future<void> _cargarCuadrillasHabilitadas() async {
+    final cuadrillasBD = await obtenerCuadrillasHabilitadas();
+    setState(() {
+      _optionsCuadrilla.clear();
+      _optionsCuadrilla.addAll(cuadrillasBD);
+    });
+  }
+
+  Future<void> _loadInitialData() async {
+    final empleados = await obtenerEmpleadosHabilitados();
+
+    setState(() {
+      todosLosEmpleados = empleados;
+      empleadosDisponiblesFiltrados = List.from(empleados);
+      empleadosEnCuadrillaFiltrados = [];
+    });
   }
 
   Future<void> _seleccionarSemana() async {
@@ -223,962 +182,821 @@ class _NominaScreenState extends State<NominaScreen> {
       context: context,
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
-      initialDateRange: semanaSeleccionada,
+      initialDateRange:
+          _startDate != null && _endDate != null
+              ? DateTimeRange(start: _startDate!, end: _endDate!)
+              : null,
       locale: const Locale('es'),
       builder: (context, child) {
         return Center(child: SizedBox(width: 500, height: 420, child: child));
       },
     );
+
     if (picked != null) {
-      setState(() {
-        semanaSeleccionada = picked;
-        _ajustarLongitudDiasTT();
-      });
-    }
-  }
-
-  void _sincronizarDatos() {
-    setState(() {
-      // Actualizar empleadosFiltrados con los datos más recientes
-      for (var empleado in empleadosFiltrados) {
-        int mainIndex = empleados.indexWhere(
-          (e) => e['clave'] == empleado['clave'],
-        );
-        if (mainIndex != -1) {
-          empleados[mainIndex] = Map<String, dynamic>.from(empleado);
-        }
-      }
-    });
-  }
-
-  void _recalcularTotales(int index) {
-    // Determinar qué lista usar
-    List<Map<String, dynamic>> listaActual =
-        index < empleados.length ? empleados : empleadosFiltrados;
-
-    // Asegurarnos de que los valores sean enteros
-    int total = 0;
-    for (var dia in listaActual[index]['dias']) {
-      total += (dia as int);
-    }
-    listaActual[index]['total'] = total;
-
-    // Obtener valores como enteros
-    int debo = (listaActual[index]['debo'] as int?) ?? 0;
-    int comedor = (listaActual[index]['comedor'] as int?) ?? 0;
-
-    // Calcular subtotal (total - debo)
-    int subtotal = total - debo;
-    listaActual[index]['subtotal'] = subtotal;
-
-    // Calcular neto (subtotal - comedor)
-    int neto = subtotal - comedor;
-    listaActual[index]['neto'] = neto;
-  }
-
-  void _updateEmpleadoData(int index, String key, dynamic value) {
-    // Convertir el valor a entero
-    int intValue = 0;
-    if (value is String) {
-      intValue = int.tryParse(value) ?? 0;
-    } else if (value is int) {
-      intValue = value;
-    }
-
-    if (key.startsWith('dia_')) {
-      int diaIndex = int.parse(key.split('_')[1]);
-      empleadosFiltrados[index]['dias'][diaIndex] = intValue;
-      _recalcularTotales(index);
-
-      // Sincronizar los días con la lista principal
-      int mainIndex = empleados.indexWhere(
-        (e) => e['clave'] == empleadosFiltrados[index]['clave'],
+      // Guardar en la base de datos
+      final nuevaSemana = await SemanaService().crearNuevaSemana(
+        picked.start,
+        picked.end,
       );
-      if (mainIndex != -1) {
-        empleados[mainIndex]['dias'] = List<int>.from(
-          empleadosFiltrados[index]['dias'],
-        );
-        _recalcularTotales(mainIndex);
-      }
-    } else if (key == 'debo' || key == 'comedor') {
-      empleadosFiltrados[index][key] = intValue;
-      _recalcularTotales(index);
+      if (nuevaSemana != null) {
+        setState(() {
+          _startDate = nuevaSemana['fechaInicio'];
+          _endDate = nuevaSemana['fechaFin'];
+          _isWeekClosed = false;
+          idSemanaSeleccionada = nuevaSemana['id'];
+          semanaSeleccionada = nuevaSemana; // ✅ Asignar semanaSeleccionada
+        });
 
-      // Sincronizar cambios con la lista principal
-      int mainIndex = empleados.indexWhere(
-        (e) => e['clave'] == empleadosFiltrados[index]['clave'],
-      );
-      if (mainIndex != -1) {
-        empleados[mainIndex][key] = intValue;
-        _recalcularTotales(mainIndex);
+        await _cargarCuadrillasSemana(nuevaSemana['id']);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Semana creada correctamente.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('❌ Error al guardar la semana en la base de datos.'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
-
-    // Forzar la actualización de los totales
-    setState(() {
-      // Solo actualizar los totales
-      for (var i = 0; i < empleadosFiltrados.length; i++) {
-        _recalcularTotales(i);
-      }
-    });
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1400),
-            child: Card(
-              elevation: 12,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
-              margin: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
-              child: SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 50),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const SizedBox(height: 16),
-                      // Title and weekly total indicator
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('Nóminas', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
-                          IndicatorCard(
-                            title: 'Total Semana',
-                            value: '\$${empleados.fold<int>(0, (sum, e) => sum + (e['neto'] as int? ?? 0))}',
-                            icon: Icons.calendar_view_week,
-                            color: Colors.white,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-                      FilterBar(
-                        weekLabel: semanaSeleccionada != null
-                            ? '${semanaSeleccionada!.start.day}/${semanaSeleccionada!.start.month} → ${semanaSeleccionada!.end.day}/${semanaSeleccionada!.end.month}'
-                            : 'Inicio → Final',
-                        onWeekTap: _seleccionarSemana,
-                        optionsCuadrilla: cuadrillas.map((c) => c['nombre']!).toList(),
-                        selectedCuadrilla: cuadrillaSeleccionada,
-                        onCuadrillaChanged: (v) {
-                          setState(() {
-                            cuadrillaSeleccionada = v;
-                            _filtrarEmpleados();
-                          });
-                        },
-                      ),
-                     const SizedBox(height: 24),
-                     _buildSearchAndIndicators(),
-                      const SizedBox(height: 24),
-                      // Top controls: expand and view days
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          AppButton(
-                            label: 'Expandir tabla',
-                            icon: Icons.open_in_full,
-                            onPressed: () => setState(() => isFullScreen = true),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blueGrey,
-                              foregroundColor: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          AppButton(
-                            label: 'Ver días trabajados',
-                            icon: Icons.calendar_today,
-                            onPressed: () => setState(() => showDiasTrabajados = true),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.orange,
-                              foregroundColor: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-                      // Data table section
-                      _buildTableSection(),
-                      const SizedBox(height: 24),
-                      // Bottom action buttons: close week, history, PDF, Excel
-                      Row(
-                        children: [
-                          AppButton(
-                            label: 'Cerrar semana',
-                            icon: Icons.lock,
-                            onPressed: _onCerrarSemana,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green[900],
-                              foregroundColor: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          AppButton(
-                            label: 'Historial semanas cerradas',
-                            icon: Icons.history,
-                            onPressed: () => setState(() => showSemanasCerradas = true),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.purple,
-                              foregroundColor: Colors.white,
-                            ),
-                          ),                          const Spacer(),
-                          ExportButtonGroup(
-                            onPdfExport: _onExportPdf,
-                            onExcelExport: _onExportExcel,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-        // Overlay: Ver días trabajados
-        if (showDiasTrabajados)
-          Positioned.fill(
-            child: Stack(
-              children: [
-                BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
-                  child: Container(),
-                ),
-                Center(
-                  child: Card(
-                    color: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    child: Container(
-                      width: MediaQuery.of(context).size.width * 0.95,
-                      height: MediaQuery.of(context).size.height * 0.95,
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text(
-                                'Tabla de días trabajados',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.close,
-                                  color: Colors.red,
-                                ),
-                                onPressed: () {
-                                  setState(() {
-                                    showDiasTrabajados = false;
-                                  });
-                                },
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          // Barra de búsqueda
-                          TextField(
-                            decoration: InputDecoration(
-                              hintText: 'Buscar por nombre',
-                              filled: true,
-                              fillColor: Colors.grey[200],
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
-                              ),
-                              prefixIcon: const Icon(
-                                Icons.search,
-                                color: Colors.grey,
-                              ),
-                            ),
-                            onChanged: (value) {
-                              setState(() {
-                                searchDiasTrabajados =
-                                    value.trim().toLowerCase();
-                              });
-                            },
-                          ),
-                          const SizedBox(height: 16),
-                          Expanded(
-                            child: DiasTrabajadosTable(
-                              empleados:
-                                  empleadosFiltrados
-                                      .where(
-                                        (e) =>
-                                            searchDiasTrabajados.isEmpty ||
-                                            e['nombre'].toLowerCase().contains(
-                                              searchDiasTrabajados,
-                                            ),
-                                      )
-                                      .toList(),
-                              selectedWeek: semanaSeleccionada,
-                              diasH: diasTrabajadosH,
-                              diasTT: diasTrabajadosTT,
-                              onChanged: (h, tt) {
-                                setState(() {
-                                  diasTrabajadosH = h;
-                                  diasTrabajadosTT = tt;
-                                });
-                              },
-                              isExpanded: true,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        // Overlay: Expandir Tabla
-        if (isFullScreen)
-          Positioned.fill(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
-              child: Align(
-                alignment: Alignment.topCenter,
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 40),
-                  child: Card(
-                    color: Colors.white,
-                    elevation: 12,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    child: Container(
-                      width:
-                          MediaQuery.of(context).size.width *
-                          0.95, // Cover 95% of the screen width
-                      height:
-                          MediaQuery.of(context).size.height *
-                          0.95, // Cover 95% of the screen height
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: TextField(
-                                  controller: searchController,
-                                  onChanged: (value) => _filtrarEmpleados(),
-                                  decoration: InputDecoration(
-                                    hintText: 'Buscar por nombre',
-                                    filled: true,
-                                    fillColor: Colors.grey[200],
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: BorderSide.none,
-                                    ),
-                                    suffixIcon: const Icon(
-                                      Icons.search,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.close, color: Colors.red),
-                                onPressed: () {
-                                  _sincronizarDatos(); // Sincronizar datos antes de cerrar
-                                  setState(() {
-                                    isFullScreen =
-                                        false; // Close full-screen mode
-                                  });
-                                },
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          Flexible(
-                            fit: FlexFit.loose,
-                            child: EditableDataTableWidget(
-                              empleados: empleadosFiltrados,
-                              semanaSeleccionada: semanaSeleccionada,
-                              onChanged: _updateEmpleadoData,
-                              isExpanded: true,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        // Overlay: Semanas cerradas
-        if (showSemanasCerradas)
-          Positioned.fill(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
-              child: Center(
-                child: Card(
-                  color: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: Container(
-                    width: 1200,
-                    height: 800,
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text(
-                                'Semanas cerradas',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.close,
-                                  color: Colors.red,
-                                ),
-                                onPressed: () {
-                                  setState(() {
-                                    showSemanasCerradas = false;
-                                    semanaCerradaSeleccionada = null;
-                                    cuadrillaCerradaSeleccionada = null;
-                                  });
-                                },
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          if (semanasCerradas.isEmpty)
-                            const Text('No hay semanas cerradas.'),
-                          if (semanasCerradas.isNotEmpty)
-                            ...semanasCerradas.asMap().entries.map((entry) {
-                              final i = entry.key;
-                              final semana = entry.value;
-                              final fechaCierre = semana['fecha'] as DateTime;
-                              final DateTimeRange? rango =
-                                  semana['semanaSeleccionada']
-                                      as DateTimeRange?;
-                              String? fechaInicio =
-                                  rango != null
-                                      ? '${rango.start.day}/${rango.start.month}/${rango.start.year}'
-                                      : null;
-                              String? fechaFin =
-                                  rango != null
-                                      ? '${rango.end.day}/${rango.end.month}/${rango.end.year}'
-                                      : null;
-                              final empleadosSemana =
-                                  semana['empleados'] as List;
-                              String? cuadrillaEjemplo;
-                              if (empleadosSemana.isNotEmpty) {
-                                cuadrillaEjemplo =
-                                    empleadosSemana.first['cuadrilla'];
-                              }
-                              return ListTile(
-                                leading: const Icon(
-                                  Icons.calendar_today,
-                                  color: Colors.green,
-                                ),
-                                title: Text(
-                                  'Semana: ${fechaInicio ?? '-'} → ${fechaFin ?? '-'}',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                subtitle: Text(
-                                  'Cerrada el ${fechaCierre.day}/${fechaCierre.month}/${fechaCierre.year} a las ${fechaCierre.hour.toString().padLeft(2, '0')}:${fechaCierre.minute.toString().padLeft(2, '0')}',
-                                ),
-                                onTap: () {
-                                  setState(() {
-                                    semanaCerradaSeleccionada = i;
-                                    cuadrillaCerradaSeleccionada =
-                                        cuadrillaEjemplo;
-                                  });
-                                },
-                                selected: semanaCerradaSeleccionada == i,
-                              );
-                            }),
-                          if (semanaCerradaSeleccionada != null)
-                            _buildDetalleSemanaCerrada(context),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        // Overlay: Cerrar semana (autorización supervisor)
-        if (showSupervisorLogin)
-          Positioned.fill(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
-              child: Center(
-                child: Card(
-                  color: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: Container(
-                    width: 370,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 24,
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Título y botón de cerrar en la misma fila
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            const Text(
-                              'Autorización Supervisor',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 18,
-                              ),
-                            ),
-                            Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(20),
-                                onTap: () {
-                                  setState(() {
-                                    showSupervisorLogin = false;
-                                  });
-                                },
-                                child: Container(
-                                  width: 32,
-                                  height: 32,
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey[200],
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(
-                                    Icons.close,
-                                    color: Colors.red,
-                                    size: 20,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-                        TextField(
-                          controller: supervisorUserController,
-                          decoration: const InputDecoration(
-                            hintText: 'Usuario o correo',
-                            border: OutlineInputBorder(),
-                            contentPadding: EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 14,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        TextField(
-                          controller: supervisorPassController,
-                          obscureText: true,
-                          decoration: const InputDecoration(
-                            hintText: 'Contraseña',
-                            border: OutlineInputBorder(),
-                            contentPadding: EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 14,
-                            ),
-                          ),
-                        ),
-                        if (supervisorLoginError != null)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 10),
-                            child: Text(
-                              supervisorLoginError!,
-                              style: const TextStyle(
-                                color: Colors.red,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ),
-                        const SizedBox(height: 24),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 44,
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF8CB800),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              elevation: 0,
-                            ),
-                            onPressed: () {
-                              final user = supervisorUserController.text.trim();
-                              final pass = supervisorPassController.text.trim();
-                              if (user == 'supervisor' && pass == '1234') {
-                                setState(() {
-                                  showSupervisorLogin = false;
-                                  supervisorLoginError = null;
-                                  // Guardar snapshot profundo de la semana
-                                  semanasCerradas.add({
-                                    'fecha': DateTime.now(),
-                                    'semanaSeleccionada': semanaSeleccionada,
-                                    'empleados':
-                                        empleados
-                                            .map(
-                                              (e) =>
-                                                  Map<String, dynamic>.from(e),
-                                            )
-                                            .toList(),
-                                    'diasTrabajadosH':
-                                        Map<String, List<List<int>>>.from(
-                                          diasTrabajadosHPorCuadrilla,
-                                        ),
-                                    'diasTrabajadosTT':
-                                        Map<String, List<List<int>>>.from(
-                                          diasTrabajadosTTPorCuadrilla,
-                                        ),
-                                  });
-                                  // Limpiar datos
-                                  for (var e in empleados) {
-                                    e['dias'] = List<int>.filled(
-                                      e['dias'].length,
-                                      0,
-                                    );
-                                    e['total'] = 0;
-                                    e['debo'] = 0;
-                                    e['subtotal'] = 0;
-                                    e['comedor'] = 0;
-                                    e['neto'] = 0;
-                                    if (e.containsKey('tt'))
-                                      e['tt'] = List<int>.filled(
-                                        e['tt'].length,
-                                        0,
-                                      );
-                                  }
-                                  diasTrabajadosHPorCuadrilla.clear();
-                                  diasTrabajadosTTPorCuadrilla.clear();
-                                  diasTrabajadosH = null;
-                                  diasTrabajadosTT = null;
-                                  _filtrarEmpleados();
-                                });
-                                supervisorUserController.clear();
-                                supervisorPassController.clear();
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Semana cerrada correctamente.',
-                                    ),
-                                  ),
-                                );
-                              } else {
-                                setState(() {
-                                  supervisorLoginError =
-                                      'Credenciales incorrectas';
-                                });
-                              }
-                            },
-                            child: const Text(
-                              'Autorizar',
-                              style: TextStyle(
-                                fontSize: 18,
-                                color: Colors.white,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
-  // 2. Buscar e indicadores
-  Widget _buildSearchAndIndicators() {
-    return Row(
-      children: [
-        Expanded(
-          flex: 1,
-          child: IndicatorCard(
-            title: 'Empleados en cuadrilla',
-            value: '${empleadosFiltrados.length}',
-            icon: Icons.group,
-            color: Colors.white,
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          flex: 1,
-          child: IndicatorCard(
-            title: 'Total Acumulado',
-            value: '\$${empleadosFiltrados.fold<int>(0, (s, e) => s + (e['neto'] as int))}',
-            icon: Icons.attach_money,
-            color: Colors.white,
-          ),
-        ),
-        const SizedBox(width: 16),
-Expanded(
-  flex: 1,
-  child: SearchField(
-    controller: searchController,
-    onChanged: (_) => _filtrarEmpleados(),
-    hintText: 'Buscar',
-  ),
-),
-      ],
-    );
-  }
-
-  // 3. Sección central de tabla
-  Widget _buildTableSection() {
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 1200),
-        child: EditableDataTableWidget(
-          empleados: empleadosFiltrados,
-          semanaSeleccionada: semanaSeleccionada,
-          onChanged: _updateEmpleadoData,
-          isExpanded: false,
-        ),
-      ),
-    );
-  }
-
-  // 4. Barra de acciones
   void _onCerrarSemana() {
-    if (semanaSeleccionada == null) {
+    if (_startDate == null || _endDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Debes seleccionar una semana antes de cerrarla'),
+          content: Text('Seleccione una semana antes de cerrar'),
           backgroundColor: Colors.red,
         ),
       );
       return;
     }
+    _showSupervisorLoginDialog();
+  }
+
+  Future<void> guardarNomina() async {
+    final idSemana = semanaSeleccionada?['id'];
+    final idCuadrilla = cuadrillaSeleccionada?['id'];
+   final db = DatabaseService();
+  await db.connect(); //
+
+
+    for (int i = 0; i < empleadosFiltrados.length; i++) {
+      final empleado = empleadosFiltrados[i];
+      final idEmpleado = empleado['id'];
+ 
+      final result = await db.connection.query(
+        'SELECT id_nomina FROM nomina_empleados_semanal WHERE id_empleado = @idEmp AND id_semana = @idSemana',
+        substitutionValues: {'idEmp': idEmpleado, 'idSemana': idSemana},
+      );
+
+      final data = {
+        'id_empleado': idEmpleado,
+        'id_semana': idSemana,
+        'id_cuadrilla': idCuadrilla,
+        'dia_1': empleado['dia_0'] ?? 0,
+        'dia_2': empleado['dia_1'] ?? 0,
+        'dia_3': empleado['dia_2'] ?? 0,
+        'dia_4': empleado['dia_3'] ?? 0,
+        'dia_5': empleado['dia_4'] ?? 0,
+        'dia_6': empleado['dia_5'] ?? 0,
+        'dia_7': empleado['dia_6'] ?? 0,
+        'total': empleado['total'] ?? 0,
+        'debe': empleado['debe'] ?? 0,
+        'subtotal': empleado['subtotal'] ?? 0,
+        'comedor': (empleado['comedor'] == true) ? 400 : 0,
+        'total_neto': empleado['totalNeto'] ?? 0,
+      };
+
+      if (result.isNotEmpty) {
+        // Si existe, actualiza
+        await db.connection.query(
+          '''UPDATE nomina_empleados_semanal
+           SET dia_1 = @d1,
+    dia_2 = @d2,
+    dia_3 = @d3,
+    dia_4 = @d4,
+    dia_5 = @d5,
+    dia_6 = @d6,
+    dia_7 = @d7,
+               total = @total, debe = @debe, subtotal = @subtotal, comedor = @comedor, total_neto = @neto,
+               id_cuadrilla = @idCuadrilla
+           WHERE id_empleado = @idEmp AND id_semana = @idSemana
+        ''',
+          substitutionValues: {
+            'd1': data['dia_1'],
+            'd2': data['dia_2'],
+            'd3': data['dia_3'],
+            'd4': data['dia_3'],
+            'd5': data['dia_5'],
+            'd6': data['dia_6'],
+            'd7': data['dia_7'],
+            'total': data['total'],
+            'debe': data['debe'],
+            'subtotal': data['subtotal'],
+            'comedor': data['comedor'],
+            'neto': data['total_neto'],
+            'idCuadrilla': idCuadrilla,
+            'idEmp': idEmpleado,
+            'idSemana': idSemana,
+          },
+        );
+      } /*else {
+        // Si no existe, inserta
+        await db.connection.query(
+          '''INSERT INTO nomina_empleados_semanal (
+            id_empleado, id_semana, id_cuadrilla, 
+            dia_0, dia_1, dia_2, dia_3, dia_4, dia_5, dia_6, 
+            total, debe, subtotal, comedor, total_neto
+        ) VALUES (
+            @idEmp, @idSemana, @idCuadrilla,
+            @d0, @d1, @d2, @d3, @d4, @d5, @d6,
+            @total, @debe, @subtotal, @comedor, @neto
+        )''',
+          substitutionValues: {
+            'idEmp': idEmpleado,
+            'idSemana': idSemana,
+            'idCuadrilla': idCuadrilla,
+            'd0': data['dia_0'],
+            'd1': data['dia_1'],
+            'd2': data['dia_2'],
+            'd3': data['dia_3'],
+            'd4': data['dia_4'],
+            'd5': data['dia_5'],
+            'd6': data['dia_6'],
+            'total': data['total'],
+            'debe': data['debe'],
+            'subtotal': data['subtotal'],
+            'comedor': data['comedor'],
+            'neto': data['total_neto'],
+          },
+        );
+      }*/
+    }
+  await db.close(); // 🧼 Cierra conexión al final
+    print("Nómina guardada correctamente.");
+  }
+
+  Future<List<Map<String, dynamic>>> obtenerNominaEmpleadosDeCuadrilla(
+    int semanaId,
+    int cuadrillaId,
+  ) async {
+    final db = DatabaseService();
+    await db.connect();
+
+    final result = await db.connection.query(
+      '''
+      SELECT 
+       e.codigo,
+CONCAT(e.nombre, ' ', e.apellido_paterno, ' ', e.apellido_materno) AS nombre,  
+ e.id_empleado,      
+        n.dia_1,
+        n.dia_2,
+        n.dia_3,
+        n.dia_4,
+        n.dia_5,
+        n.dia_6,
+        n.dia_7,
+        n.total,
+        n.debe,
+        n.subtotal,
+        n.comedor
+      FROM nomina_empleados_semanal n
+      JOIN empleados e ON e.id_empleado = n.id_empleado
+      WHERE n.id_semana = @semanaId AND n.id_cuadrilla = @cuadrillaId;
+    ''',
+      substitutionValues: {'semanaId': semanaId, 'cuadrillaId': cuadrillaId},
+    );
+
+    await db.close();
+
+    return result
+        .map(
+          (row) => {
+            'codigo': row[0],
+            'nombre': row[1],
+            'id': row[2],
+            'dia_1': row[3],
+            'dia_2': row[4],
+            'dia_3': row[5],
+            'dia_4': row[6],
+            'dia_5': row[7],
+            'dia_6': row[8],
+            'dia_7': row[9],
+            'total': row[10],
+            'debe': row[11],
+            'subtotal': row[12],
+            'comedor': row[13],
+          },
+        )
+        .toList();
+  }
+
+  void _cerrarSemanaActual() {
+    if (_startDate == null || _endDate == null) return;
+
+    // Crear una lista de todas las cuadrillas con sus empleados y datos completos
+    List<Map<String, dynamic>> cuadrillasInfo = [];
+
+    // Primero procesamos todas las cuadrillas de _optionsCuadrilla
+    for (var cuadrilla in _optionsCuadrilla) {
+      List<Map<String, dynamic>> empleadosConTablas = [];
+
+      // Si es la cuadrilla actual, usamos empleadosFiltrados
+      if (cuadrilla['nombre'] == _selectedCuadrilla['nombre']) {
+        empleadosConTablas =
+            empleadosFiltrados.map((emp) {
+              return _procesarEmpleado(emp);
+            }).toList();
+      } else {
+        // Para otras cuadrillas, procesamos sus empleados si tienen
+        final empleadosCuadrilla = List<Map<String, dynamic>>.from(
+          cuadrilla['empleados'] ?? [],
+        );
+        empleadosConTablas =
+            empleadosCuadrilla.map((emp) {
+              return _procesarEmpleado(emp);
+            }).toList();
+      }
+      // Calculamos el total de la cuadrilla (será 0 si no tiene empleados)
+      final totalCuadrilla = empleadosConTablas.fold<double>(
+        0.0,
+        (sum, emp) =>
+            sum + (emp['tabla_principal']?['neto'] as num? ?? 0).toDouble(),
+      );
+
+      // Agregamos la cuadrilla siempre, tenga o no empleados
+      cuadrillasInfo.add({
+        'nombre': cuadrilla['nombre'],
+        'empleados': empleadosConTablas,
+        'total': totalCuadrilla,
+      });
+    }
+
+    // Calcular el total de todas las cuadrillas
+    final totalSemana = cuadrillasInfo.fold<double>(
+      0.0,
+      (sum, cuadrilla) => sum + (cuadrilla['total'] as double),
+    );
+
+    final semanaCerrada = {
+      'id': DateTime.now().millisecondsSinceEpoch,
+      'fechaInicio': _startDate,
+      'fechaFin': _endDate,
+      'cuadrillas': cuadrillasInfo,
+      'totalSemana': totalSemana,
+      'cuadrillaSeleccionada': 0,
+    };
+
     setState(() {
-      showSupervisorLogin = true;
-      supervisorLoginError = null;
-      supervisorUserController.clear();
-      supervisorPassController.clear();
+      semanasCerradas.add(semanaCerrada);
+      _isWeekClosed = true;
+
+      // Reiniciar completamente el estado
+      _startDate = null;
+      _endDate = null;
+      empleadosFiltrados = [];
+      empleadosEnCuadrilla = [];
+      showArmarCuadrilla = false;
+      _selectedCuadrilla = Map<String, dynamic>.from(_optionsCuadrilla[0]);
+
+      // Limpiar las cuadrillas
+      for (var cuadrilla in _optionsCuadrilla) {
+        cuadrilla['empleados'] = [];
+      } // Reiniciar el estado del supervisor ya no es necesario
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Semana cerrada correctamente. Los datos se han guardado y las tablas se han reiniciado.',
+        ),
+        backgroundColor: Colors.green,
+        duration: Duration(seconds: 4),
+      ),
+    );
+  }
+
+  // Función auxiliar para procesar los datos de un empleado
+  Map<String, dynamic> _procesarEmpleado(Map<String, dynamic> emp) {
+    final numDays = _endDate!.difference(_startDate!).inDays + 1;
+
+    // Tabla Principal: días normales y total
+    final diasNormales = List.generate(
+      numDays,
+      (i) => double.tryParse(emp['dia_$i']?.toString() ?? '0') ?? 0.0,
+    );
+
+    // Calcular totales
+    final totalDiasNormales = diasNormales.fold<double>(
+      0,
+      (sum, dia) => sum + dia,
+    );
+
+    // Calcular deducciones
+    final debe = double.tryParse(emp['debe']?.toString() ?? '0') ?? 0.0;
+    final comedorValue = (emp['comedor'] == true) ? 400.0 : 0.0;
+
+    // Calcular total neto
+    final subtotal = totalDiasNormales;
+    final totalNeto = subtotal - debe - comedorValue;
+
+    // Crear objeto con todos los datos
+    return {
+      ...emp, // Mantener datos básicos del empleado
+      'tabla_principal': {
+        'dias': diasNormales,
+        'total': totalDiasNormales,
+        'debe': debe,
+        'comedor': comedorValue,
+        'neto': totalNeto,
+      },
+    };
+  }
+
+  void _mostrarSemanasCerradas() {
+    setState(() {
+      showSemanasCerradas = true;
+      semanaCerradaSeleccionada = null;
     });
   }
 
-  void _onExportPdf() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Funcionalidad PDF no implementada'),
-        backgroundColor: Colors.blue,
-      ),
-    );
-  }
-
-  void _onExportExcel() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Funcionalidad Excel no implementada'),
-        backgroundColor: Colors.blue,
-      ),
-    );
-  }
-
-  Widget _buildDetalleSemanaCerrada(BuildContext context) {
-    final semana = semanasCerradas[semanaCerradaSeleccionada!];
-    final empleadosSemana = semana['empleados'] as List<Map<String, dynamic>>;
-    final diasH = semana['diasTrabajadosH'] as Map<String, List<List<int>>>?;
-    final diasTT = semana['diasTrabajadosTT'] as Map<String, List<List<int>>>?;
-    final cuadrillasSemana =
-        empleadosSemana.map((e) => e['cuadrilla'] as String).toSet().toList();
-    final empleadosCuadrilla =
-        empleadosSemana
-            .where((e) => e['cuadrilla'] == cuadrillaCerradaSeleccionada)
-            .toList();
-    final totalSemana = empleadosSemana.fold<int>(
-      0,
-      (sum, e) => sum + (e['neto'] as int),
-    );
-    final totalCuadrilla = empleadosCuadrilla.fold<int>(
-      0,
-      (sum, e) => sum + (e['neto'] as int),
-    );
-    return Card(
-      color: Colors.grey[50],
-      elevation: 12,
-      margin: const EdgeInsets.only(top: 24),
-      child: Container(
-        width: 1100,
-        height: 700,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Text(
-                    'Cuadrilla:',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(width: 12),
-                  DropdownButton<String>(
-                    value: cuadrillaCerradaSeleccionada,
-                    items:
-                        cuadrillasSemana
-                            .map(
-                              (c) => DropdownMenuItem(value: c, child: Text(c)),
-                            )
-                            .toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        cuadrillaCerradaSeleccionada = value;
-                      });
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Text(
-                    'Total acumulado semana: ',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  Text(
-                    '\$$totalSemana',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green,
-                    ),
-                  ),
-                  const SizedBox(width: 24),
-                  Text(
-                    'Total acumulado cuadrilla: ',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  Text(
-                    '\$$totalCuadrilla',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 18),
-              Text(
-                'Tabla de nómina guardada:',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              DataTableWidget(
-                columns: _buildNominaHeaders(),
-                subHeaders: _buildNominaSubHeaders(),
-                rows: _buildNominaRows(empleadosCuadrilla),
-              ),
-              const SizedBox(height: 18),
-              Text(
-                'Tabla de días trabajados guardada:',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              DiasTrabajadosTable(
-                empleados: empleadosCuadrilla,
-                selectedWeek: null,
-                readOnly: true,
-                diasH:
-                    diasH != null ? diasH[cuadrillaCerradaSeleccionada] : null,
-                diasTT:
-                    diasTT != null
-                        ? diasTT[cuadrillaCerradaSeleccionada]
-                        : null,
-                isExpanded: true,
-              ),
-            ],
+  void _showSupervisorLoginDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (context) => NominaSupervisorAuthWidget(
+            onAuthSuccess: () {
+              Navigator.of(context).pop();
+              _cerrarSemanaActual();
+            },
+            onClose: () => Navigator.of(context).pop(),
           ),
-        ),
-      ),
     );
   }
 
-  // Helper methods for DataTableWidget
-  List<String> _buildNominaHeaders() {
-    final headers = <String>['Clave', 'Nombre'];
-    final int diasCount = semanaSeleccionada != null
-      ? semanaSeleccionada!.end.difference(semanaSeleccionada!.start).inDays + 1
-      : 7;
-    DateTime date = semanaSeleccionada?.start ?? DateTime.now();
-    for (int i = 0; i < diasCount; i++) {
-      headers.add(semanaSeleccionada != null
-        ? '${date.day}/${date.month}'
-        : 'D${i+1}');
-      if (semanaSeleccionada != null) date = date.add(const Duration(days:1));
+  void _toggleArmarCuadrilla() {
+    if (showArmarCuadrilla) {
+      // Cuando ya está abierto, guardar cambios
+      // Asegurarnos de actualizar la lista real de empleados en la cuadrilla
+      // antes de cerrar el diálogo (guardamos lo que está en empleadosEnCuadrilla)
+      setState(() {
+        // Actualizamos la lista real en _selectedCuadrilla
+        _selectedCuadrilla['empleados'] = List<Map<String, dynamic>>.from(
+          empleadosEnCuadrilla,
+        );
+      });
+
+      // Al cerrar el diálogo, mostrar opción de mantener datos
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return NominaActualizarCuadrillaWidget(
+            empleadosExistentes: empleadosFiltrados,
+            empleadosCompletoCuadrilla: _selectedCuadrilla['empleados'] ?? [],
+            onMantenerDatos: () {
+              // Mantener los datos existentes
+              setState(() {
+                // Crear un mapa de los empleados existentes para mantener sus datos
+                final empleadosExistentesMap = Map.fromEntries(
+                  empleadosFiltrados.map((e) => MapEntry(e['id'], e)),
+                );
+                final listaCompleta = List<Map<String, dynamic>>.from(
+                  _selectedCuadrilla['empleados'] ?? [],
+                );
+                _selectedCuadrilla['empleados'] =
+                    listaCompleta.map((empleado) {
+                      if (empleadosExistentesMap.containsKey(empleado['id'])) {
+                        return empleadosExistentesMap[empleado['id']]!;
+                      } else {
+                        return {
+                          'id': empleado['id'],
+                          'clave': empleado['id'],
+                          'nombre': empleado['nombre'],
+                          'puesto': empleado['puesto'] ?? 'Jornalero',
+                          'dias': 0,
+                          'total': 0.0,
+                          'sueldoDiario': 200.0,
+                        };
+                      }
+                    }).toList();
+
+                empleadosFiltrados = List<Map<String, dynamic>>.from(
+                  _selectedCuadrilla['empleados'],
+                );
+                showArmarCuadrilla = false;
+              });
+            },
+            onEmpezarDeCero: () {
+              // Reiniciar con datos nuevos
+              setState(() {
+                final listaCompleta = List<Map<String, dynamic>>.from(
+                  _selectedCuadrilla['empleados'] ?? [],
+                );
+                _selectedCuadrilla['empleados'] =
+                    listaCompleta.map((empleado) {
+                      return {
+                        'id': empleado['id'],
+                        'clave': empleado['id'],
+                        'nombre': empleado['nombre'],
+                        'puesto': empleado['puesto'] ?? 'Jornalero',
+                        'dias': 0,
+                        'total': 0.0,
+                        'sueldoDiario': 200.0,
+                      };
+                    }).toList();
+
+                empleadosFiltrados = List<Map<String, dynamic>>.from(
+                  _selectedCuadrilla['empleados'],
+                );
+                showArmarCuadrilla = false;
+              });
+            },
+            onClose: () => Navigator.of(context).pop(),
+          );
+        },
+      );
+    } else {
+      // Al abrir el diálogo, resetear selecciones y cargar empleados actuales
+      setState(() {
+        showArmarCuadrilla = true;
+
+        // Inicializamos las listas originales
+        empleadosEnCuadrilla = List<Map<String, dynamic>>.from(
+          _selectedCuadrilla['empleados'] ?? [],
+        );
+
+        // Inicializamos las listas de visualización filtrada
+        empleadosDisponiblesFiltrados = List.from(todosLosEmpleados);
+        empleadosEnCuadrillaFiltrados = List.from(empleadosEnCuadrilla);
+
+        // Limpiamos los controladores de búsqueda
+        if (_buscarDisponiblesController.text.isNotEmpty)
+          _buscarDisponiblesController.clear();
+        if (_buscarEnCuadrillaController.text.isNotEmpty)
+          _buscarEnCuadrillaController.clear();
+
+        // Asegurarnos de que cada empleado en la cuadrilla tenga el campo 'puesto'
+        for (var empleado in empleadosEnCuadrilla) {
+          empleado['puesto'] = empleado['puesto'] ?? 'Jornalero';
+        }
+      });
     }
-    headers.addAll(['Total', 'Debe', 'Subtotal', 'Comedor', 'Neto']);
-    return headers;
   }
 
-  List<List<String>> _buildNominaRows([List<Map<String, dynamic>>? sourceList]) {
-    final list = sourceList ?? empleadosFiltrados;
-    final rows = <List<String>>[];
-    final int diasCount = semanaSeleccionada != null
-      ? semanaSeleccionada!.end.difference(semanaSeleccionada!.start).inDays + 1
-      : 7;
-    for (var emp in list) {
-      final totalDias = (emp['dias'] as List<int>).fold(0, (a, b) => a + b);
-      final debo = emp['debo'] as int? ?? 0;
-      final subtotal = totalDias - debo;
-      final comedor = emp['comedor'] as int? ?? 0;
-      final neto = subtotal - comedor;
-      final row = <String>[];
-      row.add(emp['clave'] ?? '');
-      row.add(emp['nombre'] ?? '');
-      for (int i = 0; i < diasCount; i++) {
-        row.add((emp['dias'][i] as int).toString());
+  void _onTableChange(int index, String key, dynamic value) {
+    setState(() {
+      if (index >= 0 && index < empleadosFiltrados.length) {
+        setState(() {
+          if (key == 'comedor') {
+            empleadosFiltrados[index][key] = value as bool;
+          } else if (key.startsWith('dia_') || key == 'debe') {
+            empleadosFiltrados[index][key] =
+                int.tryParse(value.toString()) ?? 0;
+          } else {
+            empleadosFiltrados[index][key] = value;
+          }
+        });
       }
-      // Total de días
-      row.add(totalDias.toString());
-      // Valores monetarios
-      row.add('\$${debo}');
-      row.add('\$${subtotal}');
-      row.add('\$${comedor}');
-      row.add('\$${neto}');
-      rows.add(row);
-    }
-    return rows;
+    });
   }
 
-  List<String> _buildNominaSubHeaders() {
-    // Crea subencabezados: blancos para Clave y Nombre, 'TT' para cada día, y blancos para columnas monetarias
-    final subHeaders = <String>['', ''];
-    final int diasCount = semanaSeleccionada != null
-      ? semanaSeleccionada!.end.difference(semanaSeleccionada!.start).inDays + 1
-      : 7;
-    for (int i = 0; i < diasCount; i++) {
-      subHeaders.add('TT');
+  // Función para guardar los datos de nómina
+  Future<void> _guardarNomina() async {
+    if (_startDate == null ||
+        _endDate == null ||
+        _selectedCuadrilla['nombre'] == '') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Debe seleccionar una semana y una cuadrilla'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
     }
-    // Columnas finales: Total, Debe, Subtotal, Comedor, Neto
-    subHeaders.addAll(['', '', '', '', '']);
-    return subHeaders;
+
+    try {
+      // Aquí iría la lógica para guardar en la base de datos
+      // Por ejemplo, usando el servicio de semana
+      await guardarNomina();
+      /*await guardarEmpleadosCuadrillaSemana(
+        semanaId: idSemanaSeleccionada!,
+        cuadrillaId: _selectedCuadrilla['id'],
+        empleados: empleadosFiltrados,
+      );*/
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Datos de nómina guardados correctamente'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Error al guardar: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
-    // Fin de _NominaScreenState
+  // Función para determinar si se puede guardar
+  bool get _canSave {
+    // Verificar que hay semana seleccionada
+    bool hasSemana =
+        _startDate != null && _endDate != null && semanaSeleccionada != null;
+
+    // Verificar que hay cuadrilla seleccionada
+    bool hasCuadrilla =
+        cuadrillaSeleccionada != null &&
+        cuadrillaSeleccionada!['nombre'] != null &&
+        cuadrillaSeleccionada!['nombre'] != '';
+
+    // Verificar que hay empleados en la cuadrilla
+    bool hasEmpleados =
+        empleadosFiltrados.isNotEmpty ||
+        empleadosNomina.isNotEmpty ||
+        (cuadrillaSeleccionada != null &&
+            cuadrillaSeleccionada!['empleados'] != null &&
+            (cuadrillaSeleccionada!['empleados'] as List).isNotEmpty);
+
+    return hasSemana && hasCuadrilla && hasEmpleados;
   }
+
+  // Mostrar diálogo para reiniciar semana con opciones
+  void _mostrarDialogoReiniciarSemana() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return NominaReiniciarSemanaWidget(
+          onMantenerCuadrillas: () {
+            // Reiniciar manteniendo las cuadrillas armadas
+            setState(() {
+              _startDate = null;
+              _endDate = null;
+              _isWeekClosed = false;
+              // Mantener empleados en la cuadrilla actual
+            });
+          },
+          onLimpiarCuadrillas: () {
+            // Reiniciar y limpiar la cuadrilla también
+            setState(() {
+              _startDate = null;
+              _endDate = null;
+              _isWeekClosed = false;
+              // Limpiar empleados de la cuadrilla actual
+              _selectedCuadrilla['empleados'] = [];
+              empleadosFiltrados = [];
+              empleadosEnCuadrilla = [];
+            });
+          },
+          onClose: () => Navigator.of(context).pop(),
+        );
+      },
+    );
+  }
+
+  // Función para mostrar detalles del empleado
+  void _mostrarDetallesEmpleado(
+    BuildContext context,
+    Map<String, dynamic> empleado,
+  ) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierColor: Colors.black.withOpacity(0.5),
+      builder: (BuildContext context) {
+        return NominaDetallesEmpleadoWidget(empleado: empleado);
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Main content
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppDimens.cardRadius),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Nóminas',
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.greenDark,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(
+                      height: 24,
+                    ), // Filter row with improved design using modular widgets
+                    Row(
+                      children: [
+                        // Week Selection Card
+                        Expanded(
+                          flex: 2,
+                          child: NominaWeekSelectionCard(
+                            startDate: _startDate,
+                            endDate: _endDate,
+                            isWeekClosed: _isWeekClosed,
+                            haySemanaActiva: _haySemanaActiva,
+                            semanaActiva: semanaActiva,
+                            onSeleccionarSemana: _seleccionarSemana,
+                            onCerrarSemana: _onCerrarSemana,
+                            onReiniciarSemana: _mostrarDialogoReiniciarSemana,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+
+                        // Cuadrilla Selection Card
+                        Expanded(
+                          flex: 2,
+                          child: NominaCuadrillaSelectionCard(
+                            optionsCuadrilla: _optionsCuadrilla,
+                            selectedCuadrilla: _selectedCuadrilla,
+                            empleadosEnCuadrilla: empleadosEnCuadrilla,
+                            onCuadrillaSelected: (
+                              Map<String, dynamic>? option,
+                            ) async {
+                              setState(() {
+                                if (option == null) {
+                                  // Deseleccionar cuadrilla
+                                  _selectedCuadrilla = {
+                                    'nombre': '',
+                                    'empleados': [],
+                                  };
+                                  cuadrillaSeleccionada =
+                                      null; // ✅ Asignar cuadrillaSeleccionada
+                                  empleadosFiltrados = [];
+                                  empleadosEnCuadrilla = [];
+
+                                  empleadosDisponiblesFiltrados = List.from(
+                                    todosLosEmpleados,
+                                  );
+                                  empleadosEnCuadrillaFiltrados = [];
+
+                                  empleadosNomina =
+                                      []; // ← Limpiar también la tabla si no hay cuadrilla
+                                } else {
+                                  // Seleccionar cuadrilla
+                                  _selectedCuadrilla = option;
+                                  cuadrillaSeleccionada =
+                                      option; // ✅ Asignar cuadrillaSeleccionada
+                                  empleadosFiltrados =
+                                      List<Map<String, dynamic>>.from(
+                                        option['empleados'] ?? [],
+                                      );
+                                  empleadosEnCuadrilla =
+                                      List<Map<String, dynamic>>.from(
+                                        option['empleados'] ?? [],
+                                      );
+
+                                  empleadosDisponiblesFiltrados = List.from(
+                                    todosLosEmpleados,
+                                  );
+                                  empleadosEnCuadrillaFiltrados = List.from(
+                                    empleadosEnCuadrilla,
+                                  );
+
+                                  _buscarDisponiblesController.clear();
+                                  _buscarEnCuadrillaController.clear();
+                                }
+                              });
+
+                              // 🔄 Cargar nómina solo si hay cuadrilla y semana seleccionada
+                              if (option != null &&
+                                  idSemanaSeleccionada != null) {
+                                final data =
+                                    await obtenerNominaEmpleadosDeCuadrilla(
+                                      idSemanaSeleccionada!,
+                                      option['id'],
+                                    );
+
+                                setState(() {
+                                  _selectedCuadrilla = option;
+                                  cuadrillaSeleccionada =
+                                      option; // ✅ Asignar cuadrillaSeleccionada
+                                  empleadosNomina = data;
+                                  // ✅ También actualizar empleadosFiltrados para habilitar el botón guardar
+                                  empleadosFiltrados =
+                                      List<Map<String, dynamic>>.from(data);
+                                });
+
+                                // ✅ Cargar datos de nómina después de seleccionar cuadrilla
+                                await cargarDatosNomina();
+                              }
+                            },
+                            semanaSeleccionada:
+                                semanaSeleccionada, // ✅ <--- Agregado aquí
+                            onToggleArmarCuadrilla: _toggleArmarCuadrilla,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+
+                        // Indicators with improved design
+                        Expanded(
+                          flex: 3,
+                          child: NominaIndicatorsRow(
+                            empleadosFiltrados: empleadosFiltrados,
+                            optionsCuadrilla: _optionsCuadrilla,
+                            startDate: _startDate,
+                            endDate: _endDate,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(
+                      height: 24,
+                    ), // Table section with modular design
+                    Expanded(
+                      child: NominaMainTableSection(
+                        empleadosFiltrados: empleadosFiltrados,
+                        empleadosNomina: empleadosNomina, // ← ✅ Agregado aquí
+                        startDate: _startDate,
+                        endDate: _endDate,
+                        onTableChange: _onTableChange,
+                        onMostrarSemanasCerradas: _mostrarSemanasCerradas,
+                      ),
+                    ), // Export section
+                    const SizedBox(height: 24),
+                    NominaExportSection(
+                      canSave: _canSave,
+                      startDate: _startDate,
+                      endDate: _endDate,
+                      cuadrillaSeleccionada: cuadrillaSeleccionada,
+                      empleadosFiltrados: empleadosFiltrados,
+                      onGuardar: _guardarNomina,
+                      onExportPdf: () {
+                        // TODO: Implementar exportación a PDF
+                      },
+                      onExportExcel: () {
+                        // TODO: Implementar exportación a Excel
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ), // Overlay dialogs
+          if (showSemanasCerradas)
+            NominaHistorialSemanasCerradasWidget(
+              semanasCerradas: semanasCerradas,
+              onClose: () => setState(() => showSemanasCerradas = false),
+              onSemanaCerradaUpdated: (semanaActualizada) {
+                // Callback opcional para cuando se actualiza una semana cerrada
+                // Por ahora no necesitamos hacer nada adicional
+              },
+            ), // Diálogo de armar cuadrilla modularizado
+          if (showArmarCuadrilla)
+            NominaArmarCuadrillaWidget(
+              optionsCuadrilla: _optionsCuadrilla,
+              selectedCuadrilla: _selectedCuadrilla,
+              todosLosEmpleados: todosLosEmpleados,
+              empleadosEnCuadrilla: empleadosEnCuadrilla,
+              onCuadrillaSaved: (cuadrilla, empleados) {
+                setState(() {
+                  // Actualizar la cuadrilla seleccionada con los nuevos empleados
+                  _selectedCuadrilla = cuadrilla;
+                  empleadosEnCuadrilla = empleados;
+
+                  // Actualizar la lista en _optionsCuadrilla
+                  _selectedCuadrilla['empleados'] =
+                      List<Map<String, dynamic>>.from(empleados);
+
+                  // Cerrar el diálogo
+                  showArmarCuadrilla = false;
+
+                  // Llamar a la función existente para manejar los datos
+                  _toggleArmarCuadrilla();
+                });
+              },
+              onClose: () => setState(() => showArmarCuadrilla = false),
+              onMostrarDetallesEmpleado: _mostrarDetallesEmpleado,
+            ),
+        ],
+      ),
+    );
+  }
+}

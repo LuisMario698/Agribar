@@ -1,170 +1,407 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 /// Widget modular para edición en la tabla de nómina.
-class EditableDataTableWidget extends StatelessWidget {
-  // Abreviaturas de días en español (1=lun ... 7=dom)
-  static const List<String> _weekdayAbbr = ['', 'lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'];
+class EditableDataTableWidget extends StatefulWidget {
   final List<Map<String, dynamic>> empleados;
   final DateTimeRange? semanaSeleccionada;
-  final void Function(int index, String key, dynamic value) onChanged;
+  final void Function(int index, String key, dynamic value)? onChanged;
   final bool isExpanded;
+  final bool readOnly;
 
   const EditableDataTableWidget({
     Key? key,
     required this.empleados,
     this.semanaSeleccionada,
-    required this.onChanged,
+    this.onChanged,
     this.isExpanded = false,
+    this.readOnly = false,
   }) : super(key: key);
 
-  List<DataColumn> _buildColumns() {
-    final cols = <DataColumn>[
-      DataColumn(label: Text('Clave', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
-      DataColumn(label: Text('Nombre', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
-    ];
-    final diasCount = semanaSeleccionada != null
-        ? semanaSeleccionada!.end.difference(semanaSeleccionada!.start).inDays + 1
-        : 7;
-    DateTime date = semanaSeleccionada?.start ?? DateTime.now();
-    for (int i = 0; i < diasCount; i++) {
-      // Usar abreviatura de día si hay semana seleccionada, sino numerar como D1..Dn
-      final label = semanaSeleccionada != null
-          ? _weekdayAbbr[date.weekday]
-          : 'D${i + 1}';
-      cols.add(DataColumn(label: Text(label, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))));
-      if (semanaSeleccionada != null) date = date.add(Duration(days: 1));
+  @override
+  State<EditableDataTableWidget> createState() => _EditableDataTableWidgetState();
+}
+
+class _EditableDataTableWidgetState extends State<EditableDataTableWidget> {
+  String _formatCurrency(num value) {
+    if (value == value.toInt()) {
+      return '\$${value.toInt()}';
     }
-    cols.addAll([
-      DataColumn(label: Text('Total', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
-      DataColumn(label: Text('Debe', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
-      DataColumn(label: Text('Subtotal', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
-      DataColumn(label: Text('Comedor', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
-      DataColumn(label: Text('Neto', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
-    ]);
-    return cols;
+    return '\$${value.toStringAsFixed(2)}';
   }
 
-  // Subencabezados alineados: vacíos en Clave y Nombre, 'TT' para cada día, vacíos en Total, Debe, Subtotal, Comedor, Neto
-  List<String> _buildSubHeaders() {
-    final sub = <String>['', ''];
-    final diasCount = semanaSeleccionada != null
-        ? semanaSeleccionada!.end.difference(semanaSeleccionada!.start).inDays + 1
-        : 7;
-    for (int i = 0; i < diasCount; i++) {
-      sub.add('TT');
-    }
-    // Total, Debe, Subtotal, Comedor, Neto
-    sub.addAll(['', '', '', '', '']);
-    return sub;
+  int get _numDays {
+    return (widget.semanaSeleccionada?.duration.inDays ?? 6) + 1; // Always include an extra day to handle Saturday
+  }
+
+  void _handleValueChange(Map<String, dynamic> empleado, int index, String key, dynamic value) {
+    if (widget.readOnly) return;
+
+    setState(() {
+      empleado[key] = value;
+
+      // Recalcular totales
+      final diasCount = widget.semanaSeleccionada?.duration.inDays ?? 6;
+      final total = List.generate(diasCount + 1, (i) => 
+        int.tryParse((empleado['dia_$i'] ?? '0').toString()) ?? 0
+      ).reduce((a, b) => a + b);
+      
+      final debe = int.tryParse(empleado['debe']?.toString() ?? '0') ?? 0;
+      final subtotal = total - debe;
+      final comedorValue = empleado['comedor'] == true ? 400 : 0;
+      final totalNeto = subtotal - comedorValue;
+
+      // Actualizar los totales en el empleado
+      empleado['total'] = total;
+      empleado['subtotal'] = subtotal;
+      empleado['totalNeto'] = totalNeto;
+    });
+
+    widget.onChanged?.call(index, key, value);
+  }
+
+  List<DataColumn> _buildColumns() {
+    return [
+      DataColumn(
+        label: SizedBox(
+          width: widget.isExpanded ? 90 : 75,
+          child: const Text('Clave',
+            style: TextStyle(fontWeight: FontWeight.bold),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ),
+      DataColumn(
+        label: SizedBox(
+          width: widget.isExpanded ? 220 : 180,
+          child: const Text('Nombre',
+            style: TextStyle(fontWeight: FontWeight.bold),
+            textAlign: TextAlign.left,
+          ),
+        ),
+      ),
+      ...widget.semanaSeleccionada != null 
+        ? List.generate(_numDays, (i) {
+            final date = widget.semanaSeleccionada!.start.add(Duration(days: i));
+            final dateFormat = DateFormat('EEE\nd/M', 'es');
+            return DataColumn(
+              label: SizedBox(
+                width: widget.isExpanded ? 90 : 75,
+                child: Text(
+                  dateFormat.format(date).toLowerCase(),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            );
+          })
+        : ['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom'].map((dia) => 
+            DataColumn(
+              label: SizedBox(
+                width: widget.isExpanded ? 90 : 75,
+                child: Text(
+                  dia,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            )
+          ).toList(),
+      DataColumn(
+        label: SizedBox(
+          width: widget.isExpanded ? 100 : 85,
+          child: const Text('Total',
+            style: TextStyle(fontWeight: FontWeight.bold),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ),
+      DataColumn(
+        label: SizedBox(
+          width: widget.isExpanded ? 100 : 85,
+          child: const Text('Debe',
+            style: TextStyle(fontWeight: FontWeight.bold),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ),
+      DataColumn(
+        label: SizedBox(
+          width: widget.isExpanded ? 100 : 85,
+          child: const Text('Subtotal',
+            style: TextStyle(fontWeight: FontWeight.bold),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ),
+      DataColumn(
+        label: SizedBox(
+          width: widget.isExpanded ? 100 : 85,
+          child: const Text('Comedor',
+            style: TextStyle(fontWeight: FontWeight.bold),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ),
+      DataColumn(
+        label: SizedBox(
+          width: widget.isExpanded ? 100 : 85,
+          child: const Text('Total\nNeto',
+            style: TextStyle(fontWeight: FontWeight.bold),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ),
+    ];
+  }
+
+  List<DataRow> _buildRows() {
+    
+    return widget.empleados.asMap().entries.map((entry) {
+      final index = entry.key;
+      final empleado = entry.value;
+
+      // Calcular valores
+      final total = empleado['total'] ?? 0;
+final debe = double.tryParse(empleado['debe'].toString()) ?? 0.0;
+final subtotal = double.tryParse(empleado['subtotal'].toString()) ?? 0.0;
+final comedorValue = double.tryParse(empleado['comedor'].toString()) ?? 0.0;
+      final totalNeto = empleado['totalNeto'] ?? subtotal - comedorValue;
+      
+
+      return DataRow(
+        cells: [
+          DataCell(SizedBox(
+            width: widget.isExpanded ? 90 : 75,
+            child: Text(empleado['clave']?.toString() ?? '', 
+              textAlign: TextAlign.center
+            ),
+          )),
+          DataCell(SizedBox(
+            width: widget.isExpanded ? 220 : 180,
+            child: Text(empleado['nombre']?.toString() ?? '', 
+              textAlign: TextAlign.left
+            ),
+          )),
+          ...List.generate(_numDays, (i) =>
+            DataCell(SizedBox(
+              width: widget.isExpanded ? 90 : 75,
+              child: widget.readOnly
+                ? Text(
+                    _formatCurrency(int.tryParse(empleado['dia_$i']?.toString() ?? '0') ?? 0),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: widget.isExpanded ? 15 : 13),
+                  )
+                : TextFormField(
+                    key: ValueKey('dia_${empleado['id']}_$i'),
+                    controller: TextEditingController(
+                      text: _formatCurrency(int.tryParse(empleado['dia_$i']?.toString() ?? '0') ?? 0)
+                    )..selection = TextSelection.collapsed(
+                      offset: _formatCurrency(int.tryParse(empleado['dia_$i']?.toString() ?? '0') ?? 0).length
+                    ),
+                    textAlign: TextAlign.center,
+                    keyboardType: TextInputType.number,
+                    style: TextStyle(fontSize: widget.isExpanded ? 15 : 13),
+                    decoration: InputDecoration(
+                      isDense: true,
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: widget.isExpanded ? 12 : 8
+                      ),
+                      border: const OutlineInputBorder(),
+                    ),
+                    onChanged: (value) {
+                      final numStr = value.replaceAll(RegExp(r'[^\d.]'), '');
+                      _handleValueChange(empleado, index, 'dia_$i', numStr);
+                    },
+                  ),
+            ))
+          ),
+          DataCell(SizedBox(
+            width: widget.isExpanded ? 100 : 85,
+            child: Text(
+              _formatCurrency(double.tryParse(total.toString()) ?? 0.0),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: widget.isExpanded ? 15 : 13
+              ),
+            ),
+          )),
+          DataCell(SizedBox(
+            width: widget.isExpanded ? 100 : 85,
+            child: widget.readOnly
+              ? Text(
+                  _formatCurrency(debe),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: widget.isExpanded ? 15 : 13),
+                )
+              : TextFormField(
+                  key: ValueKey('debe_${empleado['id']}'),
+                  controller: TextEditingController(
+                    text: _formatCurrency(debe)
+                  )..selection = TextSelection.collapsed(
+                    offset: _formatCurrency(debe).length
+                  ),
+                  textAlign: TextAlign.center,
+                  keyboardType: TextInputType.number,
+                  style: TextStyle(fontSize: widget.isExpanded ? 15 : 13),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: widget.isExpanded ? 12 : 8
+                    ),
+                    border: const OutlineInputBorder(),
+                  ),
+                  onChanged: (value) {
+                    final numStr = value.replaceAll(RegExp(r'[^\d.]'), '');
+                    _handleValueChange(empleado, index, 'debe', numStr);
+                  },
+                ),
+          )),
+          DataCell(SizedBox(
+            width: widget.isExpanded ? 100 : 85,
+            child: Text(
+              _formatCurrency(subtotal),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: widget.isExpanded ? 15 : 13
+              ),
+            ),
+          )),
+          DataCell(
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: widget.readOnly
+                ? Container(
+                    height: widget.isExpanded ? 40 : 36,
+                    width: widget.isExpanded ? 90 : 75,
+                    decoration: BoxDecoration(
+                      color: empleado['comedor'] == true ? const Color(0xFF8AB531) : Colors.grey.shade200,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          empleado['comedor'] == true ? Icons.check_box : Icons.check_box_outline_blank,
+                          size: widget.isExpanded ? 24 : 20,
+                          color: empleado['comedor'] == true ? Colors.white : Colors.grey.shade600,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          _formatCurrency(400),
+                          style: TextStyle(
+                            fontSize: widget.isExpanded ? 15 : 13,
+                            fontWeight: FontWeight.w500,
+                            color: empleado['comedor'] == true ? Colors.white : Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : MaterialButton(
+                    key: ValueKey('comedor_${empleado['id']}_${empleado['comedor']}'),
+                    onPressed: () => _handleValueChange(empleado, index, 'comedor', !(empleado['comedor'] ?? false)),
+                    height: widget.isExpanded ? 40 : 36,
+                    minWidth: widget.isExpanded ? 90 : 75,
+                    color: empleado['comedor'] == true ? const Color(0xFF8AB531) : Colors.grey.shade200,
+                    elevation: 0,
+                    padding: EdgeInsets.zero,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          empleado['comedor'] == true ? Icons.check_box : Icons.check_box_outline_blank,
+                          size: widget.isExpanded ? 24 : 20,
+                          color: empleado['comedor'] == true ? Colors.white : Colors.grey.shade600,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          _formatCurrency(400),
+                          style: TextStyle(
+                            fontSize: widget.isExpanded ? 15 : 13,
+                            fontWeight: FontWeight.w500,
+                            color: empleado['comedor'] == true ? Colors.white : Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+            ),
+          ),
+          DataCell(SizedBox(
+            width: widget.isExpanded ? 100 : 85,
+            child: Text(
+              _formatCurrency(totalNeto),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: widget.isExpanded ? 15 : 13,
+                color: totalNeto < 0 ? Colors.red : null,
+              ),
+            ),
+          )),
+        ],
+      );
+    }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    // Construir columnas, subencabezados y filas de datos
-    final columns = _buildColumns();
-    final subHeaders = _buildSubHeaders();
-    // Obtener celdas de datos como lista de Strings/TextFormFields
-    List<TableRow> dataRows = [];
-    // Filas de datos generadas dinámicamente
-    for (var entry in empleados.asMap().entries) {
-      int idx = entry.key;
-      final emp = entry.value;
-      final diasCount = semanaSeleccionada != null
-          ? semanaSeleccionada!.end.difference(semanaSeleccionada!.start).inDays + 1
-          : 7;
-      final totalDias = (emp['dias'] as List<int>).fold(0, (a, b) => a + b);
-      final debo = emp['debo'] as int? ?? 0;
-      final subtotal = totalDias - debo;
-      final comedor = emp['comedor'] as int? ?? 0;
-      final neto = subtotal - comedor;
-      // Preparar celdas
-      List<Widget> cells = [];
-      cells.add(Padding(padding: const EdgeInsets.all(8), child: Text(emp['clave']?.toString() ?? '')));
-      cells.add(Padding(padding: const EdgeInsets.all(8), child: Text(emp['nombre']?.toString() ?? '')));
-      for (int i = 0; i < diasCount; i++) {
-        cells.add(Padding(
-          padding: const EdgeInsets.all(4),
-          child: SizedBox(
-            width: 40,
-            child: TextFormField(
-              initialValue: (emp['dias'][i] as int).toString(),
-              keyboardType: TextInputType.number,
-              onChanged: (v) => onChanged(idx, 'dia_$i', int.tryParse(v) ?? 0),
-              textAlign: TextAlign.center,
-              decoration: const InputDecoration(border: InputBorder.none, isDense: true),
-            ),
+    return Card(
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: DataTable(
+          columnSpacing: widget.isExpanded ? 12 : 8,
+          headingRowHeight: widget.isExpanded ? 52 : 48,
+          dataRowHeight: widget.isExpanded ? 56 : 52,
+          headingRowColor: MaterialStateProperty.all(Colors.grey.shade100),
+          headingTextStyle: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
           ),
-        ));
-      }
-      cells.add(Padding(padding: const EdgeInsets.all(8), child: Text('\$${totalDias}')));
-      cells.add(Padding(padding: const EdgeInsets.all(4), child: SizedBox(
-        width: 60,
-        child: TextFormField(
-          initialValue: debo.toString(),
-          keyboardType: TextInputType.number,
-          onChanged: (v) => onChanged(idx, 'debo', int.tryParse(v) ?? 0),
-          textAlign: TextAlign.center,
-          decoration: const InputDecoration(border: InputBorder.none, isDense: true),
-        ),
-      )));
-      cells.add(Padding(padding: const EdgeInsets.all(8), child: Text('\$${subtotal}')));
-      cells.add(Padding(padding: const EdgeInsets.all(4), child: SizedBox(
-        width: 60,
-        child: TextFormField(
-          initialValue: comedor.toString(),
-          keyboardType: TextInputType.number,
-          onChanged: (v) => onChanged(idx, 'comedor', int.tryParse(v) ?? 0),
-          textAlign: TextAlign.center,
-          decoration: const InputDecoration(border: InputBorder.none, isDense: true),
-        ),
-      )));
-      cells.add(Padding(padding: const EdgeInsets.all(8), child: Text('\$${neto}')));
-      dataRows.add(TableRow(children: cells));
-    }
-    // Expandir al ancho disponible y centrar la tabla
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minWidth: constraints.maxWidth),
-            child: Align(
-              alignment: Alignment.center,
-              child: Table(
-                border: TableBorder.all(color: Colors.grey.shade300),
-                defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-                columnWidths: {for (var i = 0; i < columns.length; i++) i: const IntrinsicColumnWidth()},
-                children: [
-                  // Encabezados
-                  TableRow(
-                    decoration: BoxDecoration(color: Colors.grey.shade200),
-                    children: columns.map((col) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-                        child: (col.label is Text)
-                            ? Text((col.label as Text).data ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))
-                            : col.label,
-                      );
-                    }).toList(),
-                  ),
-                  // Subencabezados
-                  TableRow(
-                    decoration: BoxDecoration(color: Colors.grey.shade100),
-                    children: subHeaders.map((sub) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-                        child: Text(sub, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                      );
-                    }).toList(),
-                  ),
-                  // Filas de datos
-                  ...dataRows,
-                ],
-              ),
-            ),
+          dataTextStyle: TextStyle(
+            fontSize: widget.isExpanded ? 14 : 13,
           ),
-        );
-      },
+          showBottomBorder: true,
+          columns: _buildColumns(),
+          rows: [
+            DataRow(
+              color: MaterialStateProperty.all(Colors.grey.shade50),
+              cells: [
+                DataCell(SizedBox(width: widget.isExpanded ? 90 : 75)),
+                DataCell(SizedBox(width: widget.isExpanded ? 220 : 180)),
+                ...List.generate(_numDays, (i) =>
+                  DataCell(
+                    Container(
+                      width: widget.isExpanded ? 90 : 75,
+                      alignment: Alignment.center,
+                      child: const Text('TT',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w500,
+                          fontSize: 13,
+                          color: Colors.black54,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  )
+                ),
+                ...List.generate(5, (i) => DataCell(SizedBox(width: widget.isExpanded ? 100 : 85))),
+              ],
+            ),
+            ..._buildRows(),
+          ],
+          border: TableBorder(
+            horizontalInside: BorderSide(color: Colors.grey.shade200),
+            verticalInside: BorderSide(color: Colors.grey.shade200),
+          ),
+        ),
+      ),
     );
   }
 }

@@ -1,12 +1,8 @@
-/// Pantalla de inicio de sesión
-/// Proporciona la interfaz de autenticación para acceder al sistema.
-/// Incluye un formulario de login y una imagen de fondo decorativa.
-
 import 'package:flutter/material.dart';
+import 'package:postgres/postgres.dart';
 import 'Dashboard_screen.dart';
+import '../services/database_service.dart';
 
-/// Widget que representa la pantalla de inicio de sesión.
-/// Maneja el estado del formulario de autenticación.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -14,26 +10,59 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-/// Estado de la pantalla de inicio de sesión
 class _LoginScreenState extends State<LoginScreen> {
+  final TextEditingController _userController = TextEditingController();
+  final TextEditingController _passController = TextEditingController();
+  String? _errorMessage;
+
+  Future<void> _login() async {
+    final username = _userController.text.trim();
+    final password = _passController.text.trim();
+
+    try {
+      final dbService = DatabaseService();
+      await dbService.connect();
+
+      final results = await dbService.connection.query(
+        'SELECT * FROM usuarios WHERE nombre_usuario = @nombre AND contraseña = @clave',
+        substitutionValues: {'nombre': username, 'clave': password},
+      );
+
+      await dbService.close();
+
+      if (results.isNotEmpty) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => DashboardScreen()),
+        );
+      } else {
+        setState(() {
+          _errorMessage = 'Usuario o contraseña incorrectos';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Error de conexión: $e';
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black87,
       body: Row(
         children: [
-          // Panel izquierdo: Formulario de inicio de sesión
           Expanded(
             flex: 1,
             child: Container(
-              color: Colors.white, // Fondo blanco para el formulario
+              color: Colors.white,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 40.0),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Título de la pantalla
                     Text(
                       'INICIAR SESIÓN',
                       style: TextStyle(
@@ -43,15 +72,13 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     SizedBox(height: 40),
-                    // Campo de usuario con diseño personalizado
                     TextField(
+                      controller: _userController,
                       decoration: InputDecoration(
                         prefixIcon: Icon(Icons.person_outline),
                         hintText: 'Usuario',
                         filled: true,
-                        fillColor: Color(
-                          0xFFF2F3EC,
-                        ), // Color de fondo del campo
+                        fillColor: Color(0xFFF2F3EC),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
                           borderSide: BorderSide.none,
@@ -59,33 +86,25 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     SizedBox(height: 20),
-                    // Campo de contraseña con diseño personalizado
                     TextField(
+                      controller: _passController,
                       obscureText: true,
                       decoration: InputDecoration(
                         prefixIcon: Icon(Icons.lock_outline),
                         hintText: 'Contraseña',
                         filled: true,
-                        fillColor: Color(
-                          0xFFF2F3EC,
-                        ), // Color de fondo del campo
+                        fillColor: Color(0xFFF2F3EC),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
                           borderSide: BorderSide.none,
                         ),
                       ),
                     ),
-                    SizedBox(height: 10),
-                    // Enlace para recuperar contraseña
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: Text(
-                        '¿Olvidaste tu contraseña?',
-                        style: TextStyle(color: Colors.grey[500], fontSize: 15),
-                      ),
-                    ),
+                    if (_errorMessage != null) ...[
+                      SizedBox(height: 10),
+                      Text(_errorMessage!, style: TextStyle(color: Colors.red)),
+                    ],
                     SizedBox(height: 40),
-                    // Botón de inicio de sesión con diseño personalizado
                     Center(
                       child: Container(
                         decoration: BoxDecoration(
@@ -104,14 +123,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ],
                         ),
                         child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => DashboardScreen(),
-                              ),
-                            );
-                          },
+                          onPressed: _login,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.transparent,
                             shadowColor: Colors.transparent,
@@ -140,7 +152,6 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ),
-          // Panel derecho: Logo e imagen de fondo
           Expanded(
             flex: 2,
             child: Container(

@@ -2,7 +2,8 @@
 // Pantalla para la gestión de cuadrillas en el sistema Agribar
 // Documentación y estructura profesionalizada
 import 'package:flutter/material.dart';
-
+import '../services/registrarCuadrillaEnBD.dart';
+import '../services/cargarCuadrillasDesdeBD.dart';
 // Widget principal de la pantalla de cuadrillas
 class CuadrillaContent extends StatefulWidget {
   const CuadrillaContent({Key? key}) : super(key: key);
@@ -27,39 +28,24 @@ class _CuadrillaContentState extends State<CuadrillaContent> {
   final TextEditingController passController = TextEditingController();
 
   // Lista de cuadrillas (mock data) ahora con estado habilitado/deshabilitado
-  final List<Map<String, dynamic>> cuadrillas = [
-    {
-      'nombre': 'Indirectos',
-      'clave': '000001+390',
-      'grupo': 'Grupo Baranzini',
-      'actividad': 'Destajo',
-      'habilitado': true,
-    },
-    {
-      'nombre': 'Linea 1',
-      'clave': '000002+390',
-      'grupo': 'Grupo Baranzini',
-      'actividad': 'Destajo',
-      'habilitado': true,
-    },
-    {
-      'nombre': 'Linea 3',
-      'clave': '000003+390',
-      'grupo': 'Grupo Baranzini',
-      'actividad': 'Destajo',
-      'habilitado': true,
-    },
-  ];
+  
 
   // Lista filtrada para mostrar en la tabla
   List<Map<String, dynamic>> cuadrillasFiltradas = [];
-
+  List<Map<String, dynamic>> cuadrillas = [];
   @override
   void initState() {
     super.initState();
+    cargarCuadrillas();
     cuadrillasFiltradas = List.from(cuadrillas);
   }
-
+Future<void> cargarCuadrillas() async {
+  final datos = await obtenerCuadrillasDesdeBD();
+  setState(() {
+    cuadrillas = datos;
+    cuadrillasFiltradas = List.from(datos);
+  });
+}
   // Filtra las cuadrillas según el texto de búsqueda
   void _buscarCuadrilla() {
     String query = searchController.text.trim().toLowerCase();
@@ -74,34 +60,38 @@ class _CuadrillaContentState extends State<CuadrillaContent> {
       }
     });
   }
-
-  // Crea una nueva cuadrilla y la agrega a la lista
-  void _crearCuadrilla() {
-    if (claveController.text.isEmpty ||
-        nombreController.text.isEmpty ||
-        grupoController.text.isEmpty ||
-        actividadSeleccionada == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor llena todos los campos.')),
-      );
-      return;
-    }
-    setState(() {
-      cuadrillas.add({
-        'nombre': nombreController.text,
-        'clave': claveController.text,
-        'grupo': grupoController.text,
-        'actividad': actividadSeleccionada!,
-        'habilitado': true, // Por defecto, nueva cuadrilla está habilitada
-      });
-      _buscarCuadrilla();
-      claveController.clear();
-      nombreController.clear();
-      grupoController.clear();
-      actividadSeleccionada = null;
-    });
+// Crear cuadrilla *****----------------------******
+  void _crearCuadrilla() async {
+  if (nombreController.text.isEmpty ||
+      grupoController.text.isEmpty ||
+      actividadSeleccionada == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Por favor llena todos los campos.')),
+    );
+    return;
   }
 
+  final nuevaClave = await generarSiguienteClaveCuadrilla();
+
+  final nuevaCuadrilla = {
+    'clave': nuevaClave,
+    'nombre': nombreController.text,
+    'grupo': grupoController.text,
+    'actividad': actividadSeleccionada!,
+    'estado': true,
+  };
+
+  await registrarCuadrillaEnBD(nuevaCuadrilla);
+
+  setState(() {
+    claveController.text = nuevaClave;
+    cuadrillas.add(nuevaCuadrilla);
+    _buscarCuadrilla();
+    nombreController.clear();
+    grupoController.clear();
+    actividadSeleccionada = null;
+  });
+}
   // Validar credenciales de supervisor
   bool _validarCredencialesSupervisor(String usuario, String password) {
     return usuario == "supervisor" && password == "1234";
@@ -445,177 +435,90 @@ class _CuadrillaContentState extends State<CuadrillaContent> {
                               controller: _tableScrollController,
                               children: [
                                 DataTable(
-                                  headingRowColor: MaterialStateProperty.all(
-                                    Color(0xFFE0E0E0),
-                                  ),
-                                  dataRowColor: MaterialStateProperty.resolveWith<
-                                    Color?
-                                  >((Set<MaterialState> states) {
-                                    // Cambiar color de fondo si está deshabilitado
-                                    final rowIndex =
-                                        states.contains(MaterialState.selected)
-                                            ? states.toList().indexOf(
-                                              MaterialState.selected,
-                                            )
-                                            : -1;
-                                    if (rowIndex != -1 &&
-                                        rowIndex < cuadrillasFiltradas.length) {
-                                      return cuadrillasFiltradas[rowIndex]['habilitado'] ==
-                                              false
-                                          ? Colors.grey[100]
-                                          : null;
-                                    }
-                                    return null;
-                                  }),
-                                  border: TableBorder.all(
-                                    color: Colors.grey.shade400,
-                                    width: 1,
-                                    style: BorderStyle.solid,
-                                  ),
-                                  columns: const [
-                                    DataColumn(
-                                      label: Text(
-                                        'Nombre',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                    DataColumn(
-                                      label: Text(
-                                        'Clave',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                    DataColumn(
-                                      label: Text(
-                                        'Grupo',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                    DataColumn(
-                                      label: Text(
-                                        'Actividad',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                    DataColumn(
-                                      label: Text(
-                                        'Estado',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                  rows:
-                                      cuadrillasFiltradas.asMap().entries.map((
-                                        entry,
-                                      ) {
-                                        final index = entry.key;
-                                        final cuadrilla = entry.value;
-                                        return DataRow(
-                                          cells: [
-                                            DataCell(
-                                              Text(
-                                                cuadrilla['nombre'],
-                                                style: TextStyle(
-                                                  color:
-                                                      cuadrilla['habilitado'] ==
-                                                              false
-                                                          ? Colors.grey[600]
-                                                          : null,
-                                                ),
-                                              ),
-                                            ),
-                                            DataCell(
-                                              Text(
-                                                cuadrilla['clave'],
-                                                style: TextStyle(
-                                                  color:
-                                                      cuadrilla['habilitado'] ==
-                                                              false
-                                                          ? Colors.grey[600]
-                                                          : null,
-                                                ),
-                                              ),
-                                            ),
-                                            DataCell(
-                                              Text(
-                                                cuadrilla['grupo'],
-                                                style: TextStyle(
-                                                  color:
-                                                      cuadrilla['habilitado'] ==
-                                                              false
-                                                          ? Colors.grey[600]
-                                                          : null,
-                                                ),
-                                              ),
-                                            ),
-                                            DataCell(
-                                              Text(
-                                                cuadrilla['actividad'],
-                                                style: TextStyle(
-                                                  color:
-                                                      cuadrilla['habilitado'] ==
-                                                              false
-                                                          ? Colors.grey[600]
-                                                          : null,
-                                                ),
-                                              ),
-                                            ),
-                                            DataCell(
-                                              Container(
-                                                width: 120,
-                                                child: ElevatedButton(
-                                                  style: ElevatedButton.styleFrom(
-                                                    backgroundColor:
-                                                        cuadrilla['habilitado']
-                                                            ? Color(
-                                                              0xFFE53935,
-                                                            ) // Rojo para deshabilitar
-                                                            : Color(
-                                                              0xFF0B7A2F,
-                                                            ), // Verde para habilitar
-                                                    foregroundColor:
-                                                        Colors.white,
-                                                    padding:
-                                                        EdgeInsets.symmetric(
-                                                          horizontal: 8,
-                                                          vertical: 4,
-                                                        ),
-                                                    shape: RoundedRectangleBorder(
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            8,
-                                                          ),
-                                                    ),
-                                                  ),
-                                                  onPressed:
-                                                      () => _toggleHabilitado(
-                                                        index,
-                                                      ),
-                                                  child: Text(
-                                                    cuadrilla['habilitado']
-                                                        ? 'Deshabilitar'
-                                                        : 'Habilitar',
-                                                    style: TextStyle(
-                                                      fontSize: 13,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        );
-                                      }).toList(),
-                                ),
+  headingRowColor: MaterialStateProperty.all(
+    Color(0xFFE0E0E0),
+  ),
+  dataRowColor: MaterialStateProperty.resolveWith<Color?>(
+    (Set<MaterialState> states) {
+      final rowIndex = states.contains(MaterialState.selected)
+          ? states.toList().indexOf(MaterialState.selected)
+          : -1;
+      if (rowIndex != -1 && rowIndex < cuadrillasFiltradas.length) {
+        final habilitado = cuadrillasFiltradas[rowIndex]['habilitado'] ?? true;
+        return !habilitado ? Colors.grey[100] : null;
+      }
+      return null;
+    },
+  ),
+  border: TableBorder.all(
+    color: Colors.grey.shade400,
+    width: 1,
+    style: BorderStyle.solid,
+  ),
+  columns: const [
+    DataColumn(label: Text('Nombre', style: TextStyle(fontWeight: FontWeight.bold))),
+    DataColumn(label: Text('Clave', style: TextStyle(fontWeight: FontWeight.bold))),
+    DataColumn(label: Text('Grupo', style: TextStyle(fontWeight: FontWeight.bold))),
+    DataColumn(label: Text('Actividad', style: TextStyle(fontWeight: FontWeight.bold))),
+    DataColumn(label: Text('Estado', style: TextStyle(fontWeight: FontWeight.bold))),
+  ],
+  rows: cuadrillasFiltradas.asMap().entries.map((entry) {
+    final index = entry.key;
+    final cuadrilla = entry.value;
+    final habilitado = cuadrilla['habilitado'] ?? true;
+
+    return DataRow(
+      cells: [
+        DataCell(
+          Text(
+            cuadrilla['nombre'],
+            style: TextStyle(color: !habilitado ? Colors.grey[600] : null),
+          ),
+        ),
+        DataCell(
+          Text(
+            cuadrilla['clave'],
+            style: TextStyle(color: !habilitado ? Colors.grey[600] : null),
+          ),
+        ),
+        DataCell(
+          Text(
+            cuadrilla['grupo'],
+            style: TextStyle(color: !habilitado ? Colors.grey[600] : null),
+          ),
+        ),
+        DataCell(
+          Text(
+            cuadrilla['actividad'],
+            style: TextStyle(color: !habilitado ? Colors.grey[600] : null),
+          ),
+        ),
+        DataCell(
+          Container(
+            width: 120,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: habilitado
+                    ? Color(0xFFE53935) // rojo para deshabilitar
+                    : Color(0xFF0B7A2F), // verde para habilitar
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              onPressed: () => _toggleHabilitado(index),
+              child: Text(
+                habilitado ? 'Deshabilitar' : 'Habilitar',
+                style: TextStyle(fontSize: 13),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }).toList(),
+),
                               ],
                             ),
                           ),

@@ -296,11 +296,7 @@ class _MetricCard extends StatelessWidget {
   final double fontSize;
   const _MetricCard({
     required this.title,
-    required this.value,
-    this.icon,
-    this.iconColor,
-    this.valueColor,
-    this.fontSize = 32,
+    required this.value, this.icon, this.iconColor, this.valueColor, required this.fontSize,
   });
 
   @override
