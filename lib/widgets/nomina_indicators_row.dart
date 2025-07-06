@@ -102,22 +102,22 @@ class _NominaIndicatorsRowState extends State<NominaIndicatorsRow> {
       // Obtener el total neto de todas las cuadrillas de la semana
       final result = await db.connection.query(
         '''
-        SELECT COALESCE(SUM(n.total_neto), 0) as total_semana
-        FROM nomina_empleados_semanal n
-        WHERE n.id_semana = @semanaId
-        ''',
-        substitutionValues: {'semanaId': widget.semanaId},
+  SELECT total_semana
+    FROM resumen_nomina
+    WHERE id_semana = (SELECT MAX(id_semana) FROM resumen_nomina);
+        '''
+       
       );
 
       await db.close();
 
-      final totalFromDB = result.isNotEmpty 
-          ? (result.first[0] as num?)?.toDouble() ?? 0.0
-          : 0.0;
+     final totalFromDB = result.isNotEmpty
+  ? double.tryParse(result.first[0].toString()) ?? 0.0
+  : 0.0;
 
-      setState(() {
-        _totalSemana = totalFromDB;
-      });
+setState(() {
+  _totalSemana = totalFromDB;
+});
     } catch (e) {
       print('Error al calcular total semana: $e');
       setState(() {
