@@ -3,6 +3,7 @@ import 'dart:ui';
 import '../screens/login_screen.dart';
 import '../utils/auth_utils.dart';
 import '../services/usuarios_service.dart';
+import '../services/roles_service.dart';
 
 class ConfiguracionContent extends StatefulWidget {
   const ConfiguracionContent({Key? key}) : super(key: key);
@@ -17,16 +18,57 @@ class _ConfiguracionContentState extends State<ConfiguracionContent> {
   String? modalTitle; // Título del modal actual
   
   final UsuariosService _usuariosService = UsuariosService();
+  final RolesService _rolesService = RolesService();
   List<Map<String, dynamic>> _users = [];
+  List<Map<String, dynamic>> _roles = [];
   bool _isLoadingUsers = true;
+  bool _isLoadingRoles = true;
 
   @override
   void initState() {
     super.initState();
-    _loadUsers();
+    _loadUsersAndRoles();
   }
 
-  /// Carga los usuarios desde la base de datos
+  /// Carga los usuarios y roles desde la base de datos
+  Future<void> _loadUsersAndRoles() async {
+    setState(() {
+      _isLoadingUsers = true;
+      _isLoadingRoles = true;
+    });
+
+    try {
+      // Cargar roles primero
+      final roles = await _rolesService.obtenerRoles();
+      setState(() {
+        _roles = roles;
+        _isLoadingRoles = false;
+      });
+
+      // Cargar usuarios
+      final usuarios = await _usuariosService.obtenerUsuarios();
+      setState(() {
+        _users = usuarios.map((usuario) => {
+          'id_usuario': usuario['id_usuario'],
+          'name': usuario['nombre_usuario'], // Para mostrar en la UI
+          'nombre_usuario': usuario['nombre_usuario'], // Para editar
+          'role': usuario['rol_descripcion'] ?? 'Sin rol',
+          'rol': usuario['rol'], // ID del rol para editar
+          'correo': usuario['correo'],
+          'color': _getColorForRole(usuario['rol_descripcion'] ?? ''),
+        }).toList();
+        _isLoadingUsers = false;
+      });
+    } catch (e) {
+      print('Error cargando datos: $e');
+      setState(() {
+        _isLoadingUsers = false;
+        _isLoadingRoles = false;
+      });
+    }
+  }
+
+  /// Carga solo los usuarios desde la base de datos
   Future<void> _loadUsers() async {
     setState(() {
       _isLoadingUsers = true;
@@ -37,10 +79,12 @@ class _ConfiguracionContentState extends State<ConfiguracionContent> {
       setState(() {
         _users = usuarios.map((usuario) => {
           'id_usuario': usuario['id_usuario'],
-          'name': usuario['nombre_usuario'],
-          'role': usuario['rol'],
+          'name': usuario['nombre_usuario'], // Para mostrar en la UI
+          'nombre_usuario': usuario['nombre_usuario'], // Para editar
+          'role': usuario['rol_descripcion'] ?? 'Sin rol',
+          'rol': usuario['rol'], // ID del rol para editar
           'correo': usuario['correo'],
-          'color': _getColorForRole(usuario['rol']),
+          'color': _getColorForRole(usuario['rol_descripcion'] ?? ''),
         }).toList();
         _isLoadingUsers = false;
       });
@@ -475,11 +519,9 @@ class _ConfiguracionContentState extends State<ConfiguracionContent> {
       context: context,
       barrierColor: Colors.black26,
       builder: (context) => _AddUserDialog(initialUser: user),
-    ).then((editedUser) {
-      if (editedUser != null) {
-        setState(() {
-          _users[index] = editedUser as Map<String, dynamic>;
-        });
+    ).then((success) {
+      if (success == true) {
+        _loadUsers(); // Recargar la lista de usuarios
       }
     });
   }
@@ -500,11 +542,38 @@ class _ConfiguracionContentState extends State<ConfiguracionContent> {
                 child: const Text('Cancelar'),
               ),
               TextButton(
-                onPressed: () {
-                  setState(() {
-                    _users.removeAt(index);
-                  });
-                  Navigator.of(context).pop();
+                onPressed: () async {
+                  try {
+                    final userId = _users[index]['id_usuario'];
+                    final success = await _usuariosService.eliminarUsuario(userId);
+                    
+                    Navigator.of(context).pop();
+                    
+                    if (success) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Usuario eliminado exitosamente'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                      _loadUsers(); // Recargar la lista
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Error al eliminar el usuario'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    Navigator.of(context).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Error: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
                 },
                 child: const Text('Eliminar'),
                 style: TextButton.styleFrom(foregroundColor: Colors.red),
@@ -528,22 +597,23 @@ class _AddUserDialogState extends State<_AddUserDialog> {
   late TextEditingController _nameController;
   late TextEditingController _emailController;
   late TextEditingController _passwordController;
-  String _selectedRole = 'Capturista';
+  int? _selectedRoleId;
   bool _isLoading = false;
 
-  final List<String> _roles = ['Admin', 'Supervisor', 'Capturista'];
+  List<Map<String, dynamic>> _roles = [];
   final UsuariosService _usuariosService = UsuariosService();
+  final RolesService _rolesService = RolesService();
 
   Color _getColorForRole(String role) {
-    switch (role) {
-      case 'Admin':
-        return const Color(0xFF7BAE2F);
-      case 'Supervisor':
-        return const Color(0xFF7B6A3A);
-      case 'Capturista':
-        return const Color(0xFF2B8DDB);
+    switch (role.toLowerCase()) {
+      case 'administrador':
+        return const Color(0xFF6B7280); // Gris para administradores
+      case 'capturista':
+        return const Color(0xFF2B8DDB); // Azul para capturistas
+      case 'supervisor':
+        return const Color(0xFF7B6A3A); // Marrón para supervisores
       default:
-        return const Color(0xFF2B8DDB);
+        return const Color.fromARGB(255, 148, 79, 79); // Gris para otros roles
     }
   }
 
@@ -551,16 +621,33 @@ class _AddUserDialogState extends State<_AddUserDialog> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(
-      text: widget.initialUser?['name'] ?? '',
+      text: widget.initialUser?['nombre_usuario'] ?? '',
     );
     _emailController = TextEditingController(
       text: widget.initialUser?['correo'] ?? '',
     );
     _passwordController = TextEditingController(
-      text: widget.initialUser?['password'] ?? '',
+      text: '', // No cargar contraseña por seguridad
     );
+    _loadRoles();
     if (widget.initialUser != null) {
-      _selectedRole = widget.initialUser!['role'];
+      _selectedRoleId = widget.initialUser!['rol']; // Usar 'rol' no 'rol_id'
+    }
+  }
+
+  /// Carga la lista de roles disponibles
+  Future<void> _loadRoles() async {
+    try {
+      final roles = await _rolesService.obtenerRolesParaDropdown();
+      setState(() {
+        _roles = roles;
+        // Si no hay rol seleccionado y hay roles disponibles, seleccionar el primero
+        if (_selectedRoleId == null && _roles.isNotEmpty) {
+          _selectedRoleId = _roles.first['id_rol'];
+        }
+      });
+    } catch (e) {
+      print('Error cargando roles: $e');
     }
   }
 
@@ -627,8 +714,8 @@ class _AddUserDialogState extends State<_AddUserDialog> {
               ),
             ),
             const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              value: _selectedRole,
+            DropdownButtonFormField<int>(
+              value: _selectedRoleId,
               decoration: const InputDecoration(
                 labelText: 'Rol',
                 prefixIcon: Icon(Icons.work_outline),
@@ -636,13 +723,48 @@ class _AddUserDialogState extends State<_AddUserDialog> {
                 filled: true,
                 fillColor: Color(0xFFF5F5F5),
               ),
-              items:
-                  _roles.map((role) {
-                    return DropdownMenuItem(value: role, child: Text(role));
-                  }).toList(),
+              selectedItemBuilder: (BuildContext context) {
+                return _roles.map<Widget>((role) {
+                  final color = _getColorForRole(role['descripcion']);
+                  return Row(
+                    children: [
+                      Container(
+                        width: 16,
+                        height: 16,
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(role['descripcion']),
+                    ],
+                  );
+                }).toList();
+              },
+              items: _roles.map((role) {
+                final color = _getColorForRole(role['descripcion']);
+                return DropdownMenuItem<int>(
+                  value: role['id_rol'], 
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 20,
+                        height: 20,
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(role['descripcion']),
+                    ],
+                  ),
+                );
+              }).toList(),
               onChanged: (value) {
                 setState(() {
-                  _selectedRole = value!;
+                  _selectedRoleId = value!;
                 });
               },
             ),
@@ -718,6 +840,17 @@ class _AddUserDialogState extends State<_AddUserDialog> {
       return;
     }
 
+    // Validar que se haya seleccionado un rol
+    if (_selectedRoleId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Por favor seleccione un rol'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
@@ -731,7 +864,7 @@ class _AddUserDialogState extends State<_AddUserDialog> {
           nombreUsuario: _nameController.text.trim(),
           correo: _emailController.text.trim(),
           password: _passwordController.text.trim(),
-          rol: _selectedRole,
+          rolId: _selectedRoleId!,
         );
       } else {
         // Actualizar usuario existente
@@ -740,7 +873,7 @@ class _AddUserDialogState extends State<_AddUserDialog> {
           nombreUsuario: _nameController.text.trim(),
           correo: _emailController.text.trim(),
           password: _passwordController.text.isNotEmpty ? _passwordController.text.trim() : null,
-          rol: _selectedRole,
+          rolId: _selectedRoleId!, // Usar ! ya que se validó arriba
         );
       }
 

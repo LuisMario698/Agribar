@@ -4,20 +4,22 @@ import 'package:agribar/services/database_service.dart';
 class UsuariosService {
   final DatabaseService _db = DatabaseService();
 
-  /// Obtiene todos los usuarios del sistema
-  /// Retorna una lista de mapas con la información de cada usuario
+  /// Obtiene todos los usuarios del sistema con información del rol
+  /// Retorna una lista de mapas con la información de cada usuario y su rol
   Future<List<Map<String, dynamic>>> obtenerUsuarios() async {
     try {
       await _db.connect();
       
       final results = await _db.connection.query('''
         SELECT 
-          id_usuario,
-          nombre_usuario,
-          correo,
-          rol
-        FROM usuarios
-        ORDER BY nombre_usuario;
+          u.id_usuario,
+          u.nombre_usuario,
+          u.correo,
+          u.rol,
+          r.descripcion as rol_descripcion
+        FROM usuarios u
+        LEFT JOIN roles r ON u.rol = r.id_rol
+        ORDER BY u.nombre_usuario;
       ''');
 
       await _db.close();
@@ -26,7 +28,8 @@ class UsuariosService {
         'id_usuario': row[0],
         'nombre_usuario': row[1],
         'correo': row[2],
-        'rol': row[3],
+        'rol': row[3], // ID del rol
+        'rol_descripcion': row[4], // Descripción del rol
       }).toList();
     } catch (e) {
       print('❌ Error al obtener usuarios: $e');
@@ -35,8 +38,7 @@ class UsuariosService {
     }
   }
 
-  /// Obtiene un usuario específico por su ID
-  /// [id] - ID del usuario a buscar
+  /// Obtiene un usuario específico por su ID con información del rol
   /// Retorna un mapa con la información del usuario o null si no existe
   Future<Map<String, dynamic>?> obtenerUsuarioPorId(int id) async {
     try {
@@ -44,12 +46,14 @@ class UsuariosService {
       
       final results = await _db.connection.query('''
         SELECT 
-          id_usuario,
-          nombre_usuario,
-          correo,
-          rol
-        FROM usuarios
-        WHERE id_usuario = @id;
+          u.id_usuario,
+          u.nombre_usuario,
+          u.correo,
+          u.rol,
+          r.descripcion as rol_descripcion
+        FROM usuarios u
+        LEFT JOIN roles r ON u.rol = r.id_rol
+        WHERE u.id_usuario = @id;
       ''', substitutionValues: {'id': id});
 
       await _db.close();
@@ -60,7 +64,8 @@ class UsuariosService {
           'id_usuario': row[0],
           'nombre_usuario': row[1],
           'correo': row[2],
-          'rol': row[3],
+          'rol': row[3], // ID del rol
+          'rol_descripcion': row[4], // Descripción del rol
         };
       }
       return null;
@@ -72,21 +77,22 @@ class UsuariosService {
   }
 
   /// Obtiene un usuario por nombre de usuario para autenticación
-  /// [nombreUsuario] - Nombre de usuario
-  /// Retorna un mapa con la información del usuario incluyendo la contraseña
+  /// Retorna un mapa con la información del usuario incluyendo la contraseña y rol
   Future<Map<String, dynamic>?> obtenerUsuarioParaAuth(String nombreUsuario) async {
     try {
       await _db.connect();
       
       final results = await _db.connection.query('''
         SELECT 
-          id_usuario,
-          nombre_usuario,
-          correo,
-          contraseña,
-          rol
-        FROM usuarios
-        WHERE nombre_usuario = @nombre;
+          u.id_usuario,
+          u.nombre_usuario,
+          u.correo,
+          u.contraseña,
+          u.rol,
+          r.descripcion as rol_descripcion
+        FROM usuarios u
+        LEFT JOIN roles r ON u.rol = r.id_rol
+        WHERE u.nombre_usuario = @nombre;
       ''', substitutionValues: {'nombre': nombreUsuario});
 
       await _db.close();
@@ -98,7 +104,8 @@ class UsuariosService {
           'nombre_usuario': row[1],
           'correo': row[2],
           'contraseña': row[3],
-          'rol': row[4],
+          'rol': row[4], // ID del rol
+          'rol_descripcion': row[5], // Descripción del rol
         };
       }
       return null;
@@ -110,21 +117,17 @@ class UsuariosService {
   }
 
   /// Crea un nuevo usuario en el sistema
-  /// [nombreUsuario] - Nombre de usuario único
-  /// [correo] - Correo electrónico del usuario
-  /// [password] - Contraseña en texto plano
-  /// [rol] - Rol del usuario (Admin, Supervisor, Capturista)
   /// Retorna true si se creó exitosamente, false en caso contrario
   Future<bool> crearUsuario({
     required String nombreUsuario,
     required String correo,
     required String password,
-    required String rol,
+    required int rolId,
   }) async {
     try {
       await _db.connect();
 
-      // Verificar si ya existe un usuario con ese nombre
+      // Verificar si ya existe un usuario con ese nombre o correo
       final existeUsuario = await _db.connection.query('''
         SELECT id_usuario FROM usuarios 
         WHERE nombre_usuario = @nombre OR correo = @correo;
@@ -135,6 +138,17 @@ class UsuariosService {
 
       if (existeUsuario.isNotEmpty) {
         print('❌ Ya existe un usuario con ese nombre de usuario o correo');
+        await _db.close();
+        return false;
+      }
+
+      // Verificar que el rol existe
+      final existeRol = await _db.connection.query('''
+        SELECT id_rol FROM roles WHERE id_rol = @rol_id;
+      ''', substitutionValues: {'rol_id': rolId});
+
+      if (existeRol.isEmpty) {
+        print('❌ El rol especificado no existe');
         await _db.close();
         return false;
       }
@@ -156,7 +170,7 @@ class UsuariosService {
         'nombre': nombreUsuario,
         'correo': correo,
         'password': _hashPassword(password),
-        'rol': rol,
+        'rol': rolId,
       });
 
       await _db.close();
@@ -170,18 +184,13 @@ class UsuariosService {
   }
 
   /// Actualiza los datos de un usuario existente
-  /// [id] - ID del usuario a actualizar
-  /// [nombreUsuario] - Nuevo nombre de usuario (opcional)
-  /// [correo] - Nuevo correo (opcional)
-  /// [password] - Nueva contraseña (opcional)
-  /// [rol] - Nuevo rol (opcional)
   /// Retorna true si se actualizó exitosamente, false en caso contrario
   Future<bool> actualizarUsuario({
     required int id,
     String? nombreUsuario,
     String? correo,
     String? password,
-    String? rol,
+    int? rolId,
   }) async {
     try {
       await _db.connect();
@@ -190,24 +199,59 @@ class UsuariosService {
       List<String> setClauses = [];
       Map<String, dynamic> values = {'id': id};
 
-      if (nombreUsuario != null) {
+      if (nombreUsuario != null && nombreUsuario.isNotEmpty) {
+        // Verificar que el nombre de usuario no esté en uso por otro usuario
+        final existeNombre = await _db.connection.query('''
+          SELECT id_usuario FROM usuarios 
+          WHERE nombre_usuario = @nombre AND id_usuario != @id;
+        ''', substitutionValues: {'nombre': nombreUsuario, 'id': id});
+
+        if (existeNombre.isNotEmpty) {
+          print('❌ El nombre de usuario ya está en uso');
+          await _db.close();
+          return false;
+        }
+
         setClauses.add('nombre_usuario = @nombre');
         values['nombre'] = nombreUsuario;
       }
 
-      if (correo != null) {
+      if (correo != null && correo.isNotEmpty) {
+        // Verificar que el correo no esté en uso por otro usuario
+        final existeCorreo = await _db.connection.query('''
+          SELECT id_usuario FROM usuarios 
+          WHERE correo = @correo AND id_usuario != @id;
+        ''', substitutionValues: {'correo': correo, 'id': id});
+
+        if (existeCorreo.isNotEmpty) {
+          print('❌ El correo ya está en uso');
+          await _db.close();
+          return false;
+        }
+
         setClauses.add('correo = @correo');
         values['correo'] = correo;
       }
 
-      if (password != null) {
+      if (password != null && password.isNotEmpty) {
         setClauses.add('contraseña = @password');
         values['password'] = _hashPassword(password);
       }
 
-      if (rol != null) {
+      if (rolId != null) {
+        // Verificar que el rol existe
+        final existeRol = await _db.connection.query('''
+          SELECT id_rol FROM roles WHERE id_rol = @rol_id;
+        ''', substitutionValues: {'rol_id': rolId});
+
+        if (existeRol.isEmpty) {
+          print('❌ El rol especificado no existe');
+          await _db.close();
+          return false;
+        }
+
         setClauses.add('rol = @rol');
-        values['rol'] = rol;
+        values['rol'] = rolId;
       }
 
       if (setClauses.isEmpty) {
@@ -223,40 +267,42 @@ class UsuariosService {
       ''';
 
       final result = await _db.connection.execute(query, substitutionValues: values);
-
+      
       await _db.close();
       print('✅ Usuario actualizado exitosamente');
       return result > 0;
     } catch (e) {
       print('❌ Error al actualizar usuario: $e');
-      await _db.close();
+      try {
+        await _db.close();
+      } catch (closeError) {
+        print('❌ Error al cerrar conexión: $closeError');
+      }
       return false;
     }
   }
 
-  /// Elimina un usuario del sistema (eliminación lógica)
-  /// [id] - ID del usuario a eliminar
+  /// Elimina un usuario del sistema
   /// Retorna true si se eliminó exitosamente, false en caso contrario
   Future<bool> eliminarUsuario(int id) async {
     try {
       await _db.connect();
 
-      // Verificar que el usuario existe y está activo
+      // Verificar que el usuario existe
       final existe = await _db.connection.query('''
         SELECT id_usuario FROM usuarios 
-        WHERE id_usuario = @id AND activo = true;
+        WHERE id_usuario = @id;
       ''', substitutionValues: {'id': id});
 
       if (existe.isEmpty) {
-        print('❌ Usuario no encontrado o ya está inactivo');
+        print('❌ Usuario no encontrado');
         await _db.close();
         return false;
       }
 
-      // Realizar eliminación lógica (marcar como inactivo)
+      // Realizar eliminación física
       final result = await _db.connection.execute('''
-        UPDATE usuarios 
-        SET activo = false
+        DELETE FROM usuarios 
         WHERE id_usuario = @id;
       ''', substitutionValues: {'id': id});
 
@@ -270,36 +316,7 @@ class UsuariosService {
     }
   }
 
-  /// Cambia el estado de un usuario (activar/desactivar)
-  /// [id] - ID del usuario
-  /// [activo] - Nuevo estado del usuario
-  /// Retorna true si se cambió exitosamente, false en caso contrario
-  Future<bool> cambiarEstadoUsuario(int id, bool activo) async {
-    try {
-      await _db.connect();
-
-      final result = await _db.connection.execute('''
-        UPDATE usuarios 
-        SET activo = @activo
-        WHERE id_usuario = @id;
-      ''', substitutionValues: {
-        'id': id,
-        'activo': activo,
-      });
-
-      await _db.close();
-      print('✅ Estado del usuario cambiado exitosamente');
-      return result > 0;
-    } catch (e) {
-      print('❌ Error al cambiar estado del usuario: $e');
-      await _db.close();
-      return false;
-    }
-  }
-
   /// Verifica si un nombre de usuario ya existe
-  /// [nombreUsuario] - Nombre de usuario a verificar
-  /// [excludeId] - ID de usuario a excluir de la verificación (útil para actualizaciones)
   /// Retorna true si existe, false en caso contrario
   Future<bool> existeNombreUsuario(String nombreUsuario, {int? excludeId}) async {
     try {
@@ -307,7 +324,7 @@ class UsuariosService {
 
       String query = '''
         SELECT id_usuario FROM usuarios 
-        WHERE nombre_usuario = @nombre AND activo = true
+        WHERE nombre_usuario = @nombre
       ''';
       
       Map<String, dynamic> values = {'nombre': nombreUsuario};
@@ -329,34 +346,32 @@ class UsuariosService {
   }
 
   /// Obtiene usuarios por rol específico
-  /// [rol] - Rol a filtrar (Admin, Supervisor, Capturista)
   /// Retorna lista de usuarios con el rol especificado
-  Future<List<Map<String, dynamic>>> obtenerUsuariosPorRol(String rol) async {
+  Future<List<Map<String, dynamic>>> obtenerUsuariosPorRol(int rolId) async {
     try {
       await _db.connect();
       
       final results = await _db.connection.query('''
         SELECT 
-          id_usuario,
-          nombre_usuario,
-          email,
-          rol,
-          fecha_creacion,
-          activo
-        FROM usuarios
-        WHERE rol = @rol AND activo = true
-        ORDER BY nombre_usuario;
-      ''', substitutionValues: {'rol': rol});
+          u.id_usuario,
+          u.nombre_usuario,
+          u.correo,
+          u.rol,
+          r.descripcion as rol_descripcion
+        FROM usuarios u
+        LEFT JOIN roles r ON u.rol = r.id_rol
+        WHERE u.rol = @rol_id
+        ORDER BY u.nombre_usuario;
+      ''', substitutionValues: {'rol_id': rolId});
 
       await _db.close();
 
       return results.map((row) => {
-        'id': row[0],
+        'id_usuario': row[0],
         'nombre_usuario': row[1],
-        'email': row[2],
-        'rol': row[3],
-        'fecha_creacion': row[4],
-        'activo': row[5],
+        'correo': row[2],
+        'rol': row[3], // id del rol
+        'rol_descripcion': row[4], // Descripción del rol
       }).toList();
     } catch (e) {
       print('❌ Error al obtener usuarios por rol: $e');
@@ -364,20 +379,13 @@ class UsuariosService {
       return [];
     }
   }
-
-  /// Función privada para hashear contraseñas
-  /// [password] - Contraseña en texto plano
-  /// Retorna la contraseña hasheada
   String _hashPassword(String password) {
-    // Por simplicidad, aquí se retorna la contraseña tal como está
-    // En producción, se debería usar una librería como crypto para hashear
-    // Ejemplo: return sha256.convert(utf8.encode(password)).toString();
+    // Por simplicidad, se retorna la contraseña tal como está
+    // En el futuro se implementara la encriptación aquí
     return password;
   }
 
   /// Valida las credenciales de un usuario
-  /// [nombreUsuario] - Nombre de usuario
-  /// [password] - Contraseña en texto plano
   /// Retorna el usuario si las credenciales son válidas, null en caso contrario
   Future<Map<String, dynamic>?> validarCredenciales(String nombreUsuario, String password) async {
     try {

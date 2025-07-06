@@ -5,22 +5,32 @@ class DatabaseService {
   late PostgreSQLConnection _connection;
 
   Future<void> connect() async {
-    _connection = PostgreSQLConnection(
-      'localhost',  // Host
-      5432,
-      'AGRIBAR',
-      username: 'postgres',
-      password: 'admin',
-    );
-    await _connection.open();
-    print('✅ Conexión establecida con PostgreSQL');
+    try {
+      _connection = PostgreSQLConnection(
+        'localhost',  // Host
+        5432,
+        'AGRIBAR',
+        username: 'postgres',
+        password: 'admin',
+      );
+      await _connection.open();
+    } catch (e) {
+      print('❌ Error al conectar con PostgreSQL: $e');
+      rethrow;
+    }
   }
 
   PostgreSQLConnection get connection => _connection;
 
   Future<void> close() async {
-    await _connection.close();
-    print('❌ Conexión cerrada');
+    try {
+      if (_connection.isClosed) {
+        return;
+      }
+      await _connection.close();
+    } catch (e) {
+      print('❌ Error al cerrar conexión: $e');
+    }
   }
 }
 Future<List<Map<String, dynamic>>> obtenerCuadrillasHabilitadas() async {
