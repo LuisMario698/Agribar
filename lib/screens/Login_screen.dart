@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:postgres/postgres.dart';
 import 'Dashboard_screen.dart';
-import '../services/database_service.dart';
+import '../services/usuarios_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -20,29 +19,19 @@ class _LoginScreenState extends State<LoginScreen> {
     final password = _passController.text.trim();
 
     try {
-      final dbService = DatabaseService();
-      await dbService.connect();
+      final usuariosService = UsuariosService();
+      final usuario = await usuariosService.validarCredenciales(username, password);
 
-      final results = await dbService.connection.query(
-        'SELECT * FROM usuarios WHERE nombre_usuario = @nombre AND contraseña = @clave',
-        substitutionValues: {'nombre': username, 'clave': password},
-      );
-
-      await dbService.close();
-
-      if (results.isNotEmpty) {
-         // Obtiene el primer resultado (registro del usuario)
-  final usuario = results.first;
-  final nombre = usuario[1]; // por ejemplo usuario[1]
-  final rol = usuario[4];       // por ejemplo usuario[3]
-  // TIP: usa print(usuario) para ver el orden
+      if (usuario != null) {
+        // Obtener datos del usuario autenticado
+        final nombre = usuario['nombre_usuario'];
+        final rol = usuario['rol']; // Ahora es int (id_rol)
 
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => DashboardScreen(
-nombre: nombre,
-        rol: rol,
-
+            nombre: nombre,
+            rol: rol,
           )),
         );
       } else {

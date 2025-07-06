@@ -27,7 +27,7 @@ class DashboardScreen extends StatefulWidget {
   final void Function(AppTheme)?
   onThemeChanged; // Callback para cambiar el tema
  final String nombre;
-  final String rol;
+  final int rol;
   const DashboardScreen({
     super.key,
     this.appTheme = AppTheme.light, // Por defecto usa el tema claro

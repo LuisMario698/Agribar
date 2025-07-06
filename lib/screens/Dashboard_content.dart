@@ -16,7 +16,7 @@ import 'package:agribar/widgets/chart_card.dart';
 /// - Alertas y notificaciones
 class DashboardHomeContent extends StatefulWidget {
   final String userName; // Nombre del usuario actual
-  final String userRole; // Rol del usuario (Admin, Supervisor, etc.)
+  final int userRole; // Rol del usuario (Admin, Supervisor, etc.)
 
   const DashboardHomeContent({
     required this.userName,
@@ -229,7 +229,11 @@ SELECT total_semana
                                 ),
                               ),
                               Text(
-                                widget.userRole,
+                                widget.userRole.toString() == '1'
+                                    ? 'Administrador'
+                                    : widget.userRole.toString() == '2'
+                                        ? 'Supervisor'
+                                        : 'Empleado',
                                 style: TextStyle(
                                   fontSize: isSmallScreen ? 16 : 22,
                                   color: Colors.grey[600],
