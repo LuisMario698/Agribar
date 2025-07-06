@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'dart:ui';
 import '../screens/login_screen.dart';
 import '../utils/auth_utils.dart';
+import '../services/usuarios_service.dart';
+import '../services/roles_service.dart';
 
 class ConfiguracionContent extends StatefulWidget {
   const ConfiguracionContent({Key? key}) : super(key: key);
@@ -14,29 +16,99 @@ class _ConfiguracionContentState extends State<ConfiguracionContent> {
   bool showTableModal = false; // Controla la visibilidad del modal de tabla
   List<List<String>>? loadedData; // Datos cargados desde archivos
   String? modalTitle; // Título del modal actual
+  
+  final UsuariosService _usuariosService = UsuariosService();
+  final RolesService _rolesService = RolesService();
+  List<Map<String, dynamic>> _users = [];
+  List<Map<String, dynamic>> _roles = [];
+  bool _isLoadingUsers = true;
+  bool _isLoadingRoles = true;
 
-  /// Lista de usuarios del sistema con sus roles y colores asociados.
-  /// Cada usuario es representado por un Map con:
-  /// - name: Nombre completo del usuario
-  /// - role: Rol asignado (Admin, Capturista, Supervisor)
-  /// - color: Color identificador del usuario
-  final List<Map<String, dynamic>> _users = [
-    {
-      'name': 'José Luis Pérez López',
-      'role': 'Admin',
-      'color': const Color(0xFF7BAE2F), // Verde para administradores
-    },
-    {
-      'name': 'Jesús Quintero Cázares',
-      'role': 'Capturista',
-      'color': const Color(0xFF2B8DDB), // Azul para capturistas
-    },
-    {
-      'name': 'Adalberto Sainz Gómez',
-      'role': 'Supervisor',
-      'color': const Color(0xFF7B6A3A), // Marrón para supervisores
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadUsersAndRoles();
+  }
+
+  /// Carga los usuarios y roles desde la base de datos
+  Future<void> _loadUsersAndRoles() async {
+    setState(() {
+      _isLoadingUsers = true;
+      _isLoadingRoles = true;
+    });
+
+    try {
+      // Cargar roles primero
+      final roles = await _rolesService.obtenerRoles();
+      setState(() {
+        _roles = roles;
+        _isLoadingRoles = false;
+      });
+
+      // Cargar usuarios
+      final usuarios = await _usuariosService.obtenerUsuarios();
+      setState(() {
+        _users = usuarios.map((usuario) => {
+          'id_usuario': usuario['id_usuario'],
+          'name': usuario['nombre_usuario'], // Para mostrar en la UI
+          'nombre_usuario': usuario['nombre_usuario'], // Para editar
+          'role': usuario['rol_descripcion'] ?? 'Sin rol',
+          'rol': usuario['rol'], // ID del rol para editar
+          'correo': usuario['correo'],
+          'color': _getColorForRole(usuario['rol_descripcion'] ?? ''),
+        }).toList();
+        _isLoadingUsers = false;
+      });
+    } catch (e) {
+      print('Error cargando datos: $e');
+      setState(() {
+        _isLoadingUsers = false;
+        _isLoadingRoles = false;
+      });
+    }
+  }
+
+  /// Carga solo los usuarios desde la base de datos
+  Future<void> _loadUsers() async {
+    setState(() {
+      _isLoadingUsers = true;
+    });
+
+    try {
+      final usuarios = await _usuariosService.obtenerUsuarios();
+      setState(() {
+        _users = usuarios.map((usuario) => {
+          'id_usuario': usuario['id_usuario'],
+          'name': usuario['nombre_usuario'], // Para mostrar en la UI
+          'nombre_usuario': usuario['nombre_usuario'], // Para editar
+          'role': usuario['rol_descripcion'] ?? 'Sin rol',
+          'rol': usuario['rol'], // ID del rol para editar
+          'correo': usuario['correo'],
+          'color': _getColorForRole(usuario['rol_descripcion'] ?? ''),
+        }).toList();
+        _isLoadingUsers = false;
+      });
+    } catch (e) {
+      print('Error cargando usuarios: $e');
+      setState(() {
+        _isLoadingUsers = false;
+      });
+    }
+  }
+
+  /// Asigna un color basado en el rol del usuario
+  Color _getColorForRole(String role) {
+    switch (role.toLowerCase()) {
+      case 'admin':
+        return const Color(0xFF7BAE2F); // Verde para administradores
+      case 'capturista':
+        return const Color(0xFF2B8DDB); // Azul para capturistas
+      case 'supervisor':
+        return const Color(0xFF7B6A3A); // Marrón para supervisores
+      default:
+        return const Color(0xFF6B7280); // Gris para otros roles
+    }
+  }
 
 
 
@@ -45,11 +117,9 @@ class _ConfiguracionContentState extends State<ConfiguracionContent> {
       context: context,
       barrierColor: Colors.black26,
       builder: (context) => const _AddUserDialog(),
-    ).then((newUser) {
-      if (newUser != null) {
-        setState(() {
-          _users.add(newUser as Map<String, dynamic>);
-        });
+    ).then((success) {
+      if (success == true) {
+        _loadUsers(); // Recargar la lista de usuarios
       }
     });
   }
@@ -170,91 +240,137 @@ class _ConfiguracionContentState extends State<ConfiguracionContent> {
                     color: Colors.grey[800],
                   ),
                 ),
+                const Spacer(),
+                if (_isLoadingUsers)
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
               ],
             ),
             const SizedBox(height: 24),
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: _users.length,
-              itemBuilder: (context, index) {
-                final user = _users[index];
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey[300]!),
-                  ),
-                  child: Row(
+            if (_isLoadingUsers)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(32),
+                  child: CircularProgressIndicator(),
+                ),
+              )
+            else if (_users.isEmpty)
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
                     children: [
-                      CircleAvatar(
-                        backgroundColor: user['color'] as Color,
-                        child: Text(
-                          user['name'].toString().substring(0, 1).toUpperCase(),
-                          style: const TextStyle(color: Colors.white),
-                        ),
+                      Icon(
+                        Icons.people_outline,
+                        size: 48,
+                        color: Colors.grey[400],
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              user['name'].toString(),
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            Text(
-                              user['role'].toString(),
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                          ],
+                      const SizedBox(height: 16),
+                      Text(
+                        'No hay usuarios registrados',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey[600],
                         ),
-                      ),
-                      PopupMenuButton(
-                        icon: Icon(Icons.more_vert, color: Colors.grey[600]),
-                        itemBuilder: (context) => [
-                          PopupMenuItem(
-                            value: 'edit',
-                            child: Row(
-                              children: [
-                                const Icon(Icons.edit),
-                                const SizedBox(width: 8),
-                                const Text('Editar'),
-                              ],
-                            ),
-                          ),
-                          PopupMenuItem(
-                            value: 'delete',
-                            child: Row(
-                              children: [
-                                const Icon(Icons.delete, color: Colors.red),
-                                const SizedBox(width: 8),
-                                const Text('Eliminar', style: TextStyle(color: Colors.red)),
-                              ],
-                            ),
-                          ),
-                        ],
-                        onSelected: (value) {
-                          if (value == 'edit') {
-                            _showEditUserDialog(context, index);
-                          } else if (value == 'delete') {
-                            _showDeleteUserDialog(context, index);
-                          }
-                        },
                       ),
                     ],
                   ),
-                );
-              },
-            ),
+                ),
+              )
+            else
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _users.length,
+                itemBuilder: (context, index) {
+                  final user = _users[index];
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey[300]!),
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          backgroundColor: user['color'] as Color,
+                          child: Text(
+                            user['name'].toString().substring(0, 1).toUpperCase(),
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                user['name'].toString(),
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              Text(
+                                user['role'].toString(),
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                              if (user['correo'] != null)
+                                Text(
+                                  user['correo'].toString(),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[500],
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        PopupMenuButton(
+                          icon: Icon(Icons.more_vert, color: Colors.grey[600]),
+                          itemBuilder: (context) => [
+                            PopupMenuItem(
+                              value: 'edit',
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.edit),
+                                  const SizedBox(width: 8),
+                                  const Text('Editar'),
+                                ],
+                              ),
+                            ),
+                            PopupMenuItem(
+                              value: 'delete',
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.delete, color: Colors.red),
+                                  const SizedBox(width: 8),
+                                  const Text('Eliminar', style: TextStyle(color: Colors.red)),
+                                ],
+                              ),
+                            ),
+                          ],
+                          onSelected: (value) {
+                            if (value == 'edit') {
+                              _showEditUserDialog(context, index);
+                            } else if (value == 'delete') {
+                              _showDeleteUserDialog(context, index);
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
               onPressed: () => _showUserDialog(context),
@@ -403,11 +519,9 @@ class _ConfiguracionContentState extends State<ConfiguracionContent> {
       context: context,
       barrierColor: Colors.black26,
       builder: (context) => _AddUserDialog(initialUser: user),
-    ).then((editedUser) {
-      if (editedUser != null) {
-        setState(() {
-          _users[index] = editedUser as Map<String, dynamic>;
-        });
+    ).then((success) {
+      if (success == true) {
+        _loadUsers(); // Recargar la lista de usuarios
       }
     });
   }
@@ -428,11 +542,38 @@ class _ConfiguracionContentState extends State<ConfiguracionContent> {
                 child: const Text('Cancelar'),
               ),
               TextButton(
-                onPressed: () {
-                  setState(() {
-                    _users.removeAt(index);
-                  });
-                  Navigator.of(context).pop();
+                onPressed: () async {
+                  try {
+                    final userId = _users[index]['id_usuario'];
+                    final success = await _usuariosService.eliminarUsuario(userId);
+                    
+                    Navigator.of(context).pop();
+                    
+                    if (success) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Usuario eliminado exitosamente'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                      _loadUsers(); // Recargar la lista
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Error al eliminar el usuario'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    Navigator.of(context).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Error: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
                 },
                 child: const Text('Eliminar'),
                 style: TextButton.styleFrom(foregroundColor: Colors.red),
@@ -454,21 +595,25 @@ class _AddUserDialog extends StatefulWidget {
 
 class _AddUserDialogState extends State<_AddUserDialog> {
   late TextEditingController _nameController;
+  late TextEditingController _emailController;
   late TextEditingController _passwordController;
-  String _selectedRole = 'Capturista';
+  int? _selectedRoleId;
+  bool _isLoading = false;
 
-  final List<String> _roles = ['Admin', 'Supervisor', 'Capturista'];
+  List<Map<String, dynamic>> _roles = [];
+  final UsuariosService _usuariosService = UsuariosService();
+  final RolesService _rolesService = RolesService();
 
   Color _getColorForRole(String role) {
-    switch (role) {
-      case 'Admin':
-        return const Color(0xFF7BAE2F);
-      case 'Supervisor':
-        return const Color(0xFF7B6A3A);
-      case 'Capturista':
-        return const Color(0xFF2B8DDB);
+    switch (role.toLowerCase()) {
+      case 'administrador':
+        return const Color(0xFF6B7280); // Gris para administradores
+      case 'capturista':
+        return const Color(0xFF2B8DDB); // Azul para capturistas
+      case 'supervisor':
+        return const Color(0xFF7B6A3A); // Marrón para supervisores
       default:
-        return const Color(0xFF2B8DDB);
+        return const Color.fromARGB(255, 148, 79, 79); // Gris para otros roles
     }
   }
 
@@ -476,19 +621,40 @@ class _AddUserDialogState extends State<_AddUserDialog> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(
-      text: widget.initialUser?['name'] ?? '',
+      text: widget.initialUser?['nombre_usuario'] ?? '',
+    );
+    _emailController = TextEditingController(
+      text: widget.initialUser?['correo'] ?? '',
     );
     _passwordController = TextEditingController(
-      text: widget.initialUser?['password'] ?? '',
+      text: '', // No cargar contraseña por seguridad
     );
+    _loadRoles();
     if (widget.initialUser != null) {
-      _selectedRole = widget.initialUser!['role'];
+      _selectedRoleId = widget.initialUser!['rol']; // Usar 'rol' no 'rol_id'
+    }
+  }
+
+  /// Carga la lista de roles disponibles
+  Future<void> _loadRoles() async {
+    try {
+      final roles = await _rolesService.obtenerRolesParaDropdown();
+      setState(() {
+        _roles = roles;
+        // Si no hay rol seleccionado y hay roles disponibles, seleccionar el primero
+        if (_selectedRoleId == null && _roles.isNotEmpty) {
+          _selectedRoleId = _roles.first['id_rol'];
+        }
+      });
+    } catch (e) {
+      print('Error cargando roles: $e');
     }
   }
 
   @override
   void dispose() {
     _nameController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -516,8 +682,20 @@ class _AddUserDialogState extends State<_AddUserDialog> {
             TextField(
               controller: _nameController,
               decoration: const InputDecoration(
-                labelText: 'Usuario',
+                labelText: 'Nombre de Usuario',
                 prefixIcon: Icon(Icons.person_outline),
+                border: OutlineInputBorder(),
+                filled: true,
+                fillColor: Color(0xFFF5F5F5),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                labelText: 'Correo Electrónico',
+                prefixIcon: Icon(Icons.email_outlined),
                 border: OutlineInputBorder(),
                 filled: true,
                 fillColor: Color(0xFFF5F5F5),
@@ -536,8 +714,8 @@ class _AddUserDialogState extends State<_AddUserDialog> {
               ),
             ),
             const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              value: _selectedRole,
+            DropdownButtonFormField<int>(
+              value: _selectedRoleId,
               decoration: const InputDecoration(
                 labelText: 'Rol',
                 prefixIcon: Icon(Icons.work_outline),
@@ -545,13 +723,48 @@ class _AddUserDialogState extends State<_AddUserDialog> {
                 filled: true,
                 fillColor: Color(0xFFF5F5F5),
               ),
-              items:
-                  _roles.map((role) {
-                    return DropdownMenuItem(value: role, child: Text(role));
-                  }).toList(),
+              selectedItemBuilder: (BuildContext context) {
+                return _roles.map<Widget>((role) {
+                  final color = _getColorForRole(role['descripcion']);
+                  return Row(
+                    children: [
+                      Container(
+                        width: 16,
+                        height: 16,
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(role['descripcion']),
+                    ],
+                  );
+                }).toList();
+              },
+              items: _roles.map((role) {
+                final color = _getColorForRole(role['descripcion']);
+                return DropdownMenuItem<int>(
+                  value: role['id_rol'], 
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 20,
+                        height: 20,
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(role['descripcion']),
+                    ],
+                  ),
+                );
+              }).toList(),
               onChanged: (value) {
                 setState(() {
-                  _selectedRole = value!;
+                  _selectedRoleId = value!;
                 });
               },
             ),
@@ -560,43 +773,32 @@ class _AddUserDialogState extends State<_AddUserDialog> {
               children: [
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () {
-                      if (_nameController.text.trim().isEmpty ||
-                          _passwordController.text.trim().isEmpty) {
-                        // Mostrar mensaje de error
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Por favor complete todos los campos',
-                            ),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                        return;
-                      }
-                      Navigator.of(context).pop({
-                        'name': _nameController.text.trim(),
-                        'password': _passwordController.text.trim(),
-                        'role': _selectedRole,
-                        'color': _getColorForRole(_selectedRole),
-                      });
-                    },
+                    onPressed: _isLoading ? null : _saveUser,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF7BAE2F),
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
-                    child: Text(
-                      widget.initialUser == null ? 'Añadir' : 'Guardar',
-                      style: const TextStyle(color: Colors.white),
-                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : Text(
+                            widget.initialUser == null ? 'Añadir' : 'Guardar',
+                            style: const TextStyle(color: Colors.white),
+                          ),
                   ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
-                  child: TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    style: TextButton.styleFrom(
-                      backgroundColor: const Color(0xFF8B1A1A),
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey[600],
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
                     child: const Text(
@@ -611,6 +813,110 @@ class _AddUserDialogState extends State<_AddUserDialog> {
         ),
       ),
     );
+  }
+
+  Future<void> _saveUser() async {
+    // Validar campos
+    if (_nameController.text.trim().isEmpty ||
+        _emailController.text.trim().isEmpty ||
+        _passwordController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Por favor complete todos los campos'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Validar formato de correo básico
+    if (!_emailController.text.contains('@')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Por favor ingrese un correo válido'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Validar que se haya seleccionado un rol
+    if (_selectedRoleId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Por favor seleccione un rol'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      bool success;
+      
+      if (widget.initialUser == null) {
+        // Crear nuevo usuario
+        success = await _usuariosService.crearUsuario(
+          nombreUsuario: _nameController.text.trim(),
+          correo: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
+          rolId: _selectedRoleId!,
+        );
+      } else {
+        // Actualizar usuario existente
+        success = await _usuariosService.actualizarUsuario(
+          id: widget.initialUser!['id_usuario'],
+          nombreUsuario: _nameController.text.trim(),
+          correo: _emailController.text.trim(),
+          password: _passwordController.text.isNotEmpty ? _passwordController.text.trim() : null,
+          rolId: _selectedRoleId!, // Usar ! ya que se validó arriba
+        );
+      }
+
+      if (success) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                widget.initialUser == null 
+                    ? 'Usuario creado exitosamente'
+                    : 'Usuario actualizado exitosamente'
+              ),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.of(context).pop(true); // Retorna true para indicar éxito
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Error al guardar el usuario. Verifique que el nombre de usuario y correo no estén en uso.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 }
 
