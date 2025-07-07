@@ -1,926 +1,1083 @@
-import 'package:agribar/services/database_service.dart';
-import 'package:excel/excel.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
-import 'package:path_provider/path_provider.dart';
-import 'dart:ui';
-import '../widgets/custom_search_bar.dart';
-import '../widgets/filter_button.dart';
-import '../widgets/date_selector.dart';
-import 'dart:io';
-import '../widgets/export_button_group.dart';
+import '../theme/app_styles.dart';
 
-
-import '../widgets/reportes_table_dialog.dart';
-
-/// Pantalla de reportes del sistema Agribar.
-/// 
-/// Esta pantalla implementa la visualización y generación de reportes,
-/// permitiendo al usuario:
-/// - Filtrar datos por empleado, cuadrilla o actividad
-/// - Seleccionar rangos de fechas específicos
-/// - Visualizar datos en tablas y gráficos
-/// - Exportar reportes en diferentes formatos
-/// 
-/// La pantalla utiliza varios widgets reutilizables para:
-/// - Filtrado y búsqueda (CustomSearchBar)
-/// - Selección de fechas (DateSelector)
-/// - Visualización de datos (DataTableWidget)
-/// - Gráficos estadísticos (ChartWidget)
 class ReportesScreen extends StatefulWidget {
-  const ReportesScreen({Key? key}) : super(key: key);
-
   @override
   State<ReportesScreen> createState() => _ReportesScreenState();
 }
 
-/// Estado de la pantalla de reportes que gestiona:
-/// - Filtros seleccionados
-/// - Fechas del reporte
-/// - Datos visualizados
-/// - Scroll de tablas
-/// 
-/// Funcionalidad principal:
-/// - Actualización dinámica de datos según filtros
-/// - Gestión del scroll horizontal y vertical
-/// - Exportación de reportes personalizados
-/// - Visualización de gráficos estadísticos
-class _ReportesScreenState extends State<ReportesScreen> {
-  int selectedFilter = 1; // 0: Empleado, 1: Cuadrilla, 2: Actividad
-  final TextEditingController searchController = TextEditingController();
-  DateTime? startDate;
-  DateTime? endDate;
-  int tipoReporteSeleccionado = 0;// 0: Empleado, 1: Cuadrilla, 2: Actividad
-List<Map<String, String>> empleadosData = [];
-List<Map<String, String>> reporteData = [];
-
-  // Controladores para el scroll de la tabla
-  final ScrollController _horizontalController = ScrollController();
-  final ScrollController _verticalController = ScrollController();
-
-  @override
-  void dispose() {
-    _horizontalController.dispose();
-    _verticalController.dispose();
-    super.dispose();
+class _ReportesScreenState extends State<ReportesScreen> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  final TextEditingController _searchController = TextEditingController();
+  
+  // Variables para el historial
+  bool _isModoSemana = true; // true: por semana, false: por día
+  DateTime? _diaSeleccionado;
+  String? _semanaSeleccionada;
+  final TextEditingController _semanaController = TextEditingController();
+  int? _numSemanaSeleccionada;
+  int _selectedYear = DateTime.now().year; // Año seleccionado por defecto
+  
+  // Lista de años disponibles (puedes ajustar según tus necesidades)
+  List<int> get _availableYears {
+    final currentYear = DateTime.now().year;
+    return List.generate(5, (index) => currentYear - index); // Últimos 5 años
   }
-
-Future<void> exportarReporteAExcel() async {
-  List<Map<String, String>> dataExportar;
-
-  String nombreArchivo;
-  List<String> headers;
-
-  switch (selectedFilter) {
-    case 0:
-      dataExportar = empleadosData;
-      nombreArchivo = 'reporte_empleados';
-      headers = ['id_empleado', 'codigo', 'nombre', 'fecha', 'total'];
-      break;
-    case 1:
-      dataExportar = cuadrillasData;
-      nombreArchivo = 'reporte_cuadrillas';
-      headers = ['id_cuadrilla', 'cuadrilla', 'total'];
-      break;
-    case 2:
-      dataExportar = actividadesData;
-      nombreArchivo = 'reporte_actividades';
-      headers = ['codigo', 'nombre', 'fecha', 'responsable', 'cuadrilla'];
-      break;
-    default:
-      return;
-  }
-
-  final excel = Excel.createExcel();
-  final sheet = excel[excel.getDefaultSheet()!];
-
-  // Encabezados
-  sheet.appendRow(headers);
-
-  // Datos
-  for (var row in dataExportar) {
-    final rowData = headers.map((h) => row[h] ?? '').toList();
-    sheet.appendRow(rowData);
-  }
-
-  // Guardar archivo
- final directory = Directory.current.path;
-final filePath = '$directory/$nombreArchivo.xlsx';
-  final fileBytes = excel.encode();
-
-  final file = File(filePath);
-  await file.writeAsBytes(fileBytes!);
-
-  print('📁 Archivo exportado en: $filePath');
-}
-  // Datos de ejemplo para cada filtro
-
-   List<Map<String, String>> cuadrillasData = [];
-
-  final List<Map<String, String>> actividadesData = [
+  
+  // Datos de ejemplo para la tabla
+  List<Map<String, dynamic>> _reportData = [
+    // Semana 27 (Semana actual)
     {
-      'codigo': 'A-01',
-      'nombre': 'Cosecha',
-      'fecha': '01/06/2024',
-      'responsable': 'Juan Pérez',
+      'fecha': '01/07/2025',
+      'semana': 'Semana 27',
       'cuadrilla': 'Cuadrilla Norte',
+      'actividad': 'Cosecha',
+      'total': '\$1,240.00'
     },
     {
-      'codigo': 'A-02',
-      'nombre': 'Siembra',
-      'fecha': '03/06/2024',
-      'responsable': 'Ana López',
+      'fecha': '02/07/2025',
+      'semana': 'Semana 27',
       'cuadrilla': 'Cuadrilla Sur',
+      'actividad': 'Siembra',
+      'total': '\$980.00'
     },
     {
-      'codigo': 'A-03',
-      'nombre': 'Riego',
-      'fecha': '05/06/2024',
-      'responsable': 'Carlos Ruiz',
+      'fecha': '03/07/2025',
+      'semana': 'Semana 27',
       'cuadrilla': 'Cuadrilla Centro',
+      'actividad': 'Riego',
+      'total': '\$750.00'
     },
     {
-      'codigo': 'A-04',
-      'nombre': 'Fertilización',
-      'fecha': '07/06/2024',
-      'responsable': 'Laura Torres',
+      'fecha': '04/07/2025',
+      'semana': 'Semana 27',
       'cuadrilla': 'Cuadrilla Este',
+      'actividad': 'Fertilización',
+      'total': '\$1,100.00'
     },
     {
-      'codigo': 'A-05',
-      'nombre': 'Poda',
-      'fecha': '09/06/2024',
-      'responsable': 'Miguel Díaz',
+      'fecha': '05/07/2025',
+      'semana': 'Semana 27',
       'cuadrilla': 'Cuadrilla Oeste',
+      'actividad': 'Poda',
+      'total': '\$650.00'
     },
     {
-      'codigo': 'A-06',
-      'nombre': 'Cosecha',
-      'fecha': '11/06/2024',
-      'responsable': 'Sofía Jiménez',
-      'cuadrilla': 'Cuadrilla Altiplano',
-    },
-   
-    {
-      'codigo': 'A-14',
-      'nombre': 'Siembra',
-      'fecha': '27/06/2024',
-      'responsable': 'Rosa Jiménez',
-      'cuadrilla': 'Cuadrilla Sierra',
+      'fecha': '06/07/2025',
+      'semana': 'Semana 27',
+      'cuadrilla': 'Cuadrilla Norte',
+      'actividad': 'Control de plagas',
+      'total': '\$820.00'
     },
     {
-      'codigo': 'A-15',
-      'nombre': 'Riego',
-      'fecha': '29/06/2024',
-      'responsable': 'Pedro Romero',
-      'cuadrilla': 'Cuadrilla Bosque',
+      'fecha': '07/07/2025',
+      'semana': 'Semana 27',
+      'cuadrilla': 'Cuadrilla Sur',
+      'actividad': 'Cosecha',
+      'total': '\$1,350.00'
     },
-   
-   
+    
+    // Semana 26
     {
-      'codigo': 'A-20',
-      'nombre': 'Riego',
-      'fecha': '09/07/2024',
-      'responsable': 'Héctor Ruiz',
-      'cuadrilla': 'Cuadrilla Desierto',
+      'fecha': '24/06/2025',
+      'semana': 'Semana 26',
+      'cuadrilla': 'Cuadrilla Norte',
+      'actividad': 'Cosecha',
+      'total': '\$1,180.00'
+    },
+    {
+      'fecha': '25/06/2025',
+      'semana': 'Semana 26',
+      'cuadrilla': 'Cuadrilla Sur',
+      'actividad': 'Siembra',
+      'total': '\$890.00'
+    },
+    {
+      'fecha': '26/06/2025',
+      'semana': 'Semana 26',
+      'cuadrilla': 'Cuadrilla Centro',
+      'actividad': 'Riego',
+      'total': '\$720.00'
+    },
+    {
+      'fecha': '27/06/2025',
+      'semana': 'Semana 26',
+      'cuadrilla': 'Cuadrilla Este',
+      'actividad': 'Fertilización',
+      'total': '\$950.00'
+    },
+    {
+      'fecha': '28/06/2025',
+      'semana': 'Semana 26',
+      'cuadrilla': 'Cuadrilla Oeste',
+      'actividad': 'Poda',
+      'total': '\$680.00'
+    },
+    
+    // Semana 25
+    {
+      'fecha': '17/06/2025',
+      'semana': 'Semana 25',
+      'cuadrilla': 'Cuadrilla Centro',
+      'actividad': 'Riego',
+      'total': '\$720.00'
+    },
+    {
+      'fecha': '18/06/2025',
+      'semana': 'Semana 25',
+      'cuadrilla': 'Cuadrilla Norte',
+      'actividad': 'Cosecha',
+      'total': '\$1,100.00'
+    },
+    {
+      'fecha': '19/06/2025',
+      'semana': 'Semana 25',
+      'cuadrilla': 'Cuadrilla Sur',
+      'actividad': 'Siembra',
+      'total': '\$780.00'
+    },
+    {
+      'fecha': '20/06/2025',
+      'semana': 'Semana 25',
+      'cuadrilla': 'Cuadrilla Este',
+      'actividad': 'Control de plagas',
+      'total': '\$620.00'
+    },
+    {
+      'fecha': '21/06/2025',
+      'semana': 'Semana 25',
+      'cuadrilla': 'Cuadrilla Oeste',
+      'actividad': 'Fertilización',
+      'total': '\$880.00'
+    },
+    
+    // Datos de 2024
+    {
+      'fecha': '15/12/2024',
+      'semana': 'Semana 50',
+      'cuadrilla': 'Cuadrilla Norte',
+      'actividad': 'Cosecha',
+      'total': '\$1,500.00'
+    },
+    {
+      'fecha': '16/12/2024',
+      'semana': 'Semana 50',
+      'cuadrilla': 'Cuadrilla Sur',
+      'actividad': 'Poda',
+      'total': '\$900.00'
+    },
+    {
+      'fecha': '20/11/2024',
+      'semana': 'Semana 47',
+      'cuadrilla': 'Cuadrilla Centro',
+      'actividad': 'Siembra',
+      'total': '\$1,200.00'
+    },
+    {
+      'fecha': '25/10/2024',
+      'semana': 'Semana 43',
+      'cuadrilla': 'Cuadrilla Este',
+      'actividad': 'Riego',
+      'total': '\$800.00'
+    },
+    
+    // Datos de 2023
+    {
+      'fecha': '10/12/2023',
+      'semana': 'Semana 49',
+      'cuadrilla': 'Cuadrilla Norte',
+      'actividad': 'Cosecha',
+      'total': '\$1,300.00'
+    },
+    {
+      'fecha': '15/11/2023',
+      'semana': 'Semana 46',
+      'cuadrilla': 'Cuadrilla Sur',
+      'actividad': 'Fertilización',
+      'total': '\$950.00'
+    },
+    {
+      'fecha': '20/09/2023',
+      'semana': 'Semana 38',
+      'cuadrilla': 'Cuadrilla Centro',
+      'actividad': 'Control de plagas',
+      'total': '\$700.00'
     },
   ];
 
-  List<Map<String, String>> get filteredData {
-    String query = searchController.text.trim().toLowerCase();
-    if (selectedFilter == 0) {
-      // Empleados
-      if (query.isEmpty) return empleadosData;
-      return empleadosData
-          .where(
-            (row) => row.values.any((v) => v.toLowerCase().contains(query)),
-          )
-          .toList();
-    } else if (selectedFilter == 1) {
-      // Cuadrillas
-      if (query.isEmpty) return cuadrillasData;
-      return cuadrillasData
-          .where(
-            (row) => row.values.any((v) => v.toLowerCase().contains(query)),
-          )
-          .toList();
-    } else {
-      // Actividades
-      if (query.isEmpty) return actividadesData;
-      return actividadesData
-          .where(
-            (row) => row.values.any((v) => v.toLowerCase().contains(query)),
-          )
-          .toList();
-    }
-  }
+@override
+void initState() {
+  super.initState();
+  _tabController = TabController(length: 2, vsync: this);
+}
 
-  Future<void> _selectDate(BuildContext context, bool isStart) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2101),
-    );
-    if (picked != null) {
+@override
+void dispose() {
+  _tabController.dispose();
+  _searchController.dispose();
+  _semanaController.dispose();
+  super.dispose();
+}
+
+/// Calcular número de semana del año
+int _getNumSemana(DateTime date) {
+  final primerDiaAno = DateTime(date.year, 1, 1);
+  final diaAno = date.difference(primerDiaAno).inDays + 1;
+  return ((diaAno - date.weekday + 10) / 7).floor();
+}
+
+/// Obtener string de semana basado en una fecha
+String _getWeekString(DateTime date) {
+  final numSemana = _getNumSemana(date);
+  return 'Semana $numSemana';
+}
+
+/// Seleccionar fecha y calcular semana
+Future<void> _selectDate() async {
+  final DateTime? picked = await showDatePicker(
+    context: context,
+    initialDate: _diaSeleccionado ?? DateTime.now(),
+    firstDate: DateTime(2020),
+    lastDate: DateTime.now(),
+  );
+  
+  if (picked != null) {
+    setState(() {
+      _diaSeleccionado = picked;
+      _semanaSeleccionada = _getWeekString(picked);
+    });
+  }
+}
+
+/// Ir a una semana específica
+void _irASemana() {
+  final semanaText = _semanaController.text.trim();
+  if (semanaText.isNotEmpty) {
+    final semanaNum = int.tryParse(semanaText);
+    if (semanaNum != null && semanaNum >= 1 && semanaNum <= 52) {
       setState(() {
-        if (isStart) {
-          startDate = picked;
-        } else {
-          endDate = picked;
-        }
+        _numSemanaSeleccionada = semanaNum;
       });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Por favor ingresa un número de semana válido (1-52)'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
+}
 
-
-  void showFullScreenDialog() {
-    showDialog<void>(
-      context: context,
-      barrierDismissible: true,
-      builder: (BuildContext dialogContext) {
-        List<Map<String, String>> tableData = [];
-        final dialogHorizontalController = ScrollController();
-        final dialogVerticalController = ScrollController();
-        
-        switch (selectedFilter) {
-          case 0:
-            tableData = empleadosData;
-            break;
-          case 1:
-            tableData = cuadrillasData;
-            break;
-          case 2:
-            tableData = actividadesData;
-            break;
-        }
-
-        return ReportesTableDialog(
-          selectedFilter: selectedFilter,
-          data: tableData,
-          onClose: () {
-            dialogHorizontalController.dispose();
-            dialogVerticalController.dispose();
-            Navigator.of(dialogContext).pop();
-          },
-          horizontalController: dialogHorizontalController,
-          verticalController: dialogVerticalController,
-        );
-      },
-    );
-  }
+/// Limpiar selección de semana
+void _clearSemanaSeleccionada() {
+  setState(() {
+    _numSemanaSeleccionada = null;
+    _semanaController.clear();
+  });
+}
 
   @override
   Widget build(BuildContext context) {
-  return Center(
-    child: LayoutBuilder(
-      builder: (context, constraints) {
-        final cardWidth = (constraints.maxWidth < 800 ? constraints.maxWidth * 0.9 : 1400).toDouble();
+    return Center(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isSmallScreen = constraints.maxWidth < 800;
+          final cardWidth = (isSmallScreen ? constraints.maxWidth * 0.9 : 1400).toDouble();
 
-        return Card(
-          elevation: 8,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(32),
-          ),
-          margin: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
-          child: Container(
-            constraints: BoxConstraints(maxWidth: cardWidth),
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Barra de búsqueda y botones
-                    CustomSearchBar(
-                      controller: searchController,
-                      onSearchChanged: (_) => setState(() {}),
-                      onSearchTap: () => setState(() {}),
-                      onInfoTap: () {},
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Filtros y fechas centrados
-                    Center(
-                      child: Column(
-                        children: [                          
-                          FilterBar(
-                            filters: const ['Empleados', 'Cuadrilla', 'Actividad'],
-                            selectedIndex: selectedFilter,
-                          onFilterChanged: (index) async {
-  setState(() {
-    selectedFilter = index;
-      tipoReporteSeleccionado = index;
-  });
-  if (index == 0) {
-    // Solo si aún no se ha cargado
-    if (empleadosData.isEmpty) {
-      final data = await obtenerReportePorEmpleado();
-      setState(() {
-        empleadosData = data;
-      });
-    }
-  }
-  if (index == 1) {
-    // Solo si aún no se ha cargado
-    if (cuadrillasData.isEmpty) {
-      final data = await obtenerReportePorCuadrilla();
-      setState(() {
-        cuadrillasData = data;
-      });
-    }
-  }
-}
-
-
-
-                          ),
-                          const SizedBox(height: 10),                          DateRangeSelector(
-                            startDate: startDate,
-                            endDate: endDate,
-                            onDateSelect: (isStart) => _selectDate(context, isStart),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-
-                    // Botones superiores
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.fullscreen, color: Color(0xFF0B7A2F), size: 28),
-                          tooltip: 'Expandir tabla',
-                          onPressed: () {                            showDialog(
-                              context: context,
-                              barrierColor: Colors.black.withOpacity(0.2),
-                              builder: (context) {
-                                // Crear controladores separados para el diálogo
-                                final dialogHorizontalController = ScrollController();
-                                final dialogVerticalController = ScrollController();
-                                
-                                List<Map<String, String>> tableData = [];
-                                
-                                switch (selectedFilter) {
-                                  case 0:
-                                    tableData = empleadosData;
-                                    break;
-                                  case 1:
-                                    tableData = cuadrillasData;
-                                    break;
-                                  case 2:
-                                    tableData = actividadesData;
-                                    break;
-                                }
-                                
-                                return ReportesTableDialog(
-                                  selectedFilter: selectedFilter,
-                                  data: tableData,
-                                  onClose: () {
-                                    // Asegurarse de liberar los controladores
-                                    dialogHorizontalController.dispose();
-                                    dialogVerticalController.dispose();
-                                    Navigator.of(context).pop();
-                                  },
-                                  horizontalController: dialogHorizontalController,
-                                  verticalController: dialogVerticalController,
-                                );
-                              },
-                            );
-                          },
-                        ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          icon: const Icon(Icons.bar_chart, color: Colors.blue, size: 28),
-                          tooltip: 'Ver gráficas',
-                          onPressed: () {
-                            setState(() {
-                              showCharts = !showCharts;
-                            });
-                          },
-                        ),
-                      ],
-                    ),
-
-                    // Tabla
-                    Center(
-                      child: Card(
-                        elevation: 2,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        margin: const EdgeInsets.symmetric(vertical: 0),
-                        child: Padding(
-                          padding: const EdgeInsets.all(18),
-                          child: SizedBox(
-                            width: 1224,
-                            height: 500,
-                            child: Scrollbar(
-                              controller: _horizontalController,
-                              thumbVisibility: true,
-                              child: SingleChildScrollView(
-                                controller: _horizontalController,
-                                scrollDirection: Axis.horizontal,
-                                child: ConstrainedBox(
-                                  constraints: const BoxConstraints(minWidth: 1224),
-                                  child: Scrollbar(
-                                    controller: _verticalController,
-                                    thumbVisibility: true,
-                                    child: SingleChildScrollView(
-                                      controller: _verticalController,
-                                      scrollDirection: Axis.vertical,
-                                      child: _buildTableWithBorders(),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    // Gráficas
-                    if (showCharts)
-                      Center(
-                        child: SizedBox(
-                          width: 1000,
-                          child: SingleChildScrollView(
-                            child: Column(
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.end,
-                                  children: [
-                                    const Text('Mostrar: ', style: TextStyle(fontWeight: FontWeight.bold)),
-                                    Switch(
-                                      value: showPercentages,
-                                      onChanged: (val) => setState(() => showPercentages = val),
-                                      activeColor: Colors.green,
-                                    ),
-                                    Text(
-                                      showPercentages ? 'Porcentajes' : 'Datos',
-                                      style: const TextStyle(fontWeight: FontWeight.bold),
-                                    ),
-                                  ],
-                                ),
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Expanded(
-                                      child: Card(
-                                        elevation: 2,
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                        margin: const EdgeInsets.all(12),
-                                        child: Padding(
-                                          padding: const EdgeInsets.all(24),
-                                          child: SizedBox(
-                                            height: 220,
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.center,
-                                              children: [
-                                                Row(
-                                                  mainAxisAlignment: MainAxisAlignment.center,
-                                                  children: [
-                                                    const Text(
-                                                      'Pago por cuadrilla',
-                                                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                                                    ),
-                                                    const SizedBox(width: 6),
-                                                    Tooltip(
-                                                      message: 'Distribución del pago total semanal entre las cuadrillas.',
-                                                      child: Icon(Icons.info_outline, color: Colors.grey[600], size: 18),
-                                                    ),
-                                                  ],
-                                                ),
-                                                const SizedBox(height: 12),
-                                                Expanded(child: _buildPieChartSection()),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    Expanded(
-                                      child: Card(
-                                        elevation: 2,
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                        margin: const EdgeInsets.all(12),
-                                        child: Padding(
-                                          padding: const EdgeInsets.all(24),
-                                          child: SizedBox(
-                                            height: 220,
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.center,
-                                              children: [
-                                                Row(
-                                                  mainAxisAlignment: MainAxisAlignment.center,
-                                                  children: [
-                                                    const Text(
-                                                      'Pagos semanales',
-                                                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                                                    ),
-                                                    const SizedBox(width: 6),
-                                                    Tooltip(
-                                                      message: 'Distribución del pago total semanal entre las cuadrillas.',
-                                                      child: Icon(Icons.info_outline, color: Colors.grey[600], size: 18),
-                                                    ),
-                                                  ],
-                                                ),
-                                                const SizedBox(height: 12),
-                                                Expanded(child: _buildBarChartSection()),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Card(
-                                  elevation: 2,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                  margin: const EdgeInsets.all(12),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(24),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            const Text(
-                                              'Actividades por cuadrilla',
-                                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                                            ),
-                                            const SizedBox(width: 6),
-                                            Tooltip(
-                                              message: 'Distribución de las actividades entre las cuadrillas.',
-                                              child: Icon(Icons.info_outline, color: Colors.grey[600], size: 18),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 12),
-                                        _buildHorizontalBarChartSection(),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-
-                    const SizedBox(height: 24),
-
-                    // Botones de exportar
-                    ExportButtonGroup(
-                      onPdfExport: () {
-                        // TODO: Implement PDF export functionality
-                      },
-                      onExcelExport: () {
-                exportarReporteAExcel();
-                      },
-                    ),
-                  ],
-                ),
-              ),
+          return Card(
+            elevation: 12,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(32),
             ),
-          ),
-        );
-      },
-    ),
-  );
-}
-
-
-
-  // Tabla con bordes en todas las celdas y tamaño de fuente reducido
-  Widget _buildTableWithBorders() {
-    List<String> columns;
-    List<List<String>> rows;
-    if (selectedFilter == 0) {
-      columns = [
-        'Id empleado',
-        'Codigo',
-        'Nombre',
-        'Fecha de pago',
-        'Total',
-       
-      ];
-      rows =
-          filteredData
-              .map(
-                (row) => [
-                  row['id_empleado'] ?? '',
-                  row['codigo'] ?? '',
-                  row['nombre'] ?? '',
-                  row['fecha'] ?? '',
-                  row['total'] ?? '',
-                 
-                ],
-              )
-              .toList();
-    } else if (selectedFilter == 1) {
-      columns = ['ID Cuadrilla', 'Nombre', 'Total'];
-      rows =
-          filteredData
-              .map(
-                (row) => [
-                  row['id_cuadrilla'] ?? '',
-                  row['cuadrilla'] ?? '',
-                  row['total'] ?? '',
-                ],
-              )
-              .toList();
-    } else {
-      columns = ['Código', 'Nombre', 'Fecha', 'Responsable', 'Cuadrilla'];
-      rows =
-          filteredData
-              .map(
-                (row) => [
-                  row['codigo'] ?? '',
-                  row['nombre'] ?? '',
-                  row['fecha'] ?? '',
-                  row['responsable'] ?? '',
-                  row['cuadrilla'] ?? '',
-                ],
-              )
-              .toList();
-    }
-    return Table(
-      border: TableBorder.all(color: Colors.grey.shade500, width: 1),
-      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-      columnWidths: {
-        for (int i = 0; i < columns.length; i++)
-          i: const IntrinsicColumnWidth(),
-      },
-      children: [
-        TableRow(
-          decoration: const BoxDecoration(color: Color(0xFFD3D3D3)),
-          children:
-              columns
-                  .map(
-                    (col) => Container(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 8,
-                        horizontal: 8,
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        col,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-                  )
-                  .toList(),
-        ),
-        ...rows.map(
-          (row) => TableRow(
-            children:
-                row
-                    .map(
-                      (cell) => Container(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 8,
-                          horizontal: 8,
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(cell, style: const TextStyle(fontSize: 13)),
-                      ),
-                    )
-                    .toList(),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // Al inicio del estado:
-  bool showCharts = false;
-  bool showPercentages = true;
-
-  // ...
-
-  // Reemplaza _buildChartsSection() por tres métodos separados:
-  Widget _buildPieChartSection() {
-    final cuadrillaRanking = [
-      {'label': 'Indirectos', 'value': 52.1, 'color': Colors.black},
-      {'label': 'Línea 1', 'value': 22.8, 'color': Colors.green},
-      {'label': 'Línea 3', 'value': 13.9, 'color': Colors.lightGreen},
-      {'label': 'Otras', 'value': 11.2, 'color': Colors.grey},
-    ];
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        CustomPaint(
-          size: const Size(100, 100),
-          painter: _SolidPieChartPainter(cuadrillaRanking),
-        ),
-        const SizedBox(width: 18),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children:
-              cuadrillaRanking
-                  .map(
-                    (e) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 10,
-                            height: 10,
-                            decoration: BoxDecoration(
-                              color: e['color'] as Color,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            '${e['label']}',
-                            style: const TextStyle(fontSize: 13),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            showPercentages
-                                ? '${e['value']}%'
-                                : '(24${((e['value'] as double) * 1000).toStringAsFixed(0)})',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                  .toList(),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildBarChartSection() {
-    final pagosSemanales = [300, 600, 350, 700, 200, 400];
-    final dias = [
-      'Lunes',
-      'Martes',
-      'Miércoles',
-      'Jueves',
-      'Viernes',
-      'Sábado',
-    ];
-    final maxPago = pagosSemanales.reduce((a, b) => a > b ? a : b);
-    return SizedBox(
-      height: 160,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: List.generate(pagosSemanales.length, (i) {
-          final color =
-              i == 2
-                  ? Colors.black
-                  : i == 1
-                  ? Colors.green[300]
-                  : i == 3
-                  ? Colors.green[700]
-                  : Colors.grey[400];
-          return Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
+            margin: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
+            child: Container(
+              constraints: BoxConstraints(maxWidth: cardWidth),
+              padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 40),
+              height: MediaQuery.of(context).size.height - 100, // Altura fija
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.end,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    showPercentages
-                        ? '${((pagosSemanales[i] / maxPago) * 100).toStringAsFixed(0)}%'
-                        : '24${pagosSemanales[i]}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 500),
-                    height: 120 * (pagosSemanales[i] / maxPago),
-                    width: 18,
-                    decoration: BoxDecoration(
-                      color: color,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(dias[i], style: const TextStyle(fontSize: 11)),
-                ],
-              ),
-            ),
-          );
-        }),
-      ),
-    );
-  }
-
-  Widget _buildHorizontalBarChartSection() {
-    final actividadesPorCuadrilla = [
-      {'label': 'Cosecha', 'cuadrillas': 4},
-      {'label': 'Siembra', 'cuadrillas': 3},
-      {'label': 'Riego', 'cuadrillas': 2},
-      {'label': 'Poda', 'cuadrillas': 1},
-    ];
-    final max = 4;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children:
-          actividadesPorCuadrilla
-              .map(
-                (e) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Row(
+                  // Título
+                  Row(
                     children: [
-                      SizedBox(
-                        width: 120,
-                        child: Text(
-                          e['label'] as String,
-                          style: const TextStyle(fontSize: 13),
-                        ),
-                      ),
-                      Expanded(
-                        child: Container(
-                          height: 16,
-                          decoration: BoxDecoration(
-                            color: Colors.green[100],
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: Container(
-                              width: 220 * ((e['cuadrillas'] as int) / max),
-                              height: 16,
-                              decoration: BoxDecoration(
-                                color: Colors.green[700],
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
                       Text(
-                        showPercentages
-                            ? '${((e['cuadrillas'] as int) / max * 100).toStringAsFixed(0)}%'
-                            : '${e['cuadrillas']}',
-                        style: const TextStyle(
+                        'Reportes',
+                        style: TextStyle(
+                          fontSize: 32,
                           fontWeight: FontWeight.bold,
-                          fontSize: 13,
+                          color: AppColors.greenDark,
                         ),
                       ),
                     ],
                   ),
-                ),
-              )
-              .toList(),
+                  const SizedBox(height: 32),
+                  
+                  // TabBar simplificado
+                  Container(
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: TabBar(
+                      controller: _tabController,
+                      indicator: BoxDecoration(
+                        color: AppColors.greenDark,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      indicatorSize: TabBarIndicatorSize.tab,
+                      dividerColor: Colors.transparent,
+                      labelColor: Colors.white,
+                      unselectedLabelColor: Colors.grey[700],
+                      labelStyle: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                      ),
+                      unselectedLabelStyle: const TextStyle(
+                        fontWeight: FontWeight.w500,
+                        fontSize: 16,
+                      ),
+                      tabs: const [
+                        Tab(text: 'Semana'),
+                        Tab(text: 'Historial'),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  
+                  // Barra de búsqueda
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey[300]!),
+                    ),
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        hintText: 'Buscar por cuadrilla o actividad...',
+                        hintStyle: TextStyle(color: Colors.grey[500]),
+                        prefixIcon: Icon(
+                          Icons.search,
+                          color: Colors.grey[500],
+                        ),
+                        suffixIcon: _searchController.text.isNotEmpty
+                            ? IconButton(
+                                icon: Icon(Icons.clear, color: Colors.grey[500]),
+                                onPressed: () {
+                                  setState(() {
+                                    _searchController.clear();
+                                  });
+                                },
+                              )
+                            : null,
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 16,
+                        ),
+                      ),
+                      onChanged: (value) {
+                        setState(() {});
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  
+                  // Tabla modular
+                  Expanded(
+                    child: TabBarView(
+                      controller: _tabController,
+                      children: [
+                        // Tab de Semana - Datos actuales
+                        _buildReportTable(isCurrentWeek: true),
+                        // Tab de Historial - Con controles adicionales
+                        _buildHistorialTab(),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
-}
-
-class _SolidPieChartPainter extends CustomPainter {
-  final List<Map<String, dynamic>> data;
-  _SolidPieChartPainter(this.data);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final double total = data.fold(0, (sum, e) => sum + (e['value'] as double));
-    final double radius = size.width / 2;
-    final Offset center = Offset(size.width / 2, size.height / 2);
-    double startRadian = -3.14 / 2;
-    const double gapRadian = 0.06; // Separación entre segmentos
-    final paint =
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 24;
-    for (var e in data) {
-      final sweepRadian =
-          (e['value'] as double) / total * (2 * 3.141592653589793) - gapRadian;
-      paint.color = e['color'] as Color;
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius - 12),
-        startRadian,
-        sweepRadian,
-        false,
-        paint,
-      );
-      startRadian += sweepRadian + gapRadian;
-    }
-    // Círculo blanco central
-    final innerPaint =
-        Paint()
-          ..color = Colors.white
-          ..style = PaintingStyle.fill;
-    canvas.drawCircle(center, radius - 24, innerPaint);
+  
+  /// Widget para el tab de historial con controles adicionales
+  Widget _buildHistorialTab() {
+    return Column(
+      children: [
+        // Controles del historial
+        Card(
+          elevation: 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Título de controles
+                Row(
+                  children: [
+                    Icon(
+                      Icons.tune,
+                      color: AppColors.greenDark,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Filtros de Historial',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.greenDark,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                
+                // Filtros en una sola fila
+                Row(
+                  children: [
+                    // Sección de Año
+                    Expanded(
+                      flex: 2,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Año:',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.grey[700],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            height: 40,
+                            child: ListView.builder(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: _availableYears.length,
+                              itemBuilder: (context, index) {
+                                final year = _availableYears[index];
+                                final isSelected = year == _selectedYear;
+                                
+                                return Container(
+                                  margin: const EdgeInsets.only(right: 8),
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        _selectedYear = year;
+                                      });
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 8,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: isSelected ? AppColors.greenDark : Colors.grey[100],
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(
+                                          color: isSelected ? AppColors.greenDark : Colors.grey[300]!,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        year.toString(),
+                                        style: TextStyle(
+                                          color: isSelected ? Colors.white : Colors.grey[700],
+                                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    
+                    const SizedBox(width: 24),
+                    
+                    // Sección de Toggle Ver por
+                    Expanded(
+                      flex: 2,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Ver por:',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.grey[700],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[100],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(child: _buildModeButton('Semana', true)),
+                                Expanded(child: _buildModeButton('Día', false)),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    
+                    const SizedBox(width: 24),
+                    
+                    // Sección de controles específicos (Semana/Día)
+                    Expanded(
+                      flex: 3,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _isModoSemana ? 'Semana específica:' : 'Fecha específica:',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.grey[700],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            height: 40,
+                            child: Row(
+                              children: [
+                                if (_isModoSemana) ...[
+                                  // Campo de texto para número de semana
+                                  Expanded(
+                                    child: TextField(
+                                      controller: _semanaController,
+                                      keyboardType: TextInputType.number,
+                                      decoration: InputDecoration(
+                                        hintText: 'Semana #',
+                                        hintStyle: TextStyle(
+                                          color: Colors.grey[500],
+                                          fontSize: 12,
+                                        ),
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                          borderSide: BorderSide(color: Colors.grey[300]!),
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                          borderSide: BorderSide(color: AppColors.greenDark),
+                                        ),
+                                        contentPadding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 8,
+                                        ),
+                                      ),
+                                      style: const TextStyle(fontSize: 13),
+                                      onSubmitted: (value) => _irASemana(),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  // Botón para ir a la semana
+                                  ElevatedButton(
+                                    onPressed: _irASemana,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.greenDark,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 8,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                    child: const Text(
+                                      'Ir',
+                                      style: TextStyle(fontSize: 12),
+                                    ),
+                                  ),
+                                  // Botón para limpiar selección de semana
+                                  if (_numSemanaSeleccionada != null) ...[
+                                    const SizedBox(width: 8),
+                                    IconButton(
+                                      onPressed: _clearSemanaSeleccionada,
+                                      icon: const Icon(Icons.clear, size: 18),
+                                      tooltip: 'Limpiar filtro',
+                                      style: IconButton.styleFrom(
+                                        backgroundColor: Colors.red.withOpacity(0.1),
+                                        foregroundColor: Colors.red[700],
+                                        padding: const EdgeInsets.all(8),
+                                      ),
+                                    ),
+                                  ],
+                                ] else ...[
+                                  // Selector de fecha
+                                  Expanded(
+                                    child: ElevatedButton.icon(
+                                      onPressed: _selectDate,
+                                      icon: const Icon(Icons.calendar_today, size: 16),
+                                      label: Text(
+                                        _diaSeleccionado != null
+                                            ? '${_diaSeleccionado!.day}/${_diaSeleccionado!.month}/${_diaSeleccionado!.year}'
+                                            : 'Seleccionar fecha',
+                                        style: const TextStyle(fontSize: 12),
+                                      ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppColors.greenDark,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 8,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  // Botón para limpiar selección de fecha
+                                  if (_diaSeleccionado != null) ...[
+                                    const SizedBox(width: 8),
+                                    IconButton(
+                                      onPressed: () {
+                                        setState(() {
+                                          _diaSeleccionado = null;
+                                          _semanaSeleccionada = null;
+                                        });
+                                      },
+                                      icon: const Icon(Icons.clear, size: 18),
+                                      tooltip: 'Limpiar selección',
+                                      style: IconButton.styleFrom(
+                                        backgroundColor: Colors.red.withOpacity(0.1),
+                                        foregroundColor: Colors.red[700],
+                                        padding: const EdgeInsets.all(8),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                
+                const SizedBox(height: 16),
+                
+                // Información de filtros aplicados
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.grey.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        color: Colors.grey[600],
+                        size: 16,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Filtros: Año $_selectedYear',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      if (_isModoSemana && _numSemanaSeleccionada != null) ...[
+                        Text(
+                          ' • Semana $_numSemanaSeleccionada',
+                          style: TextStyle(
+                            color: Colors.green[700],
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ] else if (!_isModoSemana && _diaSeleccionado != null) ...[
+                        Text(
+                          ' • Fecha: ${_diaSeleccionado!.day}/${_diaSeleccionado!.month}/${_diaSeleccionado!.year} ($_semanaSeleccionada)',
+                          style: TextStyle(
+                            color: Colors.blue[700],
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        
+        // Tabla de historial
+        Expanded(
+          child: _buildReportTable(isCurrentWeek: false),
+        ),
+      ],
+    );
   }
-
-  @override
-  bool shouldRepaint(CustomPainter oldDelegate) => false;
+  
+  /// Widget para botones de modo (Semana/Día)
+  Widget _buildModeButton(String text, bool isWeekButton) {
+    final isSelected = _isModoSemana == isWeekButton;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _isModoSemana = isWeekButton;
+          if (isWeekButton) {
+            // Limpiar selección de día
+            _diaSeleccionado = null;
+            _semanaSeleccionada = null;
+          } else {
+            // Limpiar selección de semana
+            _numSemanaSeleccionada = null;
+            _semanaController.clear();
+          }
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.greenDark : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Text(
+          text,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.grey[700],
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+            fontSize: 13,
+          ),
+        ),
+      ),
+    );
+  }
+  
+  /// Widget modular para construir la tabla de reportes
+  Widget _buildReportTable({bool isCurrentWeek = true}) {
+    // Filtrar datos según la búsqueda y el contexto
+    List<Map<String, dynamic>> filteredData = _reportData.where((item) {
+      final searchTerm = _searchController.text.toLowerCase();
+      bool matchesSearch = item['cuadrilla'].toString().toLowerCase().contains(searchTerm) ||
+                          item['actividad'].toString().toLowerCase().contains(searchTerm) ||
+                          item['fecha'].toString().toLowerCase().contains(searchTerm) ||
+                          item['semana'].toString().toLowerCase().contains(searchTerm);
+      
+      if (!matchesSearch) return false;
+      
+      // Filtros específicos para historial
+      if (!isCurrentWeek) {
+        // Filtrar por año seleccionado
+        final itemDate = item['fecha'].toString().split('/');
+        if (itemDate.length == 3) {
+          final itemYear = int.tryParse(itemDate[2]);
+          if (itemYear != _selectedYear) {
+            return false;
+          }
+        }
+        
+        if (_isModoSemana) {
+          // En modo semana, filtrar por número de semana específico si está seleccionado
+          if (_numSemanaSeleccionada != null) {
+            return item['semana'] == 'Semana $_numSemanaSeleccionada';
+          }
+          // Si no hay semana seleccionada, mostrar todas las semanas del año
+          return true;
+        } else {
+          // En modo día, filtrar por fecha específica o semana de la fecha seleccionada
+          if (_diaSeleccionado != null) {
+            final selectedDateStr = '${_diaSeleccionado!.day.toString().padLeft(2, '0')}/${_diaSeleccionado!.month.toString().padLeft(2, '0')}/${_diaSeleccionado!.year}';
+            final selectedWeek = _getWeekString(_diaSeleccionado!);
+            // Mostrar datos del día seleccionado o de toda la semana a la que pertenece
+            return item['fecha'] == selectedDateStr || item['semana'] == selectedWeek;
+          }
+          return true;
+        }
+      } else {
+        // Solo semana actual para el tab "Semana"
+        return item['semana'] == 'Semana 27';
+      }
+    }).toList();
+    
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        children: [
+          // Header de la tabla
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.tableHeader,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(16),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.table_chart,
+                  color: AppColors.greenDark,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  isCurrentWeek ? 'Datos de la Semana Actual' : 'Datos del Historial',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.greenDark,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '${filteredData.length} registros',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // Contenido de la tabla
+          Expanded(
+            child: filteredData.isEmpty
+                ? _buildEmpty()
+                : SingleChildScrollView(
+                    child: Container(
+                      width: double.infinity,
+                      child: DataTable(
+                        columnSpacing: 0,
+                        horizontalMargin: 0,
+                        headingRowHeight: 56,
+                        dataRowHeight: 56,
+                        border: TableBorder.all(
+                          color: Colors.grey[300]!,
+                          width: 0.5,
+                        ),
+                        columns: [
+                          DataColumn(
+                            label: Expanded(
+                              child: Container(
+                                alignment: Alignment.center,
+                                child: const Text(
+                                  'Fecha',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                          ),
+                          DataColumn(
+                            label: Expanded(
+                              child: Container(
+                                alignment: Alignment.center,
+                                child: const Text(
+                                  'Semana',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                          ),
+                          DataColumn(
+                            label: Expanded(
+                              child: Container(
+                                alignment: Alignment.center,
+                                child: const Text(
+                                  'Cuadrilla',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                          ),
+                          DataColumn(
+                            label: Expanded(
+                              child: Container(
+                                alignment: Alignment.center,
+                                child: const Text(
+                                  'Actividad',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                          ),
+                          DataColumn(
+                            label: Expanded(
+                              child: Container(
+                                alignment: Alignment.center,
+                                child: const Text(
+                                  'Total',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                        rows: filteredData.map((item) {
+                          return DataRow(
+                            cells: [
+                              DataCell(
+                                Container(
+                                  width: double.infinity,
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    item['fecha'],
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ),
+                              DataCell(
+                                Container(
+                                  width: double.infinity,
+                                  alignment: Alignment.center,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.blue.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      item['semana'],
+                                      style: TextStyle(
+                                        color: Colors.blue[700],
+                                        fontWeight: FontWeight.w500,
+                                        fontSize: 12,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              DataCell(
+                                Container(
+                                  width: double.infinity,
+                                  alignment: Alignment.center,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.green.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      item['cuadrilla'],
+                                      style: TextStyle(
+                                        color: AppColors.greenDark,
+                                        fontWeight: FontWeight.w500,
+                                        fontSize: 12,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              DataCell(
+                                Container(
+                                  width: double.infinity,
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    item['actividad'],
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ),
+                              DataCell(
+                                Container(
+                                  width: double.infinity,
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    item['total'],
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.greenDark,
+                                      fontSize: 14,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  /// Widget para mostrar cuando no hay datos
+  Widget _buildEmpty() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(40),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.search_off,
+              size: 64,
+              color: Colors.grey[400],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No se encontraron registros',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[600],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Intenta con otros términos de búsqueda',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[500],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
