@@ -66,17 +66,30 @@ class _MainAppState extends State<MainApp> {
       darkTheme: AppThemes.dark,
       themeMode: _themeMode,
       home: const LoginScreen(),
-
+      
+      // 🔧 Configuración para mejorar el manejo de eventos de teclado
+      debugShowCheckedModeBanner: false,
+      
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: const [
-        Locale('es'), // Españo
+        Locale('es'), // Español
       ],
       builder: (context, child) {
-        return Container(color: const Color(0xFFF5EDD8), child: child);
+        // 🔧 Wrapper para manejar mejor los eventos de teclado y errores
+        return Container(
+          color: const Color(0xFFF5EDD8), 
+          child: MediaQuery(
+            // 🔧 Configuración de MediaQuery para mejorar la respuesta táctil
+            data: MediaQuery.of(context).copyWith(
+              textScaleFactor: 1.0, // Prevenir escalado excesivo de texto
+            ),
+            child: child ?? Container(),
+          ),
+        );
       },
     );
   }

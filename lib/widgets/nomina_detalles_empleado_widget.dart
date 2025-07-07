@@ -18,27 +18,65 @@ class NominaDetallesEmpleadoWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BackdropFilter(
-      filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+      filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
       child: Dialog(
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppDimens.cardRadius),
+          borderRadius: BorderRadius.circular(20),
         ),
-        elevation: 0,
-        backgroundColor: Colors.white.withOpacity(0.95),
+        elevation: 20,
+        backgroundColor: Colors.transparent,
         child: Container(
-          width: 400,
-          padding: const EdgeInsets.all(24),
+          width: 420,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.15),
+                blurRadius: 20,
+                offset: Offset(0, 10),
+              ),
+            ],
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 24,
+              // ✨ Header con gradiente sutil
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      AppColors.green.withOpacity(0.08),
+                      AppColors.green.withOpacity(0.03),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    // ✨ Avatar mejorado
+                    Container(
+                      padding: EdgeInsets.all(3),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.green.withOpacity(0.2),
+                            blurRadius: 8,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: CircleAvatar(
+                        radius: 28,
                         backgroundColor: AppColors.green.withOpacity(0.1),
                         child: Text(
                           _getInitials(empleado['nombre'].toString()),
@@ -49,73 +87,101 @@ class NominaDetallesEmpleadoWidget extends StatelessWidget {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 16),
-                      Column(
+                    ),
+                    const SizedBox(width: 16),
+                    // ✨ Información del empleado
+                    Expanded(
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             empleado['nombre'] ?? '',
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                              color: Color(0xFF2D3748),
                             ),
                           ),
-                          Text(
-                            empleado['puesto'] ?? 'Jornalero',
-                            style: TextStyle(
-                              color: Colors.grey[600],
+                          const SizedBox(height: 4),
+                          Container(
+                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppColors.green.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              'ID: ${empleado['id']} • ${empleado['puesto'] ?? 'Jornalero'}',
+                              style: TextStyle(
+                                color: AppColors.greenDark,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
                         ],
                       ),
-                    ],
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close),
-                    style: IconButton.styleFrom(
-                      backgroundColor: Colors.grey.shade100,
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
-                  borderRadius: BorderRadius.circular(AppDimens.cardRadius),
-                  border: Border.all(color: Colors.grey.shade200),
+                    // ✨ Botón de cerrar mejorado
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 4,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.close_rounded, size: 20),
+                        style: IconButton.styleFrom(
+                          foregroundColor: Colors.grey.shade600,
+                          padding: EdgeInsets.all(8),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
+              ),
+              
+              // ✨ Contenido de la información
+              Padding(
+                padding: const EdgeInsets.all(24),
                 child: Column(
                   children: [
                     _buildDetalleRow(
                       'Número de Empleado:',
                       empleado['numeroEmpleado']?.toString() ?? 'N/A',
+                      Icons.badge_outlined,
                     ),
-                    _buildDivider(),
                     _buildDetalleRow(
                       'CURP:', 
-                      empleado['curp']?.toString() ?? 'N/A'
+                      empleado['curp']?.toString() ?? 'N/A',
+                      Icons.fingerprint,
                     ),
-                    _buildDivider(),
                     _buildDetalleRow(
                       'RFC:', 
-                      empleado['rfc']?.toString() ?? 'N/A'
+                      empleado['rfc']?.toString() ?? 'N/A',
+                      Icons.account_balance_wallet_outlined,
                     ),
-                    _buildDivider(),
                     _buildDetalleRow(
                       'NSS:', 
-                      empleado['nss']?.toString() ?? 'N/A'
+                      empleado['nss']?.toString() ?? 'N/A',
+                      Icons.health_and_safety_outlined,
                     ),
-                    _buildDivider(),
                     _buildDetalleRow(
                       'Lugar de Procedencia:',
                       empleado['lugarProcedencia']?.toString() ?? 'N/A',
+                      Icons.location_on_outlined,
                     ),
-                    _buildDivider(),
                     _buildDetalleRow(
                       'Tipo de Empleado:',
                       empleado['tipoEmpleado']?.toString() ?? 'N/A',
+                      Icons.work_outline,
+                      isLast: true,
                     ),
                   ],
                 ),
@@ -136,26 +202,62 @@ class NominaDetallesEmpleadoWidget extends StatelessWidget {
         .toUpperCase();
   }
 
-  Widget _buildDetalleRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+  Widget _buildDetalleRow(String label, String value, IconData icon, {bool isLast = false}) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      margin: EdgeInsets.only(bottom: isLast ? 0 : 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 140,
-            child: Text(
-              label,
-              style: const TextStyle(
-                fontWeight: FontWeight.w500,
-                color: Colors.grey,
-              ),
+          // ✨ Icono temático
+          Container(
+            padding: EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.green.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              icon,
+              size: 20,
+              color: AppColors.greenDark,
             ),
           ),
+          const SizedBox(width: 12),
+          // ✨ Contenido
           Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontWeight: FontWeight.w500),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey.shade600,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF2D3748),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -163,10 +265,4 @@ class NominaDetallesEmpleadoWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildDivider() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Divider(height: 1, color: Colors.grey.shade200),
-    );
-  }
 }

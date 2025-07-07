@@ -11,6 +11,8 @@ class NominaCuadrillaSelectionCard extends StatefulWidget {
   final Function(Map<String, dynamic>?) onCuadrillaSelected;
   final Map<String, dynamic>? semanaSeleccionada;
   final VoidCallback onToggleArmarCuadrilla;
+  final bool puedeArmarCuadrilla; // 🎯 Nueva propiedad para validación
+  final bool bloqueadoPorFaltaSemana; // 🎯 Nueva propiedad para mostrar estado
 
   const NominaCuadrillaSelectionCard({
     super.key,
@@ -20,6 +22,8 @@ class NominaCuadrillaSelectionCard extends StatefulWidget {
     required this.empleadosEnCuadrilla, 
     required this.onCuadrillaSelected,
     required this.onToggleArmarCuadrilla,
+    this.puedeArmarCuadrilla = false,
+    this.bloqueadoPorFaltaSemana = true,
   });
 
   @override
@@ -46,6 +50,38 @@ class _NominaCuadrillaSelectionCardState extends State<NominaCuadrillaSelectionC
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // 🎯 Mostrar indicador de estado arriba si está bloqueado
+            if (widget.bloqueadoPorFaltaSemana) ...[
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                margin: EdgeInsets.only(bottom: 8),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.schedule,
+                      size: 14,
+                      color: Colors.orange.shade600,
+                    ),
+                    SizedBox(width: 6),
+                    Text(
+                      'Requiere semana activa',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.orange.shade700,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -54,7 +90,9 @@ class _NominaCuadrillaSelectionCardState extends State<NominaCuadrillaSelectionC
                     Icon(
                       Icons.groups,
                       size: 20,
-                      color: AppColors.greenDark,
+                      color: widget.bloqueadoPorFaltaSemana 
+                          ? Colors.grey 
+                          : AppColors.greenDark,
                     ),
                     const SizedBox(width: 8),
                     Text(
@@ -62,45 +100,67 @@ class _NominaCuadrillaSelectionCardState extends State<NominaCuadrillaSelectionC
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.greenDark,
+                        color: widget.bloqueadoPorFaltaSemana 
+                            ? Colors.grey 
+                            : AppColors.greenDark,
                       ),
                     ),
                   ],
                 ),
                 OutlinedButton.icon(
-                  onPressed: widget.onToggleArmarCuadrilla,
-                  icon: const Icon(Icons.group_add),
+                  onPressed: widget.puedeArmarCuadrilla ? widget.onToggleArmarCuadrilla : null,
+                  icon: Icon(
+                    Icons.group_add,
+                    color: widget.puedeArmarCuadrilla 
+                        ? (widget.empleadosEnCuadrilla.isNotEmpty ? Colors.blue : Colors.green)
+                        : Colors.grey,
+                  ),
                   label: Text(
                     widget.empleadosEnCuadrilla.isNotEmpty
                         ? 'Editar cuadrilla'
                         : 'Armar cuadrilla',
+                    style: TextStyle(
+                      color: widget.puedeArmarCuadrilla 
+                          ? (widget.empleadosEnCuadrilla.isNotEmpty ? Colors.blue : Colors.green)
+                          : Colors.grey,
+                    ),
                   ),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: widget.selectedCuadrilla['nombre'] == ''
-                        ? Colors.grey
-                        : Colors.blue,
                     side: BorderSide(
-                      color: widget.selectedCuadrilla['nombre'] == ''
-                          ? Colors.grey
-                          : Colors.blue,
+                      color: widget.puedeArmarCuadrilla
+                          ? (widget.empleadosEnCuadrilla.isNotEmpty ? Colors.blue : Colors.green)
+                          : Colors.grey,
                     ),
+                    backgroundColor: widget.puedeArmarCuadrilla
+                        ? (widget.empleadosEnCuadrilla.isNotEmpty 
+                            ? Colors.blue.shade50 
+                            : Colors.green.shade50)
+                        : Colors.grey.shade50,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: widget.bloqueadoPorFaltaSemana ? 8 : 12),
             CustomDropdownMenu(
-              options: widget.optionsCuadrilla,
+              options: widget.bloqueadoPorFaltaSemana ? [] : widget.optionsCuadrilla,
               selectedOption: widget.selectedCuadrilla['nombre'] == '' ? null : widget.selectedCuadrilla,
-              onOptionSelected: widget.onCuadrillaSelected,
+              onOptionSelected: widget.bloqueadoPorFaltaSemana 
+                  ? (Map<String, dynamic>? option) {} // Función vacía cuando está bloqueado
+                  : widget.onCuadrillaSelected,
               displayKey: 'nombre',
               valueKey: 'nombre',
-              hint: 'Seleccionar cuadrilla',
+              hint: widget.bloqueadoPorFaltaSemana 
+                  ? 'Seleccionar una semana primero' 
+                  : (widget.optionsCuadrilla.isEmpty 
+                      ? 'No hay cuadrillas - Armar cuadrilla primero'
+                      : 'Seleccionar cuadrilla'),
               icon: Icon(
                 Icons.groups,
-                color: AppColors.greenDark,
+                color: widget.bloqueadoPorFaltaSemana 
+                    ? Colors.grey 
+                    : AppColors.greenDark,
               ),
-              allowDeselect: true,
+              allowDeselect: !widget.bloqueadoPorFaltaSemana,
               searchHint: 'Buscar cuadrilla...',
             ),
           ],

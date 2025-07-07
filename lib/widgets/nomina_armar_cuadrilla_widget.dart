@@ -1,13 +1,9 @@
-import 'package:agribar/services/database_service.dart';
-import 'package:agribar/services/semana_service.dart';
 import 'package:flutter/material.dart';
 import 'dart:ui';
-import '../theme/app_styles.dart';
 import 'dropdown_cuadrillas_armar.dart';
 
-/// Widget modular para manejar el diálogo de "Armar Cuadrilla"
-/// Encapsula toda la funcionalidad relacionada con la creación y edición de cuadrillas
-/// manteniendo el mismo diseño y comportamiento original
+/// Widget modular mejorado para manejar el diálogo de "Armar Cuadrilla"
+/// Rediseñado con una interfaz moderna manteniendo toda la funcionalidad original
 class NominaArmarCuadrillaWidget extends StatefulWidget {
   final List<Map<String, dynamic>> optionsCuadrilla;
   final Map<String, dynamic> selectedCuadrilla;
@@ -28,56 +24,10 @@ class NominaArmarCuadrillaWidget extends StatefulWidget {
     required this.onClose,
     required this.onMostrarDetallesEmpleado,
   }) : super(key: key);
+  
   @override
   State<NominaArmarCuadrillaWidget> createState() =>
       _NominaArmarCuadrillaWidgetState();
-}
-Future<List<Map<String, dynamic>>> obtenerNominaEmpleadosDeCuadrilla(int semanaId, int cuadrillaId) async {
-  final db = DatabaseService();
-  await db.connect();
-
-  final result = await db.connection.query('''
-    SELECT 
-      e.id_empleado,
-      e.nombre,
-      e.codigo,
-      n.lunes,
-      n.martes,
-      n.miercoles,
-      n.jueves,
-      n.viernes,
-      n.sabado,
-      n.domingo,
-      n.total,
-      n.debe,
-      n.subtotal,
-      n.descuento_comedor
-    FROM nomina_empleados_semanal n
-    JOIN empleados e ON e.id_empleado = n.empleado_id
-    WHERE n.semana_id = @semanaId AND n.cuadrilla_id = @cuadrillaId;
-  ''', substitutionValues: {
-    'semanaId': semanaId,
-    'cuadrillaId': cuadrillaId,
-  });
-
-  await db.close();
-
-  return result.map((row) => {
-    'id': row[0],
-    'nombre': row[1],
-    'codigo': row[2],
-    'lunes': row[3],
-    'martes': row[4],
-    'miercoles': row[5],
-    'jueves': row[6],
-    'viernes': row[7],
-    'sabado': row[8],
-    'domingo': row[9],
-    'total': row[10],
-    'debe': row[11],
-    'subtotal': row[12],
-    'comedor': row[13],
-  }).toList();
 }
 
 class _NominaArmarCuadrillaWidgetState
@@ -155,6 +105,26 @@ class _NominaArmarCuadrillaWidgetState
   }
 
   void _toggleSeleccionEmpleado(Map<String, dynamic> empleado) {
+    // 🚫 No permitir agregar empleados si no hay cuadrilla seleccionada
+    if (selectedCuadrillaLocal['nombre'] == null || 
+        selectedCuadrillaLocal['nombre'] == '') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.white),
+              SizedBox(width: 8),
+              Text('Selecciona una cuadrilla primero'),
+            ],
+          ),
+          backgroundColor: Colors.orange.shade600,
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+    
     setState(() {
       // Crear una copia del empleado para la cuadrilla
       final empleadoCopia = Map<String, dynamic>.from(empleado);
@@ -199,74 +169,96 @@ class _NominaArmarCuadrillaWidgetState
       builder: (BuildContext context) {
         return Dialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppDimens.cardRadius),
+            borderRadius: BorderRadius.circular(20),
           ),
           child: Container(
-            width: 400,
-            padding: const EdgeInsets.all(24),
+            width: 450,
+            padding: const EdgeInsets.all(28),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Colors.white, Colors.orange.shade50],
+              ),
+              borderRadius: BorderRadius.circular(20),
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                Container(
+                  padding: EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade100,
+                    borderRadius: BorderRadius.circular(50),
+                  ),
+                  child: Icon(
+                    Icons.warning_amber_rounded,
+                    size: 48,
+                    color: Colors.orange.shade700,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Cerrar sin guardar',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange.shade800,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Si cierras la ventana sin guardar, se perderán todos los cambios realizados en esta cuadrilla.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey.shade700,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 28),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.warning_amber_rounded,
-                          size: 28,
-                          color: Colors.orange,
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          'Cerrar sin guardar',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.greenDark,
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: OutlinedButton.styleFrom(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          side: BorderSide(color: Colors.grey.shade400),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                      ],
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.close),
-                      style: IconButton.styleFrom(
-                        backgroundColor: Colors.grey.shade100,
+                        child: Text(
+                          'Cancelar',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Si cierra la ventana sin guardar, se perderán todos los cambios realizados en esta cuadrilla.',
-                  style: TextStyle(fontSize: 16, color: Colors.grey.shade700),
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: Text(
-                        'Cancelar',
-                        style: TextStyle(color: AppColors.greenDark),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    FilledButton.icon(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        widget.onClose();
-                      },
-                      icon: const Icon(Icons.clear),
-                      label: const Text('Cerrar sin guardar'),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: Colors.red.shade600,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          widget.onClose();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange.shade600,
+                          foregroundColor: Colors.white,
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: Text(
+                          'Cerrar sin guardar',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ),
@@ -280,706 +272,752 @@ class _NominaArmarCuadrillaWidgetState
     );
   }
 
-  void _guardarCambios() async {
-    final semanaId =
-        await obtenerSemanaAbierta(); //obtenerIdSemanaActiva(); // Debes tenerla
-    final cuadrillaId = selectedCuadrillaLocal['id'];
-
-    if (semanaId == null || cuadrillaId == null) return;
-
-    await guardarEmpleadosCuadrillaSemana(
-      semanaId: semanaId['id'],
-      cuadrillaId: cuadrillaId,
-      empleados: empleadosEnCuadrillaLocal,
-    );
-
-    widget.onCuadrillaSaved(selectedCuadrillaLocal, empleadosEnCuadrillaLocal);
-  }
-
   @override
   Widget build(BuildContext context) {
     return BackdropFilter(
-      filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+      filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
       child: Container(
-        color: Colors.black38,
+        color: Colors.black.withOpacity(0.5),
         child: Center(
-          child: Card(
-            margin: const EdgeInsets.all(32),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppDimens.cardRadius),
+          child: Container(
+            margin: const EdgeInsets.all(24),
+            width: MediaQuery.of(context).size.width * 0.9,
+            height: MediaQuery.of(context).size.height * 0.85,
+            decoration: BoxDecoration(
+              color: Colors.white, // 🎨 Fondo completamente blanco
+              borderRadius: BorderRadius.circular(24),
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Column(
+              children: [
+                // ✨ Header moderno con gradiente
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Colors.green.shade600,
+                        Colors.green.shade700,
+                      ],
+                    ),
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(24),
+                    ),
+                  ),
+                  child: Row(
                     children: [
-                      Row(
-                        children: [
-                          Icon(Icons.groups, size: 28, color: AppColors.green),
-                          const SizedBox(width: 12),
-                          Text(
-                            'Armar Cuadrilla',
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
+                      Container(
+                        padding: EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Icon(
+                          Icons.groups_rounded,
+                          size: 32,
+                          color: Colors.white,
+                        ),
                       ),
-                      IconButton(
-                        onPressed: _confirmarCerrarSinGuardar,
-                        icon: const Icon(Icons.close),
-                        style: IconButton.styleFrom(
-                          backgroundColor: Colors.grey.shade100,
-                          padding: const EdgeInsets.all(8),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Armar Cuadrilla',
+                              style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Organiza y gestiona tu equipo de trabajo',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.white.withOpacity(0.9),
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: IconButton(
+                          onPressed: _confirmarCerrarSinGuardar,
+                          icon: Icon(
+                            Icons.close_rounded,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                          style: IconButton.styleFrom(
+                            padding: EdgeInsets.all(12),
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  // Selector de cuadrilla para cambiar dentro del diálogo
-                  Card(
-                    elevation: 0,
-                    color: Colors.grey.shade50,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppDimens.cardRadius),
-                      side: BorderSide(color: Colors.grey.shade200),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12.0),
-                      child: Row(
-                        children: [
-                          Icon(Icons.swap_horiz, color: AppColors.greenDark),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'Cambiar cuadrilla:',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.grey.shade700,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            flex: 3,
-                            child: DropdownCuadrillasArmar(
-                              opcionesCuadrillas: widget.optionsCuadrilla,
-                              cuadrillaSeleccionada:
-                                  selectedCuadrillaLocal['nombre'] == ''
-                                      ? null
-                                      : selectedCuadrillaLocal,
-                              alSeleccionarCuadrilla: (Map<String, dynamic>? opcion) {
-                                setState(() {
-                                  if (opcion == null) {
-                                    selectedCuadrillaLocal = {
-                                      'nombre': '',
-                                      'empleados': [],
-                                    };
-                                    empleadosEnCuadrillaLocal = [];
-                                    empleadosDisponiblesFiltrados = List.from(
-                                      widget.todosLosEmpleados,
-                                    );
-                                    empleadosEnCuadrillaFiltrados = [];
-                                  } else {
-                                    selectedCuadrillaLocal = opcion;
-                                    empleadosEnCuadrillaLocal =
-                                        List<Map<String, dynamic>>.from(
-                                          opcion['empleados'] ?? [],
-                                        );
-                                    empleadosDisponiblesFiltrados = List.from(
-                                      widget.todosLosEmpleados,
-                                    );
-                                    empleadosEnCuadrillaFiltrados = List.from(
-                                      empleadosEnCuadrillaLocal,
-                                    );
-                                    _buscarDisponiblesController.clear();
-                                    _buscarEnCuadrillaController.clear();
-                                  }
-                                });
-                              },
-                              textoPlaceholder: 'Seleccionar cuadrilla',
-                              permitirDeseleccion: true,
-                              textoBusqueda: 'Buscar cuadrilla...',
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    height: 500,
-                    child: Row(
+                ),
+                
+                // ✨ Contenido principal con padding mejorado
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
                       children: [
-                        // Lista de empleados disponibles
-                        Expanded(
-                          child: Card(
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(
-                                AppDimens.cardRadius,
+                        // ✨ Selector de cuadrilla rediseñado
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: Colors.green.shade200,
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.shade100,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Icon(
+                                  Icons.swap_horiz_rounded,
+                                  color: Colors.green.shade700,
+                                  size: 24,
+                                ),
                               ),
-                              side: BorderSide(color: Colors.grey.shade200),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                // Header
-                                Container(
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.tableHeader,
-                                    borderRadius: BorderRadius.vertical(
-                                      top: Radius.circular(
-                                        AppDimens.cardRadius,
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Cuadrilla Activa',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.green.shade800,
+                                        letterSpacing: 0.5,
                                       ),
                                     ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        Icons.person_outline,
-                                        color: AppColors.greenDark,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      const Text(
-                                        'Empleados Disponibles',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                // Barra de búsqueda
-                                Container(
-                                  margin: const EdgeInsets.all(16),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 8,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(
-                                      AppDimens.buttonRadius,
-                                    ),
-                                    border: Border.all(
-                                      color: Colors.grey.shade300,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        Icons.search,
+                                    SizedBox(height: 4),
+                                    Text(
+                                      'Selecciona la cuadrilla a gestionar',
+                                      style: TextStyle(
+                                        fontSize: 12,
                                         color: Colors.grey.shade600,
-                                        size: 20,
                                       ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: TextField(
-                                          decoration: InputDecoration(
-                                            hintText: 'Buscar empleado...',
-                                            hintStyle: TextStyle(
-                                              color: Colors.grey.shade500,
-                                            ),
-                                            border: InputBorder.none,
-                                            isDense: true,
-                                            contentPadding: EdgeInsets.zero,
-                                          ),
-                                          style: const TextStyle(fontSize: 14),
-                                          controller:
-                                              _buscarDisponiblesController,
-                                          onChanged: (value) {
-                                            setState(() {
-                                              if (value.isEmpty) {
-                                                empleadosDisponiblesFiltrados =
-                                                    List.from(
-                                                      widget.todosLosEmpleados,
-                                                    );
-                                              } else {
-                                                final query =
-                                                    value.toLowerCase();
-                                                empleadosDisponiblesFiltrados =
-                                                    widget.todosLosEmpleados.where((
-                                                      emp,
-                                                    ) {
-                                                      final nombre =
-                                                          emp['nombre']
-                                                              ?.toString()
-                                                              .toLowerCase() ??
-                                                          '';
-                                                      final puesto =
-                                                          emp['puesto']
-                                                              ?.toString()
-                                                              .toLowerCase() ??
-                                                          '';
-                                                      return nombre.contains(
-                                                            query,
-                                                          ) ||
-                                                          puesto.contains(
-                                                            query,
-                                                          );
-                                                    }).toList();
-                                              }
-                                            });
-                                          },
-                                        ),
-                                      ),
-                                    ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                flex: 2,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.grey.shade300),
+                                  ),
+                                  child: DropdownCuadrillasArmar(
+                                    opcionesCuadrillas: widget.optionsCuadrilla,
+                                    cuadrillaSeleccionada:
+                                        selectedCuadrillaLocal['nombre'] == ''
+                                            ? null
+                                            : selectedCuadrillaLocal,
+                                    alSeleccionarCuadrilla: (Map<String, dynamic>? opcion) {
+                                      setState(() {
+                                        if (opcion == null) {
+                                          selectedCuadrillaLocal = {
+                                            'nombre': '',
+                                            'empleados': [],
+                                          };
+                                          empleadosEnCuadrillaLocal = [];
+                                          empleadosDisponiblesFiltrados = List.from(
+                                            widget.todosLosEmpleados,
+                                          );
+                                          empleadosEnCuadrillaFiltrados = [];
+                                        } else {
+                                          selectedCuadrillaLocal = opcion;
+                                          empleadosEnCuadrillaLocal =
+                                              List<Map<String, dynamic>>.from(
+                                                opcion['empleados'] ?? [],
+                                              );
+                                          empleadosDisponiblesFiltrados = List.from(
+                                            widget.todosLosEmpleados,
+                                          );
+                                          empleadosEnCuadrillaFiltrados = List.from(
+                                            empleadosEnCuadrillaLocal,
+                                          );
+                                        }
+                                        _buscarDisponiblesController.clear();
+                                        _buscarEnCuadrillaController.clear();
+                                      });
+                                    },
+                                    textoPlaceholder: 'Seleccionar cuadrilla',
+                                    permitirDeseleccion: true,
+                                    textoBusqueda: 'Buscar cuadrilla...',
                                   ),
                                 ),
-                                // Lista de empleados disponibles
-                                Expanded(
-                                  child:
-                                      empleadosDisponiblesFiltrados
-                                              .where(
-                                                (e) =>
-                                                    !empleadosEnCuadrillaLocal
-                                                        .any(
-                                                          (ec) =>
-                                                              ec['id'] ==
-                                                              e['id'],
-                                                        ),
-                                              )
-                                              .isEmpty
-                                          ? Center(
-                                            child: Column(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.center,
-                                              children: [
-                                                Icon(
-                                                  Icons.person_add_disabled,
-                                                  size: 48,
-                                                  color: Colors.grey.shade400,
-                                                ),
-                                                const SizedBox(height: 16),
-                                                Text(
-                                                  widget
-                                                          .todosLosEmpleados
-                                                          .isEmpty
-                                                      ? 'No hay empleados disponibles'
-                                                      : (empleadosEnCuadrillaLocal
-                                                              .length ==
-                                                          widget
-                                                              .todosLosEmpleados
-                                                              .length)
-                                                      ? 'Todos los empleados ya están en la cuadrilla'
-                                                      : 'No hay resultados para esta búsqueda',
-                                                  style: TextStyle(
-                                                    color: Colors.grey.shade600,
-                                                    fontSize: 16,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          )
-                                          : ListView.builder(
-                                            itemCount:
-                                                empleadosDisponiblesFiltrados
-                                                    .where(
-                                                      (e) =>
-                                                          !empleadosEnCuadrillaLocal
-                                                              .any(
-                                                                (ec) =>
-                                                                    ec['id'] ==
-                                                                    e['id'],
-                                                              ),
-                                                    )
-                                                    .length,
-                                            itemBuilder: (context, index) {
-                                              final empleadosDisponibles =
-                                                  empleadosDisponiblesFiltrados
-                                                      .where(
-                                                        (e) =>
-                                                            !empleadosEnCuadrillaLocal
-                                                                .any(
-                                                                  (ec) =>
-                                                                      ec['id'] ==
-                                                                      e['id'],
-                                                                ),
-                                                      )
-                                                      .toList();
-                                              final empleado =
-                                                  empleadosDisponibles[index];
-                                              return Card(
-                                                margin:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 8,
-                                                      vertical: 4,
-                                                    ),
-                                                child: ListTile(
-                                                  leading: CircleAvatar(
-                                                    backgroundColor: AppColors
-                                                        .green
-                                                        .withOpacity(0.1),
-                                                    child: Text(
-                                                      empleado['nombre']
-                                                          .substring(0, 1)
-                                                          .toUpperCase(),
-                                                      style: TextStyle(
-                                                        color: AppColors.green,
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  title: Text(
-                                                    empleado['nombre'],
-                                                    style: const TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.w500,
-                                                    ),
-                                                  ),
-                                                  subtitle: Text(
-                                                    empleado['puesto'],
-                                                    style: TextStyle(
-                                                      color:
-                                                          Colors.grey.shade600,
-                                                    ),
-                                                  ),
-                                                  trailing: Row(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: [
-                                                      IconButton(
-                                                        icon: const Icon(
-                                                          Icons
-                                                              .visibility_outlined,
-                                                        ),
-                                                        color: Colors.blue,
-                                                        onPressed:
-                                                            () => widget
-                                                                .onMostrarDetallesEmpleado(
-                                                                  context,
-                                                                  empleado,
-                                                                ),
-                                                        tooltip: 'Ver detalles',
-                                                      ),
-                                                      IconButton(
-                                                        icon: const Icon(
-                                                          Icons
-                                                              .add_circle_outline,
-                                                        ),
-                                                        color: AppColors.green,
-                                                        onPressed:
-                                                            () =>
-                                                                _toggleSeleccionEmpleado(
-                                                                  empleado,
-                                                                ),
-                                                        tooltip:
-                                                            'Agregar a cuadrilla',
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              );
-                                            },
-                                          ),
-                                ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(width: 16),
-                        // Lista de empleados en cuadrilla
+                        
+                        const SizedBox(height: 24),
+                        
+                        // ✨ Sección principal con listas de empleados
                         Expanded(
-                          child: Card(
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(
-                                AppDimens.cardRadius,
+                          child: Row(
+                            children: [
+                              // ✨ Lista de empleados disponibles
+                              Expanded(
+                                child: _buildEmpleadosDisponibles(),
                               ),
-                              side: BorderSide(color: Colors.grey.shade200),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                // Header
-                                Container(
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.tableHeader,
-                                    borderRadius: BorderRadius.vertical(
-                                      top: Radius.circular(
-                                        AppDimens.cardRadius,
-                                      ),
+                              
+                              // ✨ Espacio entre columnas
+                              SizedBox(width: 20),
+                              
+                              // ✨ Botones de transferencia en el centro
+                              Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    padding: EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: Colors.green.shade100,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Icon(
+                                      Icons.arrow_forward_rounded,
+                                      color: Colors.green.shade700,
+                                      size: 24,
                                     ),
                                   ),
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        Icons.groups,
-                                        color: AppColors.greenDark,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      const Text(
-                                        'Empleados en Cuadrilla',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      const Spacer(),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 6,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: AppColors.green.withOpacity(
-                                            0.1,
-                                          ),
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                        ),
-                                        child: Text(
-                                          '${empleadosEnCuadrillaLocal.length}',
-                                          style: TextStyle(
-                                            color: AppColors.green,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                // Barra de búsqueda para cuadrilla
-                                Container(
-                                  margin: const EdgeInsets.all(16),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 8,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(
-                                      AppDimens.buttonRadius,
-                                    ),
-                                    border: Border.all(
-                                      color: Colors.grey.shade300,
+                                  SizedBox(height: 12),
+                                  Text(
+                                    'Arrastra o\ntoca para\nagregar',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade600,
+                                      height: 1.2,
                                     ),
                                   ),
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        Icons.search,
-                                        color: Colors.grey.shade600,
-                                        size: 20,
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: TextField(
-                                          decoration: InputDecoration(
-                                            hintText: 'Buscar en cuadrilla...',
-                                            hintStyle: TextStyle(
-                                              color: Colors.grey.shade500,
-                                            ),
-                                            border: InputBorder.none,
-                                            isDense: true,
-                                            contentPadding: EdgeInsets.zero,
-                                          ),
-                                          style: const TextStyle(fontSize: 14),
-                                          controller:
-                                              _buscarEnCuadrillaController,
-                                          onChanged: (value) {
-                                            setState(() {
-                                              if (value.isEmpty) {
-                                                empleadosEnCuadrillaFiltrados =
-                                                    List.from(
-                                                      empleadosEnCuadrillaLocal,
-                                                    );
-                                              } else {
-                                                final query =
-                                                    value.toLowerCase();
-                                                empleadosEnCuadrillaFiltrados =
-                                                    empleadosEnCuadrillaLocal.where((
-                                                      emp,
-                                                    ) {
-                                                      final nombre =
-                                                          emp['nombre']
-                                                              ?.toString()
-                                                              .toLowerCase() ??
-                                                          '';
-                                                      final puesto =
-                                                          emp['puesto']
-                                                              ?.toString()
-                                                              .toLowerCase() ??
-                                                          '';
-                                                      return nombre.contains(
-                                                            query,
-                                                          ) ||
-                                                          puesto.contains(
-                                                            query,
-                                                          );
-                                                    }).toList();
-                                              }
-                                            });
-                                          },
-                                        ),
-                                      ),
-                                    ],
+                                  SizedBox(height: 12),
+                                  Container(
+                                    padding: EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red.shade100,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Icon(
+                                      Icons.arrow_back_rounded,
+                                      color: Colors.red.shade700,
+                                      size: 24,
+                                    ),
                                   ),
-                                ),
-                                // Lista de empleados en cuadrilla
-                                Expanded(
-                                  child:
-                                      empleadosEnCuadrillaFiltrados.isEmpty
-                                          ? Center(
-                                            child: Column(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.center,
-                                              children: [
-                                                Icon(
-                                                  Icons.group_add,
-                                                  size: 48,
-                                                  color: Colors.grey.shade400,
-                                                ),
-                                                const SizedBox(height: 16),
-                                                Text(
-                                                  empleadosEnCuadrillaLocal
-                                                          .isEmpty
-                                                      ? 'Añade empleados a la cuadrilla'
-                                                      : 'No hay resultados para esta búsqueda',
-                                                  style: TextStyle(
-                                                    color: Colors.grey.shade600,
-                                                    fontSize: 16,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          )
-                                          : ListView.builder(
-                                            itemCount:
-                                                empleadosEnCuadrillaFiltrados
-                                                    .length,
-                                            itemBuilder: (context, index) {
-                                              final empleado =
-                                                  empleadosEnCuadrillaFiltrados[index];
-                                              return Card(
-                                                margin:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 8,
-                                                      vertical: 4,
-                                                    ),
-                                                child: ListTile(
-                                                  leading: CircleAvatar(
-                                                    backgroundColor: Colors
-                                                        .green
-                                                        .withOpacity(0.1),
-                                                    child: Text(
-                                                      empleado['nombre']
-                                                          .substring(0, 1)
-                                                          .toUpperCase(),
-                                                      style: TextStyle(
-                                                        color: AppColors.green,
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  title: Text(
-                                                    empleado['nombre'],
-                                                    style: const TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.w500,
-                                                    ),
-                                                  ),
-                                                  subtitle: Text(
-                                                    empleado['puesto'] ??
-                                                        'Jornalero',
-                                                    style: TextStyle(
-                                                      color:
-                                                          Colors.grey.shade600,
-                                                    ),
-                                                  ),
-                                                  trailing: Row(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: [
-                                                      IconButton(
-                                                        icon: const Icon(
-                                                          Icons
-                                                              .visibility_outlined,
-                                                        ),
-                                                        color: Colors.blue,
-                                                        onPressed:
-                                                            () => widget
-                                                                .onMostrarDetallesEmpleado(
-                                                                  context,
-                                                                  empleado,
-                                                                ),
-                                                        tooltip: 'Ver detalles',
-                                                      ),
-                                                      IconButton(
-                                                        icon: const Icon(
-                                                          Icons
-                                                              .remove_circle_outline,
-                                                        ),
-                                                        color: Colors.red,
-                                                        onPressed:
-                                                            () =>
-                                                                _toggleSeleccionEmpleado(
-                                                                  empleado,
-                                                                ),
-                                                        tooltip:
-                                                            'Quitar de cuadrilla',
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              );
-                                            },
-                                          ),
-                                ),
-                              ],
-                            ),
+                                ],
+                              ),
+                              
+                              // ✨ Espacio entre columnas
+                              SizedBox(width: 20),
+                              
+                              // ✨ Lista de empleados en cuadrilla
+                              Expanded(
+                                child: _buildEmpleadosEnCuadrilla(),
+                              ),
+                            ],
                           ),
+                        ),
+                        
+                        const SizedBox(height: 24),
+                        
+                        // ✨ Botones de acción modernos
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () => widget.onClose(),
+                                icon: Icon(Icons.cancel_outlined),
+                                label: Text('Cancelar'),
+                                style: OutlinedButton.styleFrom(
+                                  padding: EdgeInsets.symmetric(vertical: 16),
+                                  side: BorderSide(color: Colors.grey.shade400),
+                                  foregroundColor: Colors.grey.shade700,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: 16),
+                            Expanded(
+                              flex: 2,
+                              child: ElevatedButton.icon(
+                                onPressed: empleadosEnCuadrillaLocal.isNotEmpty
+                                    ? () {
+                                        widget.onCuadrillaSaved(
+                                          selectedCuadrillaLocal,
+                                          empleadosEnCuadrillaLocal,
+                                        );
+                                        widget.onClose();
+                                      }
+                                    : null,
+                                icon: Icon(Icons.save_rounded),
+                                label: Text('Guardar Cuadrilla (${empleadosEnCuadrillaLocal.length})'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green.shade600,
+                                  foregroundColor: Colors.white,
+                                  padding: EdgeInsets.symmetric(vertical: 16),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ✨ Widget para la lista de empleados disponibles
+  Widget _buildEmpleadosDisponibles() {
+    final empleadosDisponibles = empleadosDisponiblesFiltrados
+        .where((e) => !empleadosEnCuadrillaLocal.any((ec) => ec['id'] == e['id']))
+        .toList();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Colors.blue.shade200,
+          width: 1.5,
+        ),
+      ),
+      child: Column(
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.blue.shade50, Colors.blue.shade100],
+              ),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade100,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.person_search_rounded,
+                    color: Colors.blue.shade700,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      OutlinedButton.icon(
-                        onPressed: _confirmarCerrarSinGuardar,
-                        icon: const Icon(Icons.cancel_outlined),
-                        label: const Text('Cancelar'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.grey.shade700,
-                          side: BorderSide(color: Colors.grey.shade400),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 16,
-                          ),
+                      Text(
+                        'Empleados Disponibles',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue.shade800,
                         ),
                       ),
-                      const SizedBox(width: 16),
-                      FilledButton.icon(
-                        onPressed: _guardarCambios,
-                        icon: const Icon(Icons.check),
-                        label: const Text('Guardar cambios'),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: AppColors.green,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 16,
-                          ),
+                      Text(
+                        '${empleadosDisponibles.length} empleados',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.blue.shade600,
                         ),
                       ),
                     ],
                   ),
-                ],
+                ),
+              ],
+            ),
+          ),
+          
+          // Barra de búsqueda
+          Container(
+            margin: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: TextField(
+              controller: _buscarDisponiblesController,
+              decoration: InputDecoration(
+                hintText: 'Buscar empleado...',
+                prefixIcon: Icon(Icons.search, color: Colors.grey.shade500),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
+              onChanged: (value) {
+                setState(() {
+                  if (value.isEmpty) {
+                    empleadosDisponiblesFiltrados = List.from(widget.todosLosEmpleados);
+                  } else {
+                    final query = value.toLowerCase();
+                    empleadosDisponiblesFiltrados = widget.todosLosEmpleados.where((emp) {
+                      final nombre = emp['nombre']?.toString().toLowerCase() ?? '';
+                      final codigo = emp['codigo']?.toString().toLowerCase() ?? '';
+                      return nombre.contains(query) || codigo.contains(query);
+                    }).toList();
+                  }
+                });
+              },
+            ),
+          ),
+          
+          // Lista de empleados
+          Expanded(
+            child: empleadosDisponibles.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.person_off_rounded,
+                          size: 48,
+                          color: Colors.grey.shade400,
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          'No hay empleados disponibles',
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : Column(
+                    children: [
+                      // 🚫 Mensaje cuando no hay cuadrilla seleccionada
+                      if (selectedCuadrillaLocal['nombre'] == null || 
+                          selectedCuadrillaLocal['nombre'] == '') ...[
+                        Container(
+                          margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          padding: EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.orange.shade200),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.info_outline,
+                                color: Colors.orange.shade600,
+                                size: 20,
+                              ),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Selecciona una cuadrilla para agregar empleados',
+                                  style: TextStyle(
+                                    color: Colors.orange.shade700,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      
+                      // Lista de empleados
+                      Expanded(
+                        child: ListView.builder(
+                          padding: EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: empleadosDisponibles.length,
+                          itemBuilder: (context, index) {
+                            final empleado = empleadosDisponibles[index];
+                            return _buildEmpleadoCard(empleado, false);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ✨ Widget para la lista de empleados en cuadrilla
+  Widget _buildEmpleadosEnCuadrilla() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Colors.green.shade200,
+          width: 1.5,
+        ),
+      ),
+      child: Column(
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.green.shade50, Colors.green.shade100],
+              ),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade100,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.groups_rounded,
+                    color: Colors.green.shade700,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Cuadrilla Actual',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green.shade800,
+                        ),
+                      ),
+                      Text(
+                        '${empleadosEnCuadrillaLocal.length} empleados',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.green.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // Barra de búsqueda
+          Container(
+            margin: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: TextField(
+              controller: _buscarEnCuadrillaController,
+              decoration: InputDecoration(
+                hintText: 'Buscar en cuadrilla...',
+                prefixIcon: Icon(Icons.search, color: Colors.grey.shade500),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+              onChanged: (value) {
+                setState(() {
+                  if (value.isEmpty) {
+                    empleadosEnCuadrillaFiltrados = List.from(empleadosEnCuadrillaLocal);
+                  } else {
+                    final query = value.toLowerCase();
+                    empleadosEnCuadrillaFiltrados = empleadosEnCuadrillaLocal.where((emp) {
+                      final nombre = emp['nombre']?.toString().toLowerCase() ?? '';
+                      final codigo = emp['codigo']?.toString().toLowerCase() ?? '';
+                      return nombre.contains(query) || codigo.contains(query);
+                    }).toList();
+                  }
+                });
+              },
+            ),
+          ),
+          
+          // Lista de empleados
+          Expanded(
+            child: empleadosEnCuadrillaLocal.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.group_add_rounded,
+                          size: 48,
+                          color: Colors.grey.shade400,
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          'Cuadrilla vacía',
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Agrega empleados desde la lista',
+                          style: TextStyle(
+                            color: Colors.grey.shade500,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: empleadosEnCuadrillaFiltrados.length,
+                    itemBuilder: (context, index) {
+                      final empleado = empleadosEnCuadrillaFiltrados[index];
+                      return _buildEmpleadoCard(empleado, true);
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ✨ Widget para cada tarjeta de empleado
+  Widget _buildEmpleadoCard(Map<String, dynamic> empleado, bool enCuadrilla) {
+    // 🚫 Verificar si hay cuadrilla seleccionada para habilitar interacciones
+    final bool cuadrillaSeleccionada = selectedCuadrillaLocal['nombre'] != null && 
+                                      selectedCuadrillaLocal['nombre'] != '';
+    final bool isEnabled = enCuadrilla || cuadrillaSeleccionada;
+    
+    return Container(
+      margin: EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: !isEnabled 
+            ? Colors.grey.shade100 
+            : (enCuadrilla ? Colors.green.shade50 : Colors.blue.shade50),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: !isEnabled 
+              ? Colors.grey.shade300
+              : (enCuadrilla ? Colors.green.shade200 : Colors.blue.shade200),
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: isEnabled ? () => _toggleSeleccionEmpleado(empleado) : null,
+          child: Padding(
+            padding: EdgeInsets.all(12),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 20,
+                  backgroundColor: !isEnabled 
+                      ? Colors.grey.shade400
+                      : (enCuadrilla ? Colors.green.shade600 : Colors.blue.shade600),
+                  child: Text(
+                    empleado['nombre']?.toString().substring(0, 1).toUpperCase() ?? 'E',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        empleado['nombre'] ?? 'Sin nombre',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          color: !isEnabled 
+                              ? Colors.grey.shade500 
+                              : Colors.grey.shade800,
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Código: ${empleado['codigo'] ?? 'N/A'}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: !isEnabled 
+                              ? Colors.grey.shade400 
+                              : Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // ✨ Botón para ver detalles del empleado
+                Container(
+                  margin: EdgeInsets.only(right: 8),
+                  child: IconButton(
+                    onPressed: () => widget.onMostrarDetallesEmpleado(context, empleado),
+                    icon: Icon(
+                      Icons.visibility_outlined,
+                      size: 20,
+                      color: Colors.blue.shade700, // 🎨 Azul fuerte para el ícono
+                    ),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.blue.shade50, // 🎨 Fondo azul claro
+                      padding: EdgeInsets.all(6),
+                      minimumSize: Size(32, 32),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    tooltip: 'Ver detalles del empleado',
+                  ),
+                ),
+                Icon(
+                  enCuadrilla ? Icons.remove_circle_outline : Icons.add_circle_outline,
+                  color: !isEnabled 
+                      ? Colors.grey.shade400
+                      : (enCuadrilla ? Colors.red.shade600 : Colors.green.shade600),
+                ),
+              ],
             ),
           ),
         ),

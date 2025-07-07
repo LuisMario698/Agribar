@@ -11,7 +11,12 @@ class NominaMainTableSection extends StatelessWidget {
   final DateTime? endDate;
   final Function(int, String, dynamic) onTableChange;
   final VoidCallback onMostrarSemanasCerradas;
-final List<Map<String, dynamic>> empleadosNomina;
+  final List<Map<String, dynamic>> empleadosNomina;
+  
+  // 🎯 Nuevas propiedades para el dropdown de cuadrillas
+  final List<Map<String, dynamic>> cuadrillas;
+  final Map<String, dynamic>? cuadrillaSeleccionada;
+  final Function(Map<String, dynamic>?) onCuadrillaChanged;
 
   const NominaMainTableSection({
     super.key,
@@ -21,6 +26,9 @@ final List<Map<String, dynamic>> empleadosNomina;
     required this.onTableChange,
     required this.empleadosNomina, 
     required this.onMostrarSemanasCerradas,
+    required this.cuadrillas,
+    this.cuadrillaSeleccionada,
+    required this.onCuadrillaChanged,
   });
 
   void _showFullscreenTable(BuildContext context) {
@@ -40,6 +48,9 @@ final List<Map<String, dynamic>> empleadosNomina;
           onClose: () => Navigator.of(context).pop(),
           horizontalController: modalHorizontal,
           verticalController: modalVertical,
+          cuadrillas: cuadrillas,
+          cuadrillaSeleccionada: cuadrillaSeleccionada,
+          onCuadrillaChanged: onCuadrillaChanged,
         );
       },
     );

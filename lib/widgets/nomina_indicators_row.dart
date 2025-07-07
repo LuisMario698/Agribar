@@ -56,16 +56,27 @@ class _NominaIndicatorsRowState extends State<NominaIndicatorsRow> {
         ? widget.endDate!.difference(widget.startDate!).inDays + 1
         : 7;
     
+    // 🔧 Función auxiliar para convertir valores de manera segura
+    num _safeParseNum(dynamic value) {
+      if (value == null) return 0;
+      if (value is num) return value;
+      if (value is String) {
+        return num.tryParse(value) ?? 0;
+      }
+      return 0;
+    }
+    
     // Solo sumar las celdas "S", ignorar las celdas "ID"
     final total = List.generate(
       numDays,
-      (i) => int.tryParse(emp['dia_${i}_s']?.toString() ?? '0') ?? 0,
+      (i) => _safeParseNum(emp['dia_${i}_s']).toInt(),
     ).reduce((a, b) => a + b);
     
-    final debe = double.tryParse(emp['debe']?.toString() ?? '0') ?? 0;
+    final debe = _safeParseNum(emp['debe']).toDouble();
     final subtotal = total - debe;
-    // Cambiar para usar el valor numérico del comedor en lugar de boolean
-    final comedorValue = double.tryParse(emp['comedor']?.toString() ?? '0') ?? 0;
+    
+    // Usar el valor numérico del comedor con conversión segura
+    final comedorValue = _safeParseNum(emp['comedor']).toDouble();
     final totalNeto = subtotal - comedorValue;
     
     return totalNeto.toDouble();
@@ -73,13 +84,23 @@ class _NominaIndicatorsRowState extends State<NominaIndicatorsRow> {
 
   /// Calcula el acumulado de la cuadrilla actual
   double _calcularAcumuladoCuadrilla() {
+    // 🔧 Función auxiliar para convertir valores de manera segura
+    num _safeParseNum(dynamic value) {
+      if (value == null) return 0;
+      if (value is num) return value;
+      if (value is String) {
+        return num.tryParse(value) ?? 0;
+      }
+      return 0;
+    }
+
     return widget.empleadosFiltrados.fold<double>(
       0,
       (sum, emp) {
         // Usar el totalNeto ya calculado en el empleado si existe, 
         // de lo contrario calcularlo aquí
         final totalNeto = emp['totalNeto'] != null 
-            ? (emp['totalNeto'] as num).toDouble()
+            ? _safeParseNum(emp['totalNeto']).toDouble()
             : _calcularTotalEmpleado(emp);
         return sum + totalNeto;
       },

@@ -11,6 +11,9 @@ class MainTableSection extends StatelessWidget {
   final DateTime? endDate;
   final Function(int, String, dynamic) onTableChange;
   final VoidCallback onMostrarSemanasCerradas;
+  final List<Map<String, dynamic>> cuadrillas;
+  final Map<String, dynamic>? cuadrillaSeleccionada;
+  final Function(Map<String, dynamic>?) onCuadrillaChanged;
 
   const MainTableSection({
     super.key,
@@ -19,6 +22,9 @@ class MainTableSection extends StatelessWidget {
     this.endDate,
     required this.onTableChange,
     required this.onMostrarSemanasCerradas,
+    required this.cuadrillas,
+    this.cuadrillaSeleccionada,
+    required this.onCuadrillaChanged,
   });
 
   void _showFullscreenTable(BuildContext context) {
@@ -38,6 +44,9 @@ class MainTableSection extends StatelessWidget {
           onClose: () => Navigator.of(context).pop(),
           horizontalController: modalHorizontal,
           verticalController: modalVertical,
+          cuadrillas: cuadrillas,
+          cuadrillaSeleccionada: cuadrillaSeleccionada,
+          onCuadrillaChanged: onCuadrillaChanged,
         );
       },
     );

@@ -12,6 +12,7 @@ class NominaWeekSelectionCard extends StatelessWidget {
   final VoidCallback? onSeleccionarSemana;
   final VoidCallback? onCerrarSemana;
   final VoidCallback? onReiniciarSemana;
+  final bool mostrarEstadoFlujo; // 🎯 Propiedad para mostrar estado del flujo
 
   const NominaWeekSelectionCard({
     super.key,
@@ -23,6 +24,7 @@ class NominaWeekSelectionCard extends StatelessWidget {
     this.onSeleccionarSemana,
     this.onCerrarSemana,
     this.onReiniciarSemana,
+    this.mostrarEstadoFlujo = true,
   });
 
   @override
@@ -59,6 +61,26 @@ class NominaWeekSelectionCard extends StatelessWidget {
                           color: AppColors.greenDark,
                         ),
                       ),
+                      // 🎯 Mostrar estado del flujo
+                      if (mostrarEstadoFlujo && startDate != null && endDate != null) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade100,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.green.shade300),
+                          ),
+                          child: Text(
+                            'Activa',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.green.shade700,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -91,18 +113,56 @@ class NominaWeekSelectionCard extends StatelessWidget {
                       ),
                     ),
                   ),
+                  // 🎯 Mensaje guía cuando no hay semana seleccionada
+                  if (mostrarEstadoFlujo && startDate == null) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.blue.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            size: 16,
+                            color: Colors.blue.shade600,
+                          ),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Selecciona una semana para empezar',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.blue.shade700,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   if (startDate != null && endDate != null) ...[
                     const SizedBox(height: 12),
-                    OutlinedButton.icon(
-                      onPressed: isWeekClosed ? null : onCerrarSemana,
-                      icon: const Icon(Icons.lock_outline),
-                      label: const Text('Cerrar semana'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: isWeekClosed ? Colors.grey : AppColors.greenDark,
-                        side: BorderSide(
-                          color: isWeekClosed ? Colors.grey : AppColors.greenDark,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: isWeekClosed ? null : onCerrarSemana,
+                            icon: const Icon(Icons.lock_outline),
+                            label: const Text('Cerrar semana'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: isWeekClosed ? Colors.grey : AppColors.greenDark,
+                              side: BorderSide(
+                                color: isWeekClosed ? Colors.grey : AppColors.greenDark,
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
+                      ],
                     ),
                   ],
                 ],
