@@ -141,6 +141,42 @@ class _NominaCuadrillaSelectionCardState extends State<NominaCuadrillaSelectionC
               ],
             ),
             SizedBox(height: widget.bloqueadoPorFaltaSemana ? 8 : 12),
+            
+            // 🎯 Indicador informativo sobre múltiples cuadrillas
+            if (!widget.bloqueadoPorFaltaSemana) ...[
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                margin: EdgeInsets.only(bottom: 8),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      size: 14,
+                      color: Colors.blue.shade600,
+                    ),
+                    SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Los empleados ahora pueden estar en múltiples cuadrillas en la misma semana',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.blue.shade700,
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            
             CustomDropdownMenu(
               options: widget.bloqueadoPorFaltaSemana ? [] : widget.optionsCuadrilla,
               selectedOption: widget.selectedCuadrilla['nombre'] == '' ? null : widget.selectedCuadrilla,

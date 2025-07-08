@@ -144,10 +144,19 @@ void cargarCuadrillas() async {
   });
 }  Future<void> cargarDatosNomina() async {
     if (semanaSeleccionada != null && cuadrillaSeleccionada != null) {
+      // 🚨 DEBUG CRÍTICO: Verificar llamada a carga
+      print('🚨 [CARGAR CRÍTICO] Llamando a cargar datos con semana=${semanaSeleccionada!['id']}, cuadrilla=${cuadrillaSeleccionada!['id']}');
+      
       final data = await obtenerNominaEmpleadosDeCuadrilla(
         semanaSeleccionada!['id'],
         cuadrillaSeleccionada!['id'],
       );
+
+      // 🚨 DEBUG CRÍTICO: Resultado de la carga
+      print('🚨 [CARGAR CRÍTICO] Datos cargados: ${data.length} empleados');
+      if (data.isNotEmpty) {
+        print('🚨 [CARGAR CRÍTICO] Primer empleado cargado: ${data.first}');
+      }
 
       setState(() {
         empleadosNomina = data;
@@ -643,40 +652,70 @@ void cargarCuadrillas() async {
     }
     _showSupervisorLoginDialog();
   }
-
   Future<void> guardarNomina() async {
     final idSemana = semanaSeleccionada?['id'];
     final idCuadrilla = cuadrillaSeleccionada?['id'];
     final db = DatabaseService();
-    await db.connect();
+    
+    // 🚨 DEBUG CRÍTICO: Verificar datos iniciales
+    print('🚨 [GUARDAR CRÍTICO] Iniciando guardado de nómina');
+    print('🚨 ID Semana: $idSemana');
+    print('🚨 ID Cuadrilla: $idCuadrilla');
+    print('🚨 Cantidad de empleados a guardar: ${empleadosFiltrados.length}');
+    
+    if (idSemana == null || idCuadrilla == null) {
+      print('❌ [ERROR CRÍTICO] Faltan datos: semana=$idSemana, cuadrilla=$idCuadrilla');
+      return;
+    }
+    
+    try {
+      await db.connect();
 
-    for (int i = 0; i < empleadosFiltrados.length; i++) {
-      final empleado = empleadosFiltrados[i];
-      final idEmpleado = empleado['id'];
-      
-      // 🔧 Función auxiliar para obtener valores numéricos seguros
-      int _getSafeIntValue(dynamic value) {
-        if (value == null) return 0;
-        if (value is int) return value;
-        if (value is double) return value.round();
-        if (value is num) return value.round();
-        if (value is String) {
-          final parsed = num.tryParse(value);
-          return parsed?.round() ?? 0;
+      for (int i = 0; i < empleadosFiltrados.length; i++) {
+        final empleado = empleadosFiltrados[i];
+        final idEmpleado = empleado['id'];
+        
+        // 🚨 DEBUG: Mostrar datos del empleado ANTES de procesar
+        print('🚨 [EMPLEADO ${i + 1}] ${empleado['nombre']}:');
+        print('   - ID: $idEmpleado');
+        print('   - Datos originales:');
+        for (int day = 0; day < 7; day++) {
+          print('     día $day: actividad=${empleado['dia_${day}_id']}, salario=${empleado['dia_${day}_s']}');
         }
-        return 0;
-      }
+        print('   - Total: ${empleado['total']}, Debe: ${empleado['debe']}, Subtotal: ${empleado['subtotal']}');
+        
+        // 🔧 Función auxiliar para obtener valores numéricos seguros
+        int _getSafeIntValue(dynamic value) {
+          if (value == null) return 0;
+          if (value is int) return value;
+          if (value is double) return value.round();
+          if (value is num) return value.round();
+          if (value is String) {
+            final parsed = num.tryParse(value);
+            return parsed?.round() ?? 0;
+          }
+          return 0;
+        }
 
-      // ✅ Inicializar campos por defecto si no existen
-      for (int day = 0; day < 7; day++) {
-        empleado['dia_${day}_id'] ??= 0;
-        empleado['dia_${day}_s'] ??= 0;
-      }
+        // ✅ Inicializar campos por defecto si no existen
+        for (int day = 0; day < 7; day++) {
+          empleado['dia_${day}_id'] ??= 0;
+          empleado['dia_${day}_s'] ??= 0;
+        }
 
-      final result = await db.connection.query(
-        'SELECT id_nomina FROM nomina_empleados_semanal WHERE id_empleado = @idEmp AND id_semana = @idSemana',
-        substitutionValues: {'idEmp': idEmpleado, 'idSemana': idSemana},
-      );
+        // 🎯 NUEVA LÓGICA: Verificar si ya existe registro específico para esta combinación exacta
+        // (empleado + semana + cuadrilla específica)
+        final result = await db.connection.query(
+          '''SELECT id_nomina FROM nomina_empleados_semanal 
+             WHERE id_empleado = @idEmp 
+             AND id_semana = @idSemana 
+             AND id_cuadrilla = @idCuadrilla''',
+          substitutionValues: {
+            'idEmp': idEmpleado, 
+            'idSemana': idSemana,
+            'idCuadrilla': idCuadrilla,
+          },
+        );
 
       // 🔧 Mapear correctamente desde la tabla hacia la BD
       // Tabla: dia_0_s, dia_1_s, ... dia_6_s → BD: dia_1, dia_2, ... dia_7
@@ -705,11 +744,16 @@ void cargarCuadrillas() async {
         'total_neto': _getSafeIntValue(empleado['totalNeto']),
       };
 
-      // 🔧 Debug: imprimir los datos que se van a guardar
-      print('🔍 Debug Guardar - ${empleado['nombre']}: dia_1=${data['dia_1']}, dia_2=${data['dia_2']}, total=${data['total']}');
+      // � DEBUG CRÍTICO: Mostrar datos procesados que se van a guardar
+      print('� [DATOS PROCESADOS] ${empleado['nombre']}:');
+      print('   - dia_1=${data['dia_1']}, dia_2=${data['dia_2']}, dia_3=${data['dia_3']}');
+      print('   - dia_4=${data['dia_4']}, dia_5=${data['dia_5']}, dia_6=${data['dia_6']}, dia_7=${data['dia_7']}');
+      print('   - total=${data['total']}, debe=${data['debe']}, subtotal=${data['subtotal']}');
+      print('   - comedor=${data['comedor']}, total_neto=${data['total_neto']}');
 
       if (result.isNotEmpty) {
         // Si existe, actualiza
+        print('🚨 [UPDATE] Actualizando registro existente para empleado $idEmpleado');
         await db.connection.query(
           '''UPDATE nomina_empleados_semanal
              SET 
@@ -721,9 +765,8 @@ void cargarCuadrillas() async {
                act_6 = @a6, dia_6 = @d6,
                act_7 = @a7, dia_7 = @d7,
                total = @total, debe = @debe, subtotal = @subtotal, 
-               comedor = @comedor, total_neto = @neto,
-               id_cuadrilla = @idCuadrilla
-             WHERE id_empleado = @idEmp AND id_semana = @idSemana
+               comedor = @comedor, total_neto = @neto
+             WHERE id_empleado = @idEmp AND id_semana = @idSemana AND id_cuadrilla = @idCuadrilla
           ''',
           substitutionValues: {
             'a1': data['act_1'], 'd1': data['dia_1'],
@@ -738,21 +781,71 @@ void cargarCuadrillas() async {
             'subtotal': data['subtotal'],
             'comedor': data['comedor'],
             'neto': data['total_neto'],
-            'idCuadrilla': idCuadrilla,
             'idEmp': idEmpleado,
             'idSemana': idSemana,
+            'idCuadrilla': idCuadrilla,
           },
         );
+<<<<<<< HEAD
       } 
+=======
+        print('✅ [UPDATE EXITOSO] Empleado $idEmpleado actualizado');
+      } else {
+        // Si no existe, inserta
+        print('🚨 [INSERT] Insertando nuevo registro para empleado $idEmpleado');
+        await db.connection.query(
+          '''INSERT INTO nomina_empleados_semanal (
+               id_empleado, id_semana, id_cuadrilla, 
+               act_1, dia_1, act_2, dia_2, act_3, dia_3, act_4, dia_4, 
+               act_5, dia_5, act_6, dia_6, act_7, dia_7,
+               total, debe, subtotal, comedor, total_neto
+             ) VALUES (
+               @idEmp, @idSemana, @idCuadrilla,
+               @a1, @d1, @a2, @d2, @a3, @d3, @a4, @d4,
+               @a5, @d5, @a6, @d6, @a7, @d7,
+               @total, @debe, @subtotal, @comedor, @neto
+             )''',
+          substitutionValues: {
+            'idEmp': idEmpleado,
+            'idSemana': idSemana,
+            'idCuadrilla': idCuadrilla,
+            'a1': data['act_1'], 'd1': data['dia_1'],
+            'a2': data['act_2'], 'd2': data['dia_2'],
+            'a3': data['act_3'], 'd3': data['dia_3'],
+            'a4': data['act_4'], 'd4': data['dia_4'],
+            'a5': data['act_5'], 'd5': data['dia_5'],
+            'a6': data['act_6'], 'd6': data['dia_6'],
+            'a7': data['act_7'], 'd7': data['dia_7'],
+            'total': data['total'],
+            'debe': data['debe'],
+            'subtotal': data['subtotal'],
+            'comedor': data['comedor'],
+            'neto': data['total_neto'],
+          },
+        );
+        print('✅ [INSERT EXITOSO] Empleado $idEmpleado insertado');
+      }
+>>>>>>> bfb84414ed0ae28093cd2e4f6b7c5c1a3cea11c4
     }
+    
+    print("🎉 [GUARDADO COMPLETO] Nómina guardada correctamente - ${empleadosFiltrados.length} empleados procesados");
+  } catch (e) {
+    print("💥 [ERROR CRÍTICO] Error al guardar nómina: $e");
+    print("🔍 Stack trace: ${StackTrace.current}");
+    rethrow; // Re-lanzar el error para que sea manejado por la función llamadora
+  } finally {
     await db.close();
-    print("✅ Nómina guardada correctamente.");
+    print("🔌 [CONEXIÓN] Base de datos cerrada");
   }
+}
 
   Future<List<Map<String, dynamic>>> obtenerNominaEmpleadosDeCuadrilla(
     int semanaId,
     int cuadrillaId,
   ) async {
+    // 🚨 DEBUG CRÍTICO: Verificar parámetros de carga
+    print('🚨 [CARGAR CRÍTICO] Cargando nómina: semana=$semanaId, cuadrilla=$cuadrillaId');
+    
     final db = DatabaseService();
     await db.connect();
 
@@ -783,7 +876,13 @@ void cargarCuadrillas() async {
 
     await db.close();
 
-    // 🔧 Debug: imprimir los datos que vienen de la BD
+    // � DEBUG CRÍTICO: Resultados de la consulta
+    print('🚨 [CARGAR CRÍTICO] Registros encontrados en BD: ${result.length}');
+    if (result.isNotEmpty) {
+      print('🚨 [CARGAR CRÍTICO] Primer empleado BD: ${result.first}');
+    }
+
+    // �🔧 Debug: imprimir los datos que vienen de la BD
     print('🔍 Debug BD - Registros encontrados: ${result.length}');
     for (var row in result) {
       print('🔍 Debug BD - Empleado: ${row[1]}, dia_1: ${row[3]}, dia_2: ${row[5]}, total: ${row[17]}');
