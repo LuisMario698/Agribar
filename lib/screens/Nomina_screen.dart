@@ -111,58 +111,74 @@ class _NominaScreenState extends State<NominaScreen> {
   @override
   void initState() {
     super.initState();
-    // Inicializar valores por defecto
-    _selectedCuadrilla = {'nombre': '', 'empleados': []};
-    empleadosFiltrados = [];
-    empleadosEnCuadrilla = [];
-    empleadosEnCuadrillaFiltrados = [];
+    // Inicializar valores por defecto SOLO si no están ya establecidos
+    if (_selectedCuadrilla['nombre'] == null || _selectedCuadrilla['nombre'] == '') {
+      _selectedCuadrilla = {'nombre': '', 'empleados': []};
+    }
     
     // Cargar datos iniciales
     _cargarCuadrillasHabilitadas();
     _loadInitialData();
     
-    // 🎯 Verificar semana activa AL FINAL para que no se sobreescriba
+    // 🎯 Verificar semana activa y restaurar estado si existe
     verificarSemanaActiva();
+    
+    // Esperar un poco para que se carguen los datos antes de restaurar estado
+    Future.delayed(Duration(milliseconds: 500), () {
+      _restaurarEstadoAnterior();
+    });
+  }
+
+  /// Restaura el estado anterior si existe (cuadrilla seleccionada)
+  Future<void> _restaurarEstadoAnterior() async {
+    // Si hay una cuadrilla previamente seleccionada, restaurarla
+    if (cuadrillaSeleccionada != null && idSemanaSeleccionada != null) {
+      // Encontrar la cuadrilla en _optionsCuadrilla y reseleccionarla
+      final cuadrillaEncontrada = _optionsCuadrilla.firstWhere(
+        (c) => c['id'] == cuadrillaSeleccionada!['id'],
+        orElse: () => {},
+      );
+      
+      if (cuadrillaEncontrada.isNotEmpty && mounted) {
+        await _handleCuadrillaChange(cuadrillaEncontrada);
+      }
+    }
   }
 
   Future<void> cargarDatosNomina() async {
     if (semanaSeleccionada != null && cuadrillaSeleccionada != null) {
-      // 🚨 DEBUG CRÍTICO: Verificar llamada a carga
-      print('🚨 [CARGAR CRÍTICO] Llamando a cargar datos con semana=${semanaSeleccionada!['id']}, cuadrilla=${cuadrillaSeleccionada!['id']}');
       
       final data = await obtenerNominaEmpleadosDeCuadrilla(
         semanaSeleccionada!['id'],
         cuadrillaSeleccionada!['id'],
       );
 
-      // 🚨 DEBUG CRÍTICO: Resultado de la carga
-      print('🚨 [CARGAR CRÍTICO] Datos cargados: ${data.length} empleados');
-      if (data.isNotEmpty) {
-        print('🚨 [CARGAR CRÍTICO] Primer empleado cargado: ${data.first}');
-      }
-
-      setState(() {
-        empleadosNomina = data;
-        // ✅ También actualizar empleadosFiltrados para habilitar el botón guardar
-        empleadosFiltrados = List<Map<String, dynamic>>.from(data);
+      if (mounted) {
+        setState(() {
+          // ✅ Actualizar TODOS los datos necesarios
+          empleadosNomina = List<Map<String, dynamic>>.from(data);
+          empleadosFiltrados = List<Map<String, dynamic>>.from(data);
+          empleadosNominaTemp = List<Map<String, dynamic>>.from(data);
         
-        // ✅ Sincronizar con _optionsCuadrilla para el diálogo de armar cuadrilla
-        final indiceCuadrilla = _optionsCuadrilla.indexWhere(
-          (c) => c['nombre'] == cuadrillaSeleccionada!['nombre'],
-        );
+          // ✅ Sincronizar con _optionsCuadrilla
+          final indiceCuadrilla = _optionsCuadrilla.indexWhere(
+            (c) => c['id'] == cuadrillaSeleccionada!['id'],
+          );
+          
+          if (indiceCuadrilla != -1) {
+            _optionsCuadrilla[indiceCuadrilla]['empleados'] = 
+                List<Map<String, dynamic>>.from(data);
+          }
+          
+          // ✅ También sincronizar empleadosEnCuadrilla
+          empleadosEnCuadrilla = List<Map<String, dynamic>>.from(data);
+        });
         
-        if (indiceCuadrilla != -1) {
-          // Actualizar los empleados de la cuadrilla en _optionsCuadrilla
-          _optionsCuadrilla[indiceCuadrilla]['empleados'] = 
-              List<Map<String, dynamic>>.from(data);
+        // ✅ Guardar los datos originales después de cargar SOLO si no hay cambios
+        if (!_hasUnsavedChanges) {
+          _saveOriginalData();
         }
-        
-        // ✅ También sincronizar empleadosEnCuadrilla
-        empleadosEnCuadrilla = List<Map<String, dynamic>>.from(data);
-      });
-      
-      // ✅ Guardar los datos originales después de cargar
-      _saveOriginalData();
+      }
     }
   }
 
@@ -170,34 +186,40 @@ class _NominaScreenState extends State<NominaScreen> {
     final semana = await obtenerSemanaAbierta();
 
     if (semana != null) {
-      setState(() {
-        _startDate = semana['fechaInicio'];
-        _endDate = semana['fechaFin'];
-        _isWeekClosed = semana['cerrada'] ?? false;
-        _haySemanaActiva = true;
-        idSemanaSeleccionada = semana['id'];
-        semanaSeleccionada = semana; // ✅ Asignar semanaSeleccionada
-        
-        // 🎯 Habilitar flujo después de seleccionar semana
-        _bloqueadoPorFaltaSemana = false;
-        _puedeArmarCuadrilla = true;
-        _puedeCapturarDatos = false; // Solo después de armar cuadrilla
-      });
+      if (mounted) {
+        setState(() {
+          _startDate = semana['fechaInicio'];
+          _endDate = semana['fechaFin'];
+          _isWeekClosed = semana['cerrada'] ?? false;
+          _haySemanaActiva = true;
+          idSemanaSeleccionada = semana['id'];
+          semanaSeleccionada = semana; // ✅ Asignar semanaSeleccionada
+          
+          // 🎯 Habilitar flujo después de seleccionar semana
+          _bloqueadoPorFaltaSemana = false;
+          _puedeArmarCuadrilla = true;
+          _puedeCapturarDatos = false; // Solo después de armar cuadrilla
+        });
+      }
 
-      // 🚨 Agrega esta línea justo aquí:
-      await _cargarCuadrillasSemana(semana['id']);
-      // ✅ Cargar empleados de todas las cuadrillas desde la BD
-      await _cargarEmpleadosDeCuadrillas();
+      // 🚨 Solo ejecutar si el widget sigue montado
+      if (mounted) {
+        await _cargarCuadrillasSemana(semana['id']);
+        // ✅ Cargar empleados de todas las cuadrillas desde la BD
+        await _cargarEmpleadosDeCuadrillas();
+      }
     } else {
-      setState(() {
-        _haySemanaActiva = false;
-        semanaSeleccionada = null;
-        
-        // 🎯 Bloquear flujo sin semana
-        _bloqueadoPorFaltaSemana = true;
-        _puedeArmarCuadrilla = false;
-        _puedeCapturarDatos = false;
-      });
+      if (mounted) {
+        setState(() {
+          _haySemanaActiva = false;
+          semanaSeleccionada = null;
+          
+          // 🎯 Bloquear flujo sin semana
+          _bloqueadoPorFaltaSemana = true;
+          _puedeArmarCuadrilla = false;
+          _puedeCapturarDatos = false;
+        });
+      }
     }
   }
 
@@ -497,6 +519,8 @@ class _NominaScreenState extends State<NominaScreen> {
 
     try {
       for (int i = 0; i < _optionsCuadrilla.length; i++) {
+        if (!mounted) break; // Salir si el widget ya no está montado
+        
         final cuadrilla = _optionsCuadrilla[i];
         if (cuadrilla['id'] != null) {
           // Obtener empleados con datos de nómina completos
@@ -506,10 +530,12 @@ class _NominaScreenState extends State<NominaScreen> {
                 cuadrilla['id'],
               );
           
-          // Actualizar la cuadrilla con los empleados de la BD
-          setState(() {
-            _optionsCuadrilla[i]['empleados'] = empleadosCuadrilla;
-          });
+          // Actualizar la cuadrilla con los empleados de la BD solo si está montado
+          if (mounted) {
+            setState(() {
+              _optionsCuadrilla[i]['empleados'] = empleadosCuadrilla;
+            });
+          }
         }
       }
       
@@ -523,20 +549,24 @@ class _NominaScreenState extends State<NominaScreen> {
 
   Future<void> _cargarCuadrillasHabilitadas() async {
     final cuadrillasBD = await obtenerCuadrillasHabilitadas();
-    setState(() {
-      _optionsCuadrilla.clear();
-      _optionsCuadrilla.addAll(cuadrillasBD);
-    });
+    if (mounted) {
+      setState(() {
+        _optionsCuadrilla.clear();
+        _optionsCuadrilla.addAll(cuadrillasBD);
+      });
+    }
   }
 
   Future<void> _loadInitialData() async {
     final empleados = await obtenerEmpleadosHabilitados();
 
-    setState(() {
-      todosLosEmpleados = empleados;
-      empleadosDisponiblesFiltrados = List.from(empleados);
-      empleadosEnCuadrillaFiltrados = [];
-    });
+    if (mounted) {
+      setState(() {
+        todosLosEmpleados = empleados;
+        empleadosDisponiblesFiltrados = List.from(empleados);
+        empleadosEnCuadrillaFiltrados = [];
+      });
+    }
   }
 
   Future<void> _seleccionarSemana() async {
@@ -636,14 +666,7 @@ class _NominaScreenState extends State<NominaScreen> {
     final idCuadrilla = cuadrillaSeleccionada?['id'];
     final db = DatabaseService();
     
-    // 🚨 DEBUG CRÍTICO: Verificar datos iniciales
-    print('🚨 [GUARDAR CRÍTICO] Iniciando guardado de nómina');
-    print('🚨 ID Semana: $idSemana');
-    print('🚨 ID Cuadrilla: $idCuadrilla');
-    print('🚨 Cantidad de empleados a guardar: ${empleadosFiltrados.length}');
-    
     if (idSemana == null || idCuadrilla == null) {
-      print('❌ [ERROR CRÍTICO] Faltan datos: semana=$idSemana, cuadrilla=$idCuadrilla');
       return;
     }
     
@@ -666,13 +689,6 @@ class _NominaScreenState extends State<NominaScreen> {
       for (int i = 0; i < empleadosFiltrados.length; i++) {
         final empleado = empleadosFiltrados[i];
         final idEmpleado = empleado['id'];
-        
-        // 🚨 DEBUG: Mostrar datos del empleado ANTES de procesar
-        print('🚨 [EMPLEADO ${i + 1}] ${empleado['nombre']}:');
-        print('   - ID: $idEmpleado');
-        print('   - dia_0_s (original): ${empleado['dia_0_s']}');
-        print('   - dia_1_s (original): ${empleado['dia_1_s']}');
-        print('   - total (original): ${empleado['total']}');
         
         // ✅ Inicializar campos por defecto si no existen
         for (int day = 0; day < 7; day++) {
@@ -767,10 +783,8 @@ class _NominaScreenState extends State<NominaScreen> {
               'idCuadrilla': idCuadrilla,
             },
           );
-          print('✅ [UPDATE EXITOSO] Empleado $idEmpleado actualizado');
         } else {
           // Si no existe, inserta
-          print('➕ [INSERT] Insertando nuevo registro para empleado $idEmpleado');
           await db.connection.query(
             '''INSERT INTO nomina_empleados_semanal (
                  id_empleado, id_semana, id_cuadrilla, 
@@ -801,18 +815,13 @@ class _NominaScreenState extends State<NominaScreen> {
               'neto': data['total_neto'],
             },
           );
-          print('✅ [INSERT EXITOSO] Empleado $idEmpleado insertado');
         }
       }
       
-      print("🎉 [GUARDADO COMPLETO] Nómina guardada correctamente - ${empleadosFiltrados.length} empleados procesados");
     } catch (e) {
-      print("💥 [ERROR CRÍTICO] Error al guardar nómina: $e");
-      print("🔍 Stack trace: ${StackTrace.current}");
       rethrow;
     } finally {
       await db.close();
-      print("🔌 [CONEXIÓN] Base de datos cerrada");
     }
   }
 
@@ -820,9 +829,6 @@ class _NominaScreenState extends State<NominaScreen> {
     int semanaId,
     int cuadrillaId,
   ) async {
-    // 🚨 DEBUG CRÍTICO: Verificar parámetros de carga
-    print('🚨 [CARGAR CRÍTICO] Cargando nómina: semana=$semanaId, cuadrilla=$cuadrillaId');
-    
     final db = DatabaseService();
     await db.connect();
 
@@ -1334,55 +1340,67 @@ class _NominaScreenState extends State<NominaScreen> {
     }
 
     // 🔄 Mostrar indicador de guardando
-    setState(() {
-      _isGuardando = true;
-    });
+    if (mounted) {
+      setState(() {
+        _isGuardando = true;
+      });
+    }
 
     try {
       // 🔧 Aplicar los cambios temporales a los datos reales antes de guardar
       _applyTempChangesToReal();
       
-      // Aquí iría la lógica para guardar en la base de datos
-      // Por ejemplo, usando el servicio de semana
+      // ✅ Guardar los datos de nómina completos en la base de datos
       await guardarNomina();
       
-      // ✅ Guardar también la relación empleado-cuadrilla
-      if (idSemanaSeleccionada != null && _selectedCuadrilla['id'] != null) {
-        await guardarEmpleadosCuadrillaSemana(
-          semanaId: idSemanaSeleccionada!,
-          cuadrillaId: _selectedCuadrilla['id'],
-          empleados: empleadosFiltrados,
+      // ❌ ELIMINADO: guardarEmpleadosCuadrillaSemana sobrescribe los datos recién guardados
+      // La función guardarNomina() ya maneja INSERT/UPDATE correctamente
+      // No necesitamos una segunda operación que elimine y vuelva a insertar
+
+      // ✅ IMPORTANTE: Mantener los datos guardados en _optionsCuadrilla para persistir entre cambios
+      if (mounted && _selectedCuadrilla['id'] != null) {
+        final indiceCuadrilla = _optionsCuadrilla.indexWhere(
+          (c) => c['id'] == _selectedCuadrilla['id'],
+        );
+        
+        if (indiceCuadrilla != -1) {
+          setState(() {
+            // Actualizar los empleados de la cuadrilla en _optionsCuadrilla con los datos guardados
+            _optionsCuadrilla[indiceCuadrilla]['empleados'] = 
+                List<Map<String, dynamic>>.from(empleadosFiltrados);
+          });
+        }
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Datos de nómina guardados correctamente'),
+            backgroundColor: Colors.green,
+          ),
         );
       }
-
-      // ✅ Actualizar las cuadrillas después de guardar para refrescar el "Total semana"
-      if (idSemanaSeleccionada != null) {
-        await _cargarCuadrillasSemana(idSemanaSeleccionada!);
-        // ✅ Cargar empleados de todas las cuadrillas desde la BD
-        await _cargarEmpleadosDeCuadrillas();
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ Datos de nómina guardados correctamente'),
-          backgroundColor: Colors.green,
-        ),
-      );
       
       // Resetear el estado de cambios no guardados después de guardar exitosamente
-      _saveOriginalData();
+      if (mounted) {
+        _saveOriginalData();
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Error al guardar: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error al guardar: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
       // 🔄 Ocultar indicador de guardando
-      setState(() {
-        _isGuardando = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isGuardando = false;
+        });
+      }
     }
   }
 
@@ -1460,8 +1478,9 @@ class _NominaScreenState extends State<NominaScreen> {
   /// Guarda una copia de los datos originales para detectar cambios
   void _saveOriginalData() {
     _originalNominaData = {};
-    for (int i = 0; i < empleadosNomina.length; i++) {
-      final emp = empleadosNomina[i];
+    // ✅ Guardar desde empleadosFiltrados que es lo que se muestra en la tabla
+    for (int i = 0; i < empleadosFiltrados.length; i++) {
+      final emp = empleadosFiltrados[i];
       _originalNominaData[emp['id']] = Map<String, dynamic>.from(emp);
     }
     _hasUnsavedChanges = false;
@@ -1472,7 +1491,8 @@ class _NominaScreenState extends State<NominaScreen> {
 
   /// 🔧 Inicializa los datos temporales para edición en tiempo real
   void _initializeTempData() {
-    empleadosNominaTemp = empleadosNomina.map((emp) {
+    // 🔧 Usar empleadosFiltrados como fuente (datos mostrados en tabla)
+    empleadosNominaTemp = empleadosFiltrados.map((emp) {
       // 🔧 Crear copia manteniendo tipos específicos
       final empCopy = <String, dynamic>{};
       for (String key in emp.keys) {
@@ -1485,7 +1505,7 @@ class _NominaScreenState extends State<NominaScreen> {
     
     // Guardar una copia para poder revertir cambios
     _originalDataBeforeEditing = {};
-    for (final emp in empleadosNomina) {
+    for (final emp in empleadosFiltrados) {
       // 🔧 Crear copia manteniendo tipos específicos
       final empCopy = <String, dynamic>{};
       for (String key in emp.keys) {
@@ -1522,11 +1542,12 @@ class _NominaScreenState extends State<NominaScreen> {
 
   /// Detecta si hay cambios no guardados comparando con los datos originales
   bool _detectUnsavedChanges() {
-    if (_originalNominaData.isEmpty && empleadosNomina.isNotEmpty) {
+    if (_originalNominaData.isEmpty && empleadosFiltrados.isNotEmpty) {
       return true; // Hay datos nuevos sin guardar
     }
     
-    for (final emp in empleadosNomina) {
+    // ✅ Comparar con empleadosFiltrados que es lo que se muestra en la tabla
+    for (final emp in empleadosFiltrados) {
       final empId = emp['id'];
       final originalEmp = _originalNominaData[empId];
       
@@ -1826,6 +1847,8 @@ class _NominaScreenState extends State<NominaScreen> {
 
   /// Realiza el cambio de cuadrilla
   Future<void> _changeCuadrilla(Map<String, dynamic>? option) async {
+    if (!mounted) return;
+    
     setState(() {
       if (option == null) {
         // Deseleccionar cuadrilla
@@ -1860,66 +1883,57 @@ class _NominaScreenState extends State<NominaScreen> {
 
     // Cargar nómina solo si hay cuadrilla y semana seleccionada
     if (option != null && idSemanaSeleccionada != null) {
-      final data = await obtenerNominaEmpleadosDeCuadrilla(
-        idSemanaSeleccionada!,
-        option['id'],
-      );
+      if (mounted) {
+        setState(() {
+          _selectedCuadrilla = option;
+          cuadrillaSeleccionada = option;
+          
+          // ✅ Siempre cargar desde BD para asegurar datos actualizados
+          empleadosNomina = [];
+          empleadosFiltrados = [];
+          empleadosNominaTemp = [];
+        });
+      }
 
-      setState(() {
-        _selectedCuadrilla = option;
-        cuadrillaSeleccionada = option;
-        empleadosNomina = data;
-        empleadosFiltrados = List<Map<String, dynamic>>.from(data);
-      });
-
-      await cargarDatosNomina();
+      // ✅ Cargar datos desde BD para obtener información completa
+      if (mounted) {
+        await cargarDatosNomina();
+      }
       
       // Guardar los datos originales después de cargar
-      _saveOriginalData();
-      
-      // 🎯 Actualizar estado de captura después de cargar cuadrilla
-      _puedeCapturarDatos = _validarPuedeCapturarDatos();
-      
-      // 🔧 Debug: Mostrar información de la cuadrilla cargada
-      print('✅ Cuadrilla "${option['nombre']}" cargada con ${data.length} empleados');
-      
-      // 🔧 Debug: Mostrar datos del primer empleado para verificar carga
-      if (data.isNotEmpty) {
-        final primerEmpleado = data.first;
-        print('🔧 [DEBUG CARGA] Primer empleado: ${primerEmpleado['nombre']}');
-        print('   - dia_0_s: ${primerEmpleado['dia_0_s']}');
-        print('   - dia_1_s: ${primerEmpleado['dia_1_s']}');
-        print('   - total: ${primerEmpleado['total']}');
-        print('   - debe: ${primerEmpleado['debe']}');
+      if (mounted) {
+        _saveOriginalData();
+        
+        // 🎯 Actualizar estado de captura después de cargar cuadrilla
+        _puedeCapturarDatos = _validarPuedeCapturarDatos();
       }
+      
+      print('✅ Cuadrilla "${option['nombre']}" cargada con ${empleadosFiltrados.length} empleados');
     }
   }
 
   /// Actualiza el estado de cambios cuando se modifica un campo
   void _onFieldChanged(int index, String key, dynamic value) {
-    // 🔧 Actualizar los datos temporales en lugar de los datos reales
     setState(() {
-      if (index < empleadosNominaTemp.length) {
+      if (index < empleadosFiltrados.length) {
         // 🔧 Convertir valores numéricos a enteros para mantener tipos correctos
         dynamic processedValue = value;
         if (_isNumericField(key)) {
           processedValue = int.tryParse(value.toString()) ?? 0;
         }
         
-        empleadosNominaTemp[index][key] = processedValue;
+        // ✅ Actualizar directamente empleadosFiltrados (tabla principal)
+        empleadosFiltrados[index][key] = processedValue;
+        _recalcularTotalesEmpleado(empleadosFiltrados[index]);
         
-        // 🔧 Recalcular totales después de actualizar el campo
-        _recalcularTotalesEmpleado(empleadosNominaTemp[index]);
-        
-        // También actualizar empleadosFiltrados para que la tabla principal se actualice visualmente
-        if (index < empleadosFiltrados.length) {
-          empleadosFiltrados[index][key] = processedValue;
-          // También recalcular totales en empleadosFiltrados
-          _recalcularTotalesEmpleado(empleadosFiltrados[index]);
+        // ✅ Sincronizar con empleadosNominaTemp si existe
+        if (index < empleadosNominaTemp.length) {
+          empleadosNominaTemp[index][key] = processedValue;
+          _recalcularTotalesEmpleado(empleadosNominaTemp[index]);
         }
         
         // Detectar cambios para habilitar/deshabilitar el botón guardar
-        _hasUnsavedChanges = _detectUnsavedChangesFromTemp();
+        _hasUnsavedChanges = _detectUnsavedChanges();
       }
     });
   }
@@ -1956,38 +1970,6 @@ class _NominaScreenState extends State<NominaScreen> {
     empleado['totalNeto'] = totalNeto;
   }
 
-  /// 🔧 Detecta cambios comparando datos temporales con los datos originales
-  bool _detectUnsavedChangesFromTemp() {
-    if (_originalDataBeforeEditing.isEmpty && empleadosNominaTemp.isNotEmpty) {
-      return true;
-    }
-    
-    for (final empTemp in empleadosNominaTemp) {
-      final empId = empTemp['id'];
-      final originalEmp = _originalDataBeforeEditing[empId];
-      
-      if (originalEmp == null) {
-        return true; // Empleado nuevo
-      }
-      
-      // Comparar campos relevantes
-      final fieldsToCheck = ['debe', 'comedor', 'total', 'subtotal', 'totalNeto'];
-      for (int day = 0; day < 7; day++) {
-        fieldsToCheck.addAll(['dia_${day}_id', 'dia_${day}_s']);
-      }
-      
-      for (final field in fieldsToCheck) {
-        final tempValue = empTemp[field]?.toString() ?? '0';
-        final originalValue = originalEmp[field]?.toString() ?? '0';
-        
-        if (tempValue != originalValue) {
-          return true;
-        }
-      }
-    }
-    
-    return false;
-  }
   @override
   Widget build(BuildContext context) {
     return RawKeyboardListener(
@@ -2104,7 +2086,7 @@ class _NominaScreenState extends State<NominaScreen> {
                     ), // Table section with modular design
                     Expanded(
                       child: NominaMainTableSection(
-                        empleadosFiltrados: empleadosNominaTemp.isNotEmpty ? empleadosNominaTemp : empleadosFiltrados,
+                        empleadosFiltrados: empleadosFiltrados, // ✅ Siempre usar empleadosFiltrados
                         empleadosNomina: empleadosNomina, // ← ✅ Agregado aquí
                         startDate: _startDate,
                         endDate: _endDate,
@@ -2177,19 +2159,10 @@ class _NominaScreenState extends State<NominaScreen> {
                   showArmarCuadrilla = false;
                 });
                 
-                // ✅ IMPORTANTE: Guardar la relación empleado-cuadrilla en la BD
-                if (idSemanaSeleccionada != null && cuadrilla['id'] != null) {
-                  try {
-                    await guardarEmpleadosCuadrillaSemana(
-                      semanaId: idSemanaSeleccionada!,
-                      cuadrillaId: cuadrilla['id'],
-                      empleados: empleados,
-                    );
-                    print('✅ Empleados guardados en cuadrilla: ${cuadrilla['nombre']}');
-                  } catch (e) {
-                    print('❌ Error al guardar empleados en cuadrilla: $e');
-                  }
-                }
+                // ✅ IMPORTANTE: Ya no necesitamos guardar la relación empleado-cuadrilla
+                // porque guardarNomina() maneja todo el proceso de INSERT/UPDATE
+                // Eliminar la llamada duplicada que sobrescribe los datos
+                
                 
                 // ✅ Recargar todas las cuadrillas para asegurar sincronización completa
                 if (idSemanaSeleccionada != null) {
