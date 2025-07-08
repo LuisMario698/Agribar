@@ -38,6 +38,13 @@ class _NominaCuadrillaSelectionCardState extends State<NominaCuadrillaSelectionC
 
   @override
   Widget build(BuildContext context) {
+    // 🔍 DEBUG: Verificar qué opciones de cuadrilla recibe
+    print('🔍 [CUADRILLA_WIDGET] Opciones recibidas: ${widget.optionsCuadrilla.length}');
+    if (widget.optionsCuadrilla.isNotEmpty) {
+      print('🔍 [CUADRILLA_WIDGET] Primera opción: ${widget.optionsCuadrilla[0]}');
+    }
+    print('🔍 [CUADRILLA_WIDGET] Bloqueado por falta semana: ${widget.bloqueadoPorFaltaSemana}');
+    
     return Card(
       elevation: 0,
       color: AppColors.tableHeader,
