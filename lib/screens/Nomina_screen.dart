@@ -76,15 +76,7 @@ class _NominaScreenState extends State<NominaScreen> {
   Map<String, dynamic>? semanaSeleccionada;
   int? idSemanaSeleccionada;
   Map<String, dynamic>? cuadrillaSeleccionada;
-  final List<Map<String, dynamic>> _optionsCuadrilla = [
-    {'nombre': 'Indirectos', 'empleados': []},
-    {'nombre': 'Linea 1', 'empleados': []},
-    {'nombre': 'Linea 3', 'empleados': []},
-    {'nombre': 'Maquinaria', 'empleados': []},
-    {'nombre': 'Empaque', 'empleados': []},
-    {'nombre': 'Invernadero', 'empleados': []},
-    {'nombre': 'Campo Abierto', 'empleados': []},
-  ];
+  final  List<Map<String, dynamic>> _optionsCuadrilla = [];
   // Variables para detectar cambios no guardados
   bool _hasUnsavedChanges = false;
   Map<String, dynamic> _originalNominaData = {};
@@ -110,9 +102,6 @@ class _NominaScreenState extends State<NominaScreen> {
   List<Map<String, dynamic>> semanasCerradas = [];
   bool showSemanasCerradas = false;
   int? semanaCerradaSeleccionada;
-//Variables para las cuadrillas 
-List<Map<String, dynamic>> cuadrillas = [];
-bool loading = true;
 
   // Variables para manejo de empleados y cuadrillas
   bool showArmarCuadrilla = false;
@@ -131,18 +120,12 @@ bool loading = true;
     // Cargar datos iniciales
     _cargarCuadrillasHabilitadas();
     _loadInitialData();
-    cargarCuadrillas();
     
     // 🎯 Verificar semana activa AL FINAL para que no se sobreescriba
     verificarSemanaActiva();
   }
-void cargarCuadrillas() async {
-  final data = await obtenerCuadrillas();
-  setState(() {
-    cuadrillas = data;
-    loading = false;
-  });
-}  Future<void> cargarDatosNomina() async {
+
+  Future<void> cargarDatosNomina() async {
     if (semanaSeleccionada != null && cuadrillaSeleccionada != null) {
       // 🚨 DEBUG CRÍTICO: Verificar llamada a carga
       print('🚨 [CARGAR CRÍTICO] Llamando a cargar datos con semana=${semanaSeleccionada!['id']}, cuadrilla=${cuadrillaSeleccionada!['id']}');
@@ -503,12 +486,8 @@ void cargarCuadrillas() async {
   }
 
   Future<void> _cargarCuadrillasSemana(int semanaId) async {
-    final cuadrillasGuardadas = await obtenerCuadrillasDeSemana(semanaId);
-
-    setState(() {
-      _optionsCuadrilla.clear();
-      _optionsCuadrilla.addAll(cuadrillasGuardadas);
-    });
+    // Solo cargar los empleados de las cuadrillas existentes
+    await _cargarEmpleadosDeCuadrillas();
   }
 
 
@@ -671,6 +650,19 @@ void cargarCuadrillas() async {
     try {
       await db.connect();
 
+      //  Función auxiliar para obtener valores numéricos seguros
+      int _getSafeIntValue(dynamic value) {
+        if (value == null) return 0;
+        if (value is int) return value;
+        if (value is double) return value.round();
+        if (value is num) return value.round();
+        if (value is String) {
+          final parsed = num.tryParse(value);
+          return parsed?.round() ?? 0;
+        }
+        return 0;
+      }
+
       for (int i = 0; i < empleadosFiltrados.length; i++) {
         final empleado = empleadosFiltrados[i];
         final idEmpleado = empleado['id'];
@@ -678,33 +670,22 @@ void cargarCuadrillas() async {
         // 🚨 DEBUG: Mostrar datos del empleado ANTES de procesar
         print('🚨 [EMPLEADO ${i + 1}] ${empleado['nombre']}:');
         print('   - ID: $idEmpleado');
-        print('   - Datos originales:');
-        for (int day = 0; day < 7; day++) {
-          print('     día $day: actividad=${empleado['dia_${day}_id']}, salario=${empleado['dia_${day}_s']}');
-        }
-        print('   - Total: ${empleado['total']}, Debe: ${empleado['debe']}, Subtotal: ${empleado['subtotal']}');
+        print('   - dia_0_s (original): ${empleado['dia_0_s']}');
+        print('   - dia_1_s (original): ${empleado['dia_1_s']}');
+        print('   - total (original): ${empleado['total']}');
         
-        // 🔧 Función auxiliar para obtener valores numéricos seguros
-        int _getSafeIntValue(dynamic value) {
-          if (value == null) return 0;
-          if (value is int) return value;
-          if (value is double) return value.round();
-          if (value is num) return value.round();
-          if (value is String) {
-            final parsed = num.tryParse(value);
-            return parsed?.round() ?? 0;
-          }
-          return 0;
-        }
-
         // ✅ Inicializar campos por defecto si no existen
         for (int day = 0; day < 7; day++) {
           empleado['dia_${day}_id'] ??= 0;
           empleado['dia_${day}_s'] ??= 0;
         }
+        empleado['total'] ??= 0;
+        empleado['debe'] ??= 0;
+        empleado['subtotal'] ??= 0;
+        empleado['comedor'] ??= 0;
+        empleado['totalNeto'] ??= 0;
 
-        // 🎯 NUEVA LÓGICA: Verificar si ya existe registro específico para esta combinación exacta
-        // (empleado + semana + cuadrilla específica)
+        // 🎯 VERIFICAR si ya existe registro para esta combinación exacta
         final result = await db.connection.query(
           '''SELECT id_nomina FROM nomina_empleados_semanal 
              WHERE id_empleado = @idEmp 
@@ -717,88 +698,123 @@ void cargarCuadrillas() async {
           },
         );
 
-      // 🔧 Mapear correctamente desde la tabla hacia la BD
-      // Tabla: dia_0_s, dia_1_s, ... dia_6_s → BD: dia_1, dia_2, ... dia_7
-      final data = {
-        'id_empleado': idEmpleado,
-        'id_semana': idSemana,
-        'id_cuadrilla': idCuadrilla,
-        'act_1': _getSafeIntValue(empleado['dia_0_id']), // dia_0_id de tabla → act_1 de BD
-        'dia_1': _getSafeIntValue(empleado['dia_0_s']), // dia_0_s de tabla → dia_1 de BD
-        'act_2': _getSafeIntValue(empleado['dia_1_id']), // dia_1_id de tabla → act_2 de BD
-        'dia_2': _getSafeIntValue(empleado['dia_1_s']), // dia_1_s de tabla → dia_2 de BD
-        'act_3': _getSafeIntValue(empleado['dia_2_id']), // dia_2_id de tabla → act_3 de BD
-        'dia_3': _getSafeIntValue(empleado['dia_2_s']), // dia_2_s de tabla → dia_3 de BD
-        'act_4': _getSafeIntValue(empleado['dia_3_id']), // dia_3_id de tabla → act_4 de BD
-        'dia_4': _getSafeIntValue(empleado['dia_3_s']), // dia_3_s de tabla → dia_4 de BD
-        'act_5': _getSafeIntValue(empleado['dia_4_id']), // dia_4_id de tabla → act_5 de BD
-        'dia_5': _getSafeIntValue(empleado['dia_4_s']), // dia_4_s de tabla → dia_5 de BD
-        'act_6': _getSafeIntValue(empleado['dia_5_id']), // dia_5_id de tabla → act_6 de BD
-        'dia_6': _getSafeIntValue(empleado['dia_5_s']), // dia_5_s de tabla → dia_6 de BD
-        'act_7': _getSafeIntValue(empleado['dia_6_id']), // dia_6_id de tabla → act_7 de BD
-        'dia_7': _getSafeIntValue(empleado['dia_6_s']), // dia_6_s de tabla → dia_7 de BD
-        'total': _getSafeIntValue(empleado['total']),
-        'debe': _getSafeIntValue(empleado['debe']),
-        'subtotal': _getSafeIntValue(empleado['subtotal']),
-        'comedor': _getSafeIntValue(empleado['comedor']),
-        'total_neto': _getSafeIntValue(empleado['totalNeto']),
-      };
+        // 🔧 Mapear correctamente desde la tabla hacia la BD
+        // Tabla: dia_0_s, dia_1_s, ... dia_6_s → BD: dia_1, dia_2, ... dia_7
+        final data = {
+          'id_empleado': idEmpleado,
+          'id_semana': idSemana,
+          'id_cuadrilla': idCuadrilla,
+          'act_1': _getSafeIntValue(empleado['dia_0_id']), // dia_0_id de tabla → act_1 de BD
+          'dia_1': _getSafeIntValue(empleado['dia_0_s']), // dia_0_s de tabla → dia_1 de BD
+          'act_2': _getSafeIntValue(empleado['dia_1_id']), // dia_1_id de tabla → act_2 de BD
+          'dia_2': _getSafeIntValue(empleado['dia_1_s']), // dia_1_s de tabla → dia_2 de BD
+          'act_3': _getSafeIntValue(empleado['dia_2_id']), // dia_2_id de tabla → act_3 de BD
+          'dia_3': _getSafeIntValue(empleado['dia_2_s']), // dia_2_s de tabla → dia_3 de BD
+          'act_4': _getSafeIntValue(empleado['dia_3_id']), // dia_3_id de tabla → act_4 de BD
+          'dia_4': _getSafeIntValue(empleado['dia_3_s']), // dia_3_s de tabla → dia_4 de BD
+          'act_5': _getSafeIntValue(empleado['dia_4_id']), // dia_4_id de tabla → act_5 de BD
+          'dia_5': _getSafeIntValue(empleado['dia_4_s']), // dia_4_s de tabla → dia_5 de BD
+          'act_6': _getSafeIntValue(empleado['dia_5_id']), // dia_5_id de tabla → act_6 de BD
+          'dia_6': _getSafeIntValue(empleado['dia_5_s']), // dia_5_s de tabla → dia_6 de BD
+          'act_7': _getSafeIntValue(empleado['dia_6_id']), // dia_6_id de tabla → act_7 de BD
+          'dia_7': _getSafeIntValue(empleado['dia_6_s']), // dia_6_s de tabla → dia_7 de BD
+          'total': _getSafeIntValue(empleado['total']),
+          'debe': _getSafeIntValue(empleado['debe']),
+          'subtotal': _getSafeIntValue(empleado['subtotal']),
+          'comedor': _getSafeIntValue(empleado['comedor']),
+          'total_neto': _getSafeIntValue(empleado['totalNeto']),
+        };
 
-      // � DEBUG CRÍTICO: Mostrar datos procesados que se van a guardar
-      print('� [DATOS PROCESADOS] ${empleado['nombre']}:');
-      print('   - dia_1=${data['dia_1']}, dia_2=${data['dia_2']}, dia_3=${data['dia_3']}');
-      print('   - dia_4=${data['dia_4']}, dia_5=${data['dia_5']}, dia_6=${data['dia_6']}, dia_7=${data['dia_7']}');
-      print('   - total=${data['total']}, debe=${data['debe']}, subtotal=${data['subtotal']}');
-      print('   - comedor=${data['comedor']}, total_neto=${data['total_neto']}');
+        // 🔧 DEBUG: Mostrar datos procesados que se van a guardar
+        print('🔧 [DATOS PROCESADOS] ${empleado['nombre']}:');
+        print('   - dia_1=${data['dia_1']}, dia_2=${data['dia_2']}, dia_3=${data['dia_3']}');
+        print('   - dia_4=${data['dia_4']}, dia_5=${data['dia_5']}, dia_6=${data['dia_6']}, dia_7=${data['dia_7']}');
+        print('   - total=${data['total']}, debe=${data['debe']}, subtotal=${data['subtotal']}');
+        print('   - comedor=${data['comedor']}, total_neto=${data['total_neto']}');
 
-      if (result.isNotEmpty) {
-        // Si existe, actualiza
-        print('🚨 [UPDATE] Actualizando registro existente para empleado $idEmpleado');
-        await db.connection.query(
-          '''UPDATE nomina_empleados_semanal
-             SET 
-               act_1 = @a1, dia_1 = @d1,
-               act_2 = @a2, dia_2 = @d2,
-               act_3 = @a3, dia_3 = @d3,
-               act_4 = @a4, dia_4 = @d4,
-               act_5 = @a5, dia_5 = @d5,
-               act_6 = @a6, dia_6 = @d6,
-               act_7 = @a7, dia_7 = @d7,
-               total = @total, debe = @debe, subtotal = @subtotal, 
-               comedor = @comedor, total_neto = @neto
-             WHERE id_empleado = @idEmp AND id_semana = @idSemana AND id_cuadrilla = @idCuadrilla
-          ''',
-          substitutionValues: {
-            'a1': data['act_1'], 'd1': data['dia_1'],
-            'a2': data['act_2'], 'd2': data['dia_2'],
-            'a3': data['act_3'], 'd3': data['dia_3'],
-            'a4': data['act_4'], 'd4': data['dia_4'],
-            'a5': data['act_5'], 'd5': data['dia_5'],
-            'a6': data['act_6'], 'd6': data['dia_6'],
-            'a7': data['act_7'], 'd7': data['dia_7'],
-            'total': data['total'],
-            'debe': data['debe'],
-            'subtotal': data['subtotal'],
-            'comedor': data['comedor'],
-            'neto': data['total_neto'],
-            'idEmp': idEmpleado,
-            'idSemana': idSemana,
-            'idCuadrilla': idCuadrilla,
-          },
-        );
-      } 
+        if (result.isNotEmpty) {
+          // Si existe, actualiza
+          print('� [UPDATE] Actualizando registro existente para empleado $idEmpleado');
+          await db.connection.query(
+            '''UPDATE nomina_empleados_semanal
+               SET 
+                 act_1 = @a1, dia_1 = @d1,
+                 act_2 = @a2, dia_2 = @d2,
+                 act_3 = @a3, dia_3 = @d3,
+                 act_4 = @a4, dia_4 = @d4,
+                 act_5 = @a5, dia_5 = @d5,
+                 act_6 = @a6, dia_6 = @d6,
+                 act_7 = @a7, dia_7 = @d7,
+                 total = @total, debe = @debe, subtotal = @subtotal, 
+                 comedor = @comedor, total_neto = @neto
+               WHERE id_empleado = @idEmp AND id_semana = @idSemana AND id_cuadrilla = @idCuadrilla
+            ''',
+            substitutionValues: {
+              'a1': data['act_1'], 'd1': data['dia_1'],
+              'a2': data['act_2'], 'd2': data['dia_2'],
+              'a3': data['act_3'], 'd3': data['dia_3'],
+              'a4': data['act_4'], 'd4': data['dia_4'],
+              'a5': data['act_5'], 'd5': data['dia_5'],
+              'a6': data['act_6'], 'd6': data['dia_6'],
+              'a7': data['act_7'], 'd7': data['dia_7'],
+              'total': data['total'],
+              'debe': data['debe'],
+              'subtotal': data['subtotal'],
+              'comedor': data['comedor'],
+              'neto': data['total_neto'],
+              'idEmp': idEmpleado,
+              'idSemana': idSemana,
+              'idCuadrilla': idCuadrilla,
+            },
+          );
+          print('✅ [UPDATE EXITOSO] Empleado $idEmpleado actualizado');
+        } else {
+          // Si no existe, inserta
+          print('➕ [INSERT] Insertando nuevo registro para empleado $idEmpleado');
+          await db.connection.query(
+            '''INSERT INTO nomina_empleados_semanal (
+                 id_empleado, id_semana, id_cuadrilla, 
+                 act_1, dia_1, act_2, dia_2, act_3, dia_3, act_4, dia_4, 
+                 act_5, dia_5, act_6, dia_6, act_7, dia_7,
+                 total, debe, subtotal, comedor, total_neto
+               ) VALUES (
+                 @idEmp, @idSemana, @idCuadrilla,
+                 @a1, @d1, @a2, @d2, @a3, @d3, @a4, @d4,
+                 @a5, @d5, @a6, @d6, @a7, @d7,
+                 @total, @debe, @subtotal, @comedor, @neto
+               )''',
+            substitutionValues: {
+              'idEmp': idEmpleado,
+              'idSemana': idSemana,
+              'idCuadrilla': idCuadrilla,
+              'a1': data['act_1'], 'd1': data['dia_1'],
+              'a2': data['act_2'], 'd2': data['dia_2'],
+              'a3': data['act_3'], 'd3': data['dia_3'],
+              'a4': data['act_4'], 'd4': data['dia_4'],
+              'a5': data['act_5'], 'd5': data['dia_5'],
+              'a6': data['act_6'], 'd6': data['dia_6'],
+              'a7': data['act_7'], 'd7': data['dia_7'],
+              'total': data['total'],
+              'debe': data['debe'],
+              'subtotal': data['subtotal'],
+              'comedor': data['comedor'],
+              'neto': data['total_neto'],
+            },
+          );
+          print('✅ [INSERT EXITOSO] Empleado $idEmpleado insertado');
+        }
+      }
+      
+      print("🎉 [GUARDADO COMPLETO] Nómina guardada correctamente - ${empleadosFiltrados.length} empleados procesados");
+    } catch (e) {
+      print("💥 [ERROR CRÍTICO] Error al guardar nómina: $e");
+      print("🔍 Stack trace: ${StackTrace.current}");
+      rethrow;
+    } finally {
+      await db.close();
+      print("🔌 [CONEXIÓN] Base de datos cerrada");
     }
-    
-    print("🎉 [GUARDADO COMPLETO] Nómina guardada correctamente - ${empleadosFiltrados.length} empleados procesados");
-  } catch (e) {
-    print("💥 [ERROR CRÍTICO] Error al guardar nómina: $e");
-    print("🔍 Stack trace: ${StackTrace.current}");
-    rethrow; // Re-lanzar el error para que sea manejado por la función llamadora
-  } finally {
-    await db.close();
-    print("🔌 [CONEXIÓN] Base de datos cerrada");
   }
-}
 
   Future<List<Map<String, dynamic>>> obtenerNominaEmpleadosDeCuadrilla(
     int semanaId,
@@ -837,13 +853,13 @@ void cargarCuadrillas() async {
 
     await db.close();
 
-    // � DEBUG CRÍTICO: Resultados de la consulta
-    print('🚨 [CARGAR CRÍTICO] Registros encontrados en BD: ${result.length}');
+    // 🔧 DEBUG CRÍTICO: Resultados de la consulta
+    print('� [CARGAR CRÍTICO] Registros encontrados en BD: ${result.length}');
     if (result.isNotEmpty) {
-      print('🚨 [CARGAR CRÍTICO] Primer empleado BD: ${result.first}');
+      print('� [CARGAR CRÍTICO] Primer empleado BD: ${result.first}');
     }
 
-    // �🔧 Debug: imprimir los datos que vienen de la BD
+    // 🔧 Debug: imprimir los datos que vienen de la BD
     print('🔍 Debug BD - Registros encontrados: ${result.length}');
     for (var row in result) {
       print('🔍 Debug BD - Empleado: ${row[1]}, dia_1: ${row[3]}, dia_2: ${row[5]}, total: ${row[17]}');
@@ -852,18 +868,12 @@ void cargarCuadrillas() async {
     return result
         .map(
           (row) {
-            // 🔧 Función auxiliar para convertir valores de la BD a enteros como string
-            String _safeParseInt(dynamic value) {
+            // 🔧 Función auxiliar para convertir valores de la BD a string seguro
+            String _safeParseString(dynamic value) {
               if (value == null) return '0';
-              if (value is int) return value.toString();
-              if (value is double) return value.toInt().toString();
-              if (value is String) {
-                final parsed = num.tryParse(value);
-                if (parsed != null) {
-                  return parsed.toInt().toString();
-                }
-              }
-              return '0';
+              if (value is String) return value;
+              if (value is num) return value.toString();
+              return value.toString();
             }
 
             // 🔧 Función auxiliar para convertir valores de la BD a números
@@ -882,28 +892,30 @@ void cargarCuadrillas() async {
               'nombre': row[1]?.toString() ?? '',
               'id': row[2]?.toString() ?? '',
               
-              // ✅ Mapear correctamente los días de la BD a los campos que espera la tabla
-              // BD: dia_1, dia_2, ... dia_7 → Tabla: dia_0_s, dia_1_s, ... dia_6_s
-              'dia_0_s': _safeParseInt(row[3]), // dia_1 de BD → dia_0_s de tabla
-              'dia_0_id': _safeParseInt(row[4]), // act_1 de BD → dia_0_id de tabla
-              'dia_1_s': _safeParseInt(row[5]), // dia_2 de BD → dia_1_s de tabla
-              'dia_1_id': _safeParseInt(row[6]), // act_2 de BD → dia_1_id de tabla
-              'dia_2_s': _safeParseInt(row[7]), // dia_3 de BD → dia_2_s de tabla
-              'dia_2_id': _safeParseInt(row[8]), // act_3 de BD → dia_2_id de tabla
-              'dia_3_s': _safeParseInt(row[9]), // dia_4 de BD → dia_3_s de tabla
-              'dia_3_id': _safeParseInt(row[10]), // act_4 de BD → dia_3_id de tabla
-              'dia_4_s': _safeParseInt(row[11]), // dia_5 de BD → dia_4_s de tabla
-              'dia_4_id': _safeParseInt(row[12]), // act_5 de BD → dia_4_id de tabla
-              'dia_5_s': _safeParseInt(row[13]), // dia_6 de BD → dia_5_s de tabla
-              'dia_5_id': _safeParseInt(row[14]), // act_6 de BD → dia_5_id de tabla
-              'dia_6_s': _safeParseInt(row[15]), // dia_7 de BD → dia_6_s de tabla
-              'dia_6_id': _safeParseInt(row[16]), // act_7 de BD → dia_6_id de tabla
+              // ✅ MAPEO CORRECTO: BD → Tabla
+              // BD: dia_1, act_1 → Tabla: dia_0_s, dia_0_id
+              // BD: dia_2, act_2 → Tabla: dia_1_s, dia_1_id
+              // etc...
+              'dia_0_s': _safeParseString(row[3]), // dia_1 de BD → dia_0_s de tabla
+              'dia_0_id': _safeParseString(row[4]), // act_1 de BD → dia_0_id de tabla
+              'dia_1_s': _safeParseString(row[5]), // dia_2 de BD → dia_1_s de tabla
+              'dia_1_id': _safeParseString(row[6]), // act_2 de BD → dia_1_id de tabla
+              'dia_2_s': _safeParseString(row[7]), // dia_3 de BD → dia_2_s de tabla
+              'dia_2_id': _safeParseString(row[8]), // act_3 de BD → dia_2_id de tabla
+              'dia_3_s': _safeParseString(row[9]), // dia_4 de BD → dia_3_s de tabla
+              'dia_3_id': _safeParseString(row[10]), // act_4 de BD → dia_3_id de tabla
+              'dia_4_s': _safeParseString(row[11]), // dia_5 de BD → dia_4_s de tabla
+              'dia_4_id': _safeParseString(row[12]), // act_5 de BD → dia_4_id de tabla
+              'dia_5_s': _safeParseString(row[13]), // dia_6 de BD → dia_5_s de tabla
+              'dia_5_id': _safeParseString(row[14]), // act_6 de BD → dia_5_id de tabla
+              'dia_6_s': _safeParseString(row[15]), // dia_7 de BD → dia_6_s de tabla
+              'dia_6_id': _safeParseString(row[16]), // act_7 de BD → dia_6_id de tabla
               
-              // ✅ Campos de totales con conversión segura de tipos
+              // ✅ Campos de totales con conversión segura
               'total': _safeParseNum(row[17]),
-              'debe': _safeParseInt(row[18]),
+              'debe': _safeParseString(row[18]),
               'subtotal': _safeParseNum(row[19]),
-              'comedor': _safeParseInt(row[20]),
+              'comedor': _safeParseString(row[20]),
               'totalNeto': _safeParseNum(row[21]),
             };
 
@@ -1870,6 +1882,16 @@ void cargarCuadrillas() async {
       
       // 🔧 Debug: Mostrar información de la cuadrilla cargada
       print('✅ Cuadrilla "${option['nombre']}" cargada con ${data.length} empleados');
+      
+      // 🔧 Debug: Mostrar datos del primer empleado para verificar carga
+      if (data.isNotEmpty) {
+        final primerEmpleado = data.first;
+        print('🔧 [DEBUG CARGA] Primer empleado: ${primerEmpleado['nombre']}');
+        print('   - dia_0_s: ${primerEmpleado['dia_0_s']}');
+        print('   - dia_1_s: ${primerEmpleado['dia_1_s']}');
+        print('   - total: ${primerEmpleado['total']}');
+        print('   - debe: ${primerEmpleado['debe']}');
+      }
     }
   }
 
