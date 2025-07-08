@@ -218,7 +218,7 @@ class _EditableDataTableWidgetState extends State<EditableDataTableWidget> {
             );
           })
         : List.generate(7, (i) {
-            final dias = ['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom'];
+            final dias = ['jue', 'vie', 'sab', 'dom', 'lun', 'mar', 'mie'];
             return DataColumn(
               label: SizedBox(
                 width: widget.isExpanded ? 110 : 80, // 🎯 Días más anchos
