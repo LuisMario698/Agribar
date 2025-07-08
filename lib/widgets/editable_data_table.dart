@@ -2,13 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
+
+
 /// Widget mejorado para mostrar y editar datos tabulares de empleados con funcionalidades avanzadas
 class EditableDataTableWidget extends StatefulWidget {
   final List<Map<String, dynamic>> empleados;
   final DateTimeRange? semanaSeleccionada;
   final void Function(int index, String key, dynamic value)? onChanged;
   final bool isExpanded;
+ 
   final bool readOnly;
+  
 
   const EditableDataTableWidget({
     Key? key,
@@ -18,6 +22,7 @@ class EditableDataTableWidget extends StatefulWidget {
     this.isExpanded = false,
     this.readOnly = false,
   }) : super(key: key);
+
 
   @override
   State<EditableDataTableWidget> createState() => _EditableDataTableWidgetState();
@@ -153,11 +158,10 @@ class _EditableDataTableWidgetState extends State<EditableDataTableWidget> {
 
       // Recalcular totales sumando solo las celdas "S" por día
       final diasCount = widget.semanaSeleccionada?.duration.inDays ?? 6;
-      total = List.generate(diasCount + 1, (i) {
-        // Solo sumar los valores de las celdas "S", ignorar las celdas "ID"
-        final sValue = int.tryParse((empleado['dia_${i}_s'] ?? '0').toString()) ?? 0;
-        return sValue;
-      }).reduce((a, b) => a + b);
+    total = List.generate(diasCount + 1, (i) {
+  final sValue = double.tryParse((empleado['dia_${i}_s'] ?? '0').toString()) ?? 0.0;
+  return sValue;
+}).reduce((a, b) => a + b).toInt();
       
       final debe = int.tryParse(empleado['debe']?.toString() ?? '0') ?? 0;
       subtotal = total - debe;
@@ -169,7 +173,6 @@ class _EditableDataTableWidgetState extends State<EditableDataTableWidget> {
       empleado['subtotal'] = subtotal;
       empleado['totalNeto'] = totalNeto;
     });
-
     // Usar Future.microtask para evitar conflictos de eventos
     Future.microtask(() {
       // Notificar el cambio del campo específico

@@ -378,7 +378,7 @@ class _NominaScreenState extends State<NominaScreen> {
           case LogicalKeyboardKey.keyS:
             // Ctrl + S: Guardar
             if (_canSave && !_isGuardando) {
-              _guardarNomina();
+            //  _guardarNomina();
             }
             break;
           case LogicalKeyboardKey.keyN:
@@ -768,51 +768,17 @@ class _NominaScreenState extends State<NominaScreen> {
             },
           );
           print('✅ [UPDATE EXITOSO] Empleado $idEmpleado actualizado');
-        } else {
-          // Si no existe, inserta
-          print('➕ [INSERT] Insertando nuevo registro para empleado $idEmpleado');
-          await db.connection.query(
-            '''INSERT INTO nomina_empleados_semanal (
-                 id_empleado, id_semana, id_cuadrilla, 
-                 act_1, dia_1, act_2, dia_2, act_3, dia_3, act_4, dia_4, 
-                 act_5, dia_5, act_6, dia_6, act_7, dia_7,
-                 total, debe, subtotal, comedor, total_neto
-               ) VALUES (
-                 @idEmp, @idSemana, @idCuadrilla,
-                 @a1, @d1, @a2, @d2, @a3, @d3, @a4, @d4,
-                 @a5, @d5, @a6, @d6, @a7, @d7,
-                 @total, @debe, @subtotal, @comedor, @neto
-               )''',
-            substitutionValues: {
-              'idEmp': idEmpleado,
-              'idSemana': idSemana,
-              'idCuadrilla': idCuadrilla,
-              'a1': data['act_1'], 'd1': data['dia_1'],
-              'a2': data['act_2'], 'd2': data['dia_2'],
-              'a3': data['act_3'], 'd3': data['dia_3'],
-              'a4': data['act_4'], 'd4': data['dia_4'],
-              'a5': data['act_5'], 'd5': data['dia_5'],
-              'a6': data['act_6'], 'd6': data['dia_6'],
-              'a7': data['act_7'], 'd7': data['dia_7'],
-              'total': data['total'],
-              'debe': data['debe'],
-              'subtotal': data['subtotal'],
-              'comedor': data['comedor'],
-              'neto': data['total_neto'],
-            },
-          );
-          print('✅ [INSERT EXITOSO] Empleado $idEmpleado insertado');
-        }
+        } 
       }
       
-      print("🎉 [GUARDADO COMPLETO] Nómina guardada correctamente - ${empleadosFiltrados.length} empleados procesados");
+    //  print("🎉 [GUARDADO COMPLETO] Nómina guardada correctamente - ${empleadosFiltrados.length} empleados procesados");
     } catch (e) {
-      print("💥 [ERROR CRÍTICO] Error al guardar nómina: $e");
-      print("🔍 Stack trace: ${StackTrace.current}");
+      //print("💥 [ERROR CRÍTICO] Error al guardar nómina: $e");
+      //print("🔍 Stack trace: ${StackTrace.current}");
       rethrow;
     } finally {
       await db.close();
-      print("🔌 [CONEXIÓN] Base de datos cerrada");
+      //print("🔌 [CONEXIÓN] Base de datos cerrada");
     }
   }
 
@@ -1803,7 +1769,7 @@ class _NominaScreenState extends State<NominaScreen> {
       
       // Si el usuario quiere guardar (true), guardar antes de cambiar
       if (dialogResult == true) {
-        await _guardarNomina();
+      //  await _guardarNomina();
       }
       
       // Si dialogResult es false (descartar), proceder sin guardar
@@ -2122,7 +2088,7 @@ class _NominaScreenState extends State<NominaScreen> {
                       endDate: _endDate,
                       cuadrillaSeleccionada: cuadrillaSeleccionada,
                       empleadosFiltrados: empleadosFiltrados,
-                      onGuardar: _guardarNomina,
+                      onGuardar: guardarNomina,
                       // 🎯 Nueva propiedad para validación del flujo
                       puedeCapturarDatos: _puedeCapturarDatos,
                       // 🔄 Nueva propiedad para indicador de guardando
