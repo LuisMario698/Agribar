@@ -38,6 +38,12 @@ class _NominaArmarCuadrillaWidgetState
   List<Map<String, dynamic>> empleadosEnCuadrillaLocal = [];
   Map<String, dynamic> selectedCuadrillaLocal = {};
 
+  // 🆕 NUEVO: Mapa para mantener empleados de todas las cuadrillas
+  Map<String, List<Map<String, dynamic>>> empleadosPorCuadrilla = {};
+  
+  // 🆕 NUEVO: Set para rastrear qué cuadrillas han sido modificadas
+  Set<String> cuadrillasModificadas = {};
+
   final TextEditingController _buscarDisponiblesController =
       TextEditingController();
   final TextEditingController _buscarEnCuadrillaController =
@@ -82,6 +88,31 @@ class _NominaArmarCuadrillaWidgetState
     empleadosEnCuadrillaLocal = List<Map<String, dynamic>>.from(
       widget.empleadosEnCuadrilla,
     );
+
+    // 🆕 NUEVO: Inicializar mapa de empleados por cuadrilla si está vacío
+    if (empleadosPorCuadrilla.isEmpty) {
+      // Inicializar con los empleados actuales si hay una cuadrilla seleccionada
+      if (selectedCuadrillaLocal['nombre'] != null && selectedCuadrillaLocal['nombre'] != '') {
+        final nombreCuadrilla = selectedCuadrillaLocal['nombre'] as String;
+        empleadosPorCuadrilla[nombreCuadrilla] = List<Map<String, dynamic>>.from(empleadosEnCuadrillaLocal);
+      }
+      
+      // Inicializar todas las cuadrillas disponibles con listas vacías si no existen
+      for (var cuadrilla in widget.optionsCuadrilla) {
+        final nombre = cuadrilla['nombre'] as String;
+        if (!empleadosPorCuadrilla.containsKey(nombre)) {
+          empleadosPorCuadrilla[nombre] = [];
+        }
+      }
+    }
+
+    // 🆕 NUEVO: Cargar empleados de la cuadrilla seleccionada desde el mapa
+    if (selectedCuadrillaLocal['nombre'] != null && selectedCuadrillaLocal['nombre'] != '') {
+      final nombreCuadrilla = selectedCuadrillaLocal['nombre'] as String;
+      empleadosEnCuadrillaLocal = List<Map<String, dynamic>>.from(
+        empleadosPorCuadrilla[nombreCuadrilla] ?? []
+      );
+    }
 
     // Inicializar listas filtradas
     empleadosDisponiblesFiltrados = List.from(widget.todosLosEmpleados);
@@ -160,7 +191,114 @@ class _NominaArmarCuadrillaWidgetState
           // Si no cumple el criterio, no se agrega a la lista filtrada pero sí a la original
         }
       }
+      
+      // 🆕 NUEVO: Actualizar el mapa de empleados por cuadrilla y marcar como modificada
+      if (selectedCuadrillaLocal['nombre'] != null && selectedCuadrillaLocal['nombre'] != '') {
+        final nombreCuadrilla = selectedCuadrillaLocal['nombre'] as String;
+        empleadosPorCuadrilla[nombreCuadrilla] = List<Map<String, dynamic>>.from(empleadosEnCuadrillaLocal);
+        cuadrillasModificadas.add(nombreCuadrilla);
+      }
     });
+  }
+
+  /// 🆕 NUEVO: Guarda todas las cuadrillas que han sido modificadas
+  void _guardarTodasLasCuadrillas() async {
+    if (cuadrillasModificadas.isEmpty) {
+      // Si no hay cuadrillas modificadas, usar el callback original
+      widget.onCuadrillaSaved(
+        selectedCuadrillaLocal,
+        empleadosEnCuadrillaLocal,
+      );
+      widget.onClose();
+      return;
+    }
+
+    // Mostrar diálogo de confirmación con resumen
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.save_rounded, color: Colors.green.shade600),
+              SizedBox(width: 8),
+              Text('Guardar Cuadrillas'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Se guardarán ${cuadrillasModificadas.length} cuadrilla(s) modificada(s):'),
+              SizedBox(height: 12),
+              ...cuadrillasModificadas.map((nombre) {
+                final empleados = empleadosPorCuadrilla[nombre] ?? [];
+                return Padding(
+                  padding: EdgeInsets.only(bottom: 4),
+                  child: Row(
+                    children: [
+                      Icon(Icons.group, size: 16, color: Colors.green.shade600),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text('$nombre (${empleados.length} empleados)'),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green.shade600,
+                foregroundColor: Colors.white,
+              ),
+              child: Text('Guardar Todo'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmado == true) {
+      // Procesar cada cuadrilla modificada
+      for (String nombreCuadrilla in cuadrillasModificadas) {
+        final empleados = empleadosPorCuadrilla[nombreCuadrilla] ?? [];
+        final cuadrilla = widget.optionsCuadrilla.firstWhere(
+          (c) => c['nombre'] == nombreCuadrilla,
+          orElse: () => {'nombre': nombreCuadrilla, 'id': null},
+        );
+        
+        // Llamar al callback para cada cuadrilla
+        widget.onCuadrillaSaved(cuadrilla, empleados);
+      }
+      
+      // Mostrar mensaje de éxito
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 8),
+                Text('${cuadrillasModificadas.length} cuadrilla(s) guardada(s) exitosamente'),
+              ],
+            ),
+            backgroundColor: Colors.green.shade600,
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+      
+      widget.onClose();
+    }
   }
 
   void _confirmarCerrarSinGuardar() {
@@ -439,6 +577,14 @@ class _NominaArmarCuadrillaWidgetState
                                             : selectedCuadrillaLocal,
                                     alSeleccionarCuadrilla: (Map<String, dynamic>? opcion) {
                                       setState(() {
+                                        // 🆕 NUEVO: Guardar empleados de la cuadrilla anterior antes de cambiar
+                                        if (selectedCuadrillaLocal['nombre'] != null && 
+                                            selectedCuadrillaLocal['nombre'] != '') {
+                                          final nombreAnterior = selectedCuadrillaLocal['nombre'] as String;
+                                          empleadosPorCuadrilla[nombreAnterior] = List<Map<String, dynamic>>.from(empleadosEnCuadrillaLocal);
+                                          cuadrillasModificadas.add(nombreAnterior);
+                                        }
+                                        
                                         if (opcion == null) {
                                           selectedCuadrillaLocal = {
                                             'nombre': '',
@@ -451,10 +597,13 @@ class _NominaArmarCuadrillaWidgetState
                                           empleadosEnCuadrillaFiltrados = [];
                                         } else {
                                           selectedCuadrillaLocal = opcion;
-                                          empleadosEnCuadrillaLocal =
-                                              List<Map<String, dynamic>>.from(
-                                                opcion['empleados'] ?? [],
-                                              );
+                                          
+                                          // 🆕 NUEVO: Cargar empleados de la nueva cuadrilla desde el mapa
+                                          final nombreNuevo = opcion['nombre'] as String;
+                                          empleadosEnCuadrillaLocal = List<Map<String, dynamic>>.from(
+                                            empleadosPorCuadrilla[nombreNuevo] ?? [],
+                                          );
+                                          
                                           empleadosDisponiblesFiltrados = List.from(
                                             widget.todosLosEmpleados,
                                           );
@@ -475,6 +624,36 @@ class _NominaArmarCuadrillaWidgetState
                             ],
                           ),
                         ),
+                        
+                        // 🆕 NUEVO: Indicador de cuadrillas modificadas
+                        if (cuadrillasModificadas.isNotEmpty) ...[
+                          SizedBox(height: 12),
+                          Container(
+                            width: double.infinity,
+                            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.blue.shade200),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.edit_rounded, size: 16, color: Colors.blue.shade700),
+                                SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    '${cuadrillasModificadas.length} cuadrilla(s) modificada(s): ${cuadrillasModificadas.join(', ')}',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.blue.shade700,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                         
                         const SizedBox(height: 24),
                         
@@ -569,15 +748,24 @@ class _NominaArmarCuadrillaWidgetState
                               child: ElevatedButton.icon(
                                 onPressed: empleadosEnCuadrillaLocal.isNotEmpty
                                     ? () {
-                                        widget.onCuadrillaSaved(
-                                          selectedCuadrillaLocal,
-                                          empleadosEnCuadrillaLocal,
-                                        );
-                                        widget.onClose();
+                                        // 🆕 NUEVO: Guardar la cuadrilla actual antes de proceder
+                                        if (selectedCuadrillaLocal['nombre'] != null && 
+                                            selectedCuadrillaLocal['nombre'] != '') {
+                                          final nombreActual = selectedCuadrillaLocal['nombre'] as String;
+                                          empleadosPorCuadrilla[nombreActual] = List<Map<String, dynamic>>.from(empleadosEnCuadrillaLocal);
+                                          cuadrillasModificadas.add(nombreActual);
+                                        }
+                                        
+                                        // 🆕 NUEVO: Guardar todas las cuadrillas modificadas
+                                        _guardarTodasLasCuadrillas();
                                       }
                                     : null,
                                 icon: Icon(Icons.save_rounded),
-                                label: Text('Guardar Cuadrilla (${empleadosEnCuadrillaLocal.length})'),
+                                label: Text(
+                                  cuadrillasModificadas.isEmpty 
+                                    ? 'Guardar Cuadrilla (${empleadosEnCuadrillaLocal.length})' 
+                                    : 'Guardar ${cuadrillasModificadas.length} Cuadrilla(s)',
+                                ),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.green.shade600,
                                   foregroundColor: Colors.white,
@@ -604,6 +792,7 @@ class _NominaArmarCuadrillaWidgetState
 
   // ✨ Widget para la lista de empleados disponibles
   Widget _buildEmpleadosDisponibles() {
+    // 🔧 REVERTIDO: Filtrar empleados que ya están en la cuadrilla (comportamiento original)
     final empleadosDisponibles = empleadosDisponiblesFiltrados
         .where((e) => !empleadosEnCuadrillaLocal.any((ec) => ec['id'] == e['id']))
         .toList();
@@ -933,7 +1122,7 @@ class _NominaArmarCuadrillaWidgetState
       margin: EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         color: !isEnabled 
-            ? Colors.grey.shade100 
+            ? Colors.grey.shade400 
             : (enCuadrilla ? Colors.green.shade50 : Colors.blue.shade50),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(

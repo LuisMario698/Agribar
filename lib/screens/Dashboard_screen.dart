@@ -17,6 +17,7 @@ import 'Configuracion_content.dart';
 import 'AppTheme.dart';
 import 'Cuadrilla_Content.dart';
 import 'Reportes_screen.dart';
+import '../services/database_migration_service.dart';
 
 /// Widget principal del panel de control.
 ///
@@ -75,6 +76,54 @@ class _DashboardScreenState extends State<DashboardScreen> {
       label: 'Configuraciones',
     ), // Configuración del sistema
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    // 🚀 Ejecutar migración automáticamente al inicio
+    _verificarYEjecutarMigracion();
+  }
+
+  /// Verifica y ejecuta la migración de base de datos si es necesario
+  Future<void> _verificarYEjecutarMigracion() async {
+    try {
+      print('🔍 Verificando estado de migración de BD...');
+      final yaAplicada = await DatabaseMigrationService.verificarMigracionAplicada();
+      
+      if (!yaAplicada) {
+        print('⚙️ Aplicando migración para permitir múltiples cuadrillas...');
+        final exito = await DatabaseMigrationService.permitirEmpleadoEnMultiplesCuadrillas();
+        
+        if (exito) {
+          print('✅ Migración aplicada exitosamente');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('✅ Sistema actualizado: Los empleados ahora pueden estar en múltiples cuadrillas por semana'),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 3),
+              ),
+            );
+          }
+        } else {
+          print('❌ Error al aplicar migración');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('⚠️ Error al actualizar sistema. Contacte al administrador.'),
+                backgroundColor: Colors.orange,
+                duration: Duration(seconds: 4),
+              ),
+            );
+          }
+        }
+      } else {
+        print('✅ Migración ya aplicada previamente');
+      }
+    } catch (e) {
+      print('❌ Error al verificar migración: $e');
+    }
+  }
 
   @override
   void dispose() {

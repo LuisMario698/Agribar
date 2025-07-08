@@ -73,10 +73,10 @@ Future<List<Map<String, dynamic>>> obtenerEmpleadosHabilitados() async {
       JOIN datos_laborales dl ON e.id_empleado = dl.id_empleado
       WHERE dl.deshabilitado = false;
     ''');
-
+    
     await db.close();
 
-    return results
+    final empleadosList = results
         .map(
           (row) => {
             'id': row[0].toString(),
@@ -92,6 +92,8 @@ Future<List<Map<String, dynamic>>> obtenerEmpleadosHabilitados() async {
           },
         )
         .toList();
+        
+    return empleadosList;
   } catch (e) {
     print('❌ Error al obtener empleados habilitados: $e');
     await db.close();
