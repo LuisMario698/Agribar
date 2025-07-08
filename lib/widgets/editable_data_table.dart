@@ -534,25 +534,86 @@ class _EditableDataTableWidgetState extends State<EditableDataTableWidget> {
                           ),
                         ],
                       )
-                    : // Solo celda S en modo normal (SOLO LECTURA)
-                      Container(
-                        height: 40,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade50,
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: Colors.grey.shade300),
-                        ),
-                        child: Text(
-                          _formatCurrency(int.tryParse(empleado['dia_${i}_s']?.toString() ?? '0') ?? 0),
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey.shade700,
-                            fontWeight: FontWeight.w500,
+                    : // Celda S en modo normal (EDITABLE)
+                      widget.readOnly
+                        ? Container(
+                            height: 40,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade50,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: Colors.grey.shade300),
+                            ),
+                            child: Text(
+                              _formatCurrency(int.tryParse(empleado['dia_${i}_s']?.toString() ?? '0') ?? 0),
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey.shade700,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          )
+                        : Container(
+                            height: 40,
+                            child: TextFormField(
+                              key: ValueKey('dia_${i}_s_${empleado['id']}'),
+                              controller: _getController(
+                                'dia_${i}_s_${empleado['id']}',
+                                (empleado['dia_${i}_s'] ?? '0').toString()
+                              ),
+                              focusNode: _getFocusNode('dia_${i}_s_${empleado['id']}'),
+                              textAlign: TextAlign.center,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                                LengthLimitingTextInputFormatter(10),
+                              ],
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: Color(0xFF374151),
+                              ),
+                              decoration: InputDecoration(
+                                isDense: true,
+                                filled: true,
+                                fillColor: Colors.white,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                  vertical: 8,
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(4),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey.shade300,
+                                    width: 1,
+                                  ),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(4),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey.shade300,
+                                    width: 1,
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(4),
+                                  borderSide: const BorderSide(
+                                    color: Color(0xFF7BAE2F),
+                                    width: 2,
+                                  ),
+                                ),
+                                hintText: '0',
+                                hintStyle: TextStyle(
+                                  color: Colors.grey.shade400,
+                                  fontSize: 11,
+                                ),
+                              ),
+                              onChanged: (value) {
+                                _handleValueChange(empleado, index, 'dia_${i}_s', value);
+                              },
+                            ),
                           ),
-                        ),
-                      ),
               ),
             );
           }),

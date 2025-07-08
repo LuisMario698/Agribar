@@ -136,8 +136,7 @@ class NominaMainTableSection extends StatelessWidget {
                     ],
                   ),
                   child: EditableDataTableWidget(
-                    //empleados: empleadosFiltrados,
-                     empleados: empleadosNomina, 
+                    empleados: empleadosFiltrados, // ✅ Usar empleadosFiltrados (misma fuente que tabla expandida)
                     semanaSeleccionada: startDate != null && endDate != null
                         ? DateTimeRange(start: startDate!, end: endDate!)
                         : null,
