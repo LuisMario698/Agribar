@@ -486,9 +486,6 @@ class _NominaScreenState extends State<NominaScreen> {
   }
 
   Future<void> _cargarCuadrillasSemana(int semanaId) async {
-    // 🔧 NO limpiar _optionsCuadrilla, solo actualizar empleados
-    print('🔍 [DEBUG] Cargando empleados de cuadrillas para semana: $semanaId');
-    
     // Solo cargar los empleados de las cuadrillas existentes
     await _cargarEmpleadosDeCuadrillas();
   }
@@ -525,16 +522,10 @@ class _NominaScreenState extends State<NominaScreen> {
   // Cargar semana activa automáticamente al abrir pantalla
 
   Future<void> _cargarCuadrillasHabilitadas() async {
-    print('🔍 [DEBUG] Iniciando carga de cuadrillas...');
     final cuadrillasBD = await obtenerCuadrillasHabilitadas();
-    print('🔍 [DEBUG] Cuadrillas obtenidas de BD: ${cuadrillasBD.length}');
-    for (var cuadrilla in cuadrillasBD) {
-      print('🔍 [DEBUG] Cuadrilla: $cuadrilla');
-    }
     setState(() {
       _optionsCuadrilla.clear();
       _optionsCuadrilla.addAll(cuadrillasBD);
-      print('🔍 [DEBUG] _optionsCuadrilla actualizado con ${_optionsCuadrilla.length} elementos');
     });
   }
 
