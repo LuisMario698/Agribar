@@ -132,9 +132,9 @@ class _EmpleadosGeneralTabState extends State<EmpleadosGeneralTab> {
                 DataCell(Text(row['nombre'] ?? '')),
                 DataCell(Text(row['apellidoPaterno'] ?? '')),
                 DataCell(Text(row['apellidoMaterno'] ?? '')),
-                DataCell(Text(row['cuadrilla'] ?? '')),
-                DataCell(Text(row['sueldo'] ?? '')),
-                DataCell(Text(row['tipo'] ?? '')),
+                DataCell(Text(row['curp'] ?? '')),
+                DataCell(Text(row['rfc'] ?? '')),
+                DataCell(Text(row['estadoorigen'] ?? '')),
                 DataCell(
                   Container(
                     width: 120,

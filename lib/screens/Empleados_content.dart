@@ -39,10 +39,10 @@ class _EmpleadosContentState extends State<EmpleadosContent> {
     'Nombre',
     'Apellido Paterno',
     'Apellido Materno',
-    'Cuadrilla',
-    'Sueldo',
-    'Tipo',
+    'curp',
+    'rfc',
     'Estado',
+    'Habilitado',
   ];
 
   final List<String> tabTitles = ['General', 'Registro'];
@@ -63,19 +63,9 @@ class _EmpleadosContentState extends State<EmpleadosContent> {
       await db.connect();
 
       final results = await db.connection.query('''
-      SELECT 
-        e.codigo AS clave,
-        e.nombre,
-        e.apellido_paterno,
-        e.apellido_materno,
-        c.nombre AS cuadrilla,
-        dn.sueldo,
-        dn.tipo_descuento_infonavit AS tipo,
-        NOT dl.deshabilitado AS habilitado
-      FROM empleados e
-      JOIN datos_laborales dl ON e.id_empleado = dl.id_empleado
-      JOIN datos_nomina dn ON e.id_empleado = dn.id_empleado
-      LEFT JOIN cuadrillas c ON dl.id_cuadrilla = c.id_cuadrilla;
+       
+   SELECT codigo,nombre,apellido_paterno,apellido_materno, curp,rfc,estado_origen, habilitado FROM public.empleados
+ORDER BY id_empleado ASC LIMIT 100 OFFSET 0;
     ''');
 
       setState(() {
@@ -87,11 +77,8 @@ class _EmpleadosContentState extends State<EmpleadosContent> {
                     'nombre': row[1],
                     'apellidoPaterno': row[2],
                     'apellidoMaterno': row[3],
-                    'cuadrilla': row[4] ?? 'Sin asignar',
-                    'sueldo':
-                        row[5] is double
-                            ? row[5].toStringAsFixed(2)
-                            : row[5].toString(),
+                    'cuadrilla': row[4],
+                    'sueldo':  row[5],
                     'tipo': row[6],
                     'habilitado': row[7],
                   },
@@ -101,7 +88,7 @@ class _EmpleadosContentState extends State<EmpleadosContent> {
 
       await db.close();
     } catch (e) {
-      print('Error al cargar empleados: $e');
+      print('Error al cargar empleados: $e' );
     }
   }
 
