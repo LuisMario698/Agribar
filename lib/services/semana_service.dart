@@ -166,15 +166,6 @@ Future<void> guardarEmpleadosCuadrillaSemana({
   final db = DatabaseService();
   await db.connect();
 
-  // Eliminar registros anteriores de esa cuadrilla en esa semana
-  await db.connection.query('''
-    DELETE FROM nomina_empleados_semanal
-    WHERE id_semana  = @semanaId AND id_cuadrilla = @cuadrillaId;
-  ''', substitutionValues: {
-    'semanaId': semanaId,
-    'cuadrillaId': cuadrillaId,
-  });
-
   // Insertar nuevos empleados
   for (final empleado in empleados) {
     await db.connection.query('''

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
 import 'dropdown_cuadrillas_armar.dart';
+import 'package:agribar/services/semana_service.dart';
 
 /// Widget modular mejorado para manejar el diálogo de "Armar Cuadrilla"
 /// Rediseñado con una interfaz moderna manteniendo toda la funcionalidad original
@@ -203,7 +204,20 @@ class _NominaArmarCuadrillaWidgetState
 
   /// 🆕 NUEVO: Guarda todas las cuadrillas que han sido modificadas
   void _guardarTodasLasCuadrillas() async {
-    if (cuadrillasModificadas.isEmpty) {
+    final semanaId =
+        await obtenerSemanaAbierta(); //obtenerIdSemanaActiva(); // Debes tenerla
+    final cuadrillaId = selectedCuadrillaLocal['id'];
+
+    if (semanaId == null || cuadrillaId == null) return;
+
+    await guardarEmpleadosCuadrillaSemana(
+      semanaId: semanaId['id'],
+      cuadrillaId: cuadrillaId,
+      empleados: empleadosEnCuadrillaLocal,
+    );
+
+    widget.onCuadrillaSaved(selectedCuadrillaLocal, empleadosEnCuadrillaLocal);
+    /*if (cuadrillasModificadas.isEmpty) {
       // Si no hay cuadrillas modificadas, usar el callback original
       widget.onCuadrillaSaved(
         selectedCuadrillaLocal,
@@ -212,7 +226,7 @@ class _NominaArmarCuadrillaWidgetState
       widget.onClose();
       return;
     }
-
+   */
     // Mostrar diálogo de confirmación con resumen
     final confirmado = await showDialog<bool>(
       context: context,
