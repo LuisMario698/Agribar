@@ -124,7 +124,7 @@ class _NominaScreenState extends State<NominaScreen> {
     verificarSemanaActiva();
     
     // Esperar un poco para que se carguen los datos antes de restaurar estado
-    Future.delayed(Duration(milliseconds: 500), () {
+    Future.delayed(Duration(milliseconds: 1), () {
       _restaurarEstadoAnterior();
     });
   }

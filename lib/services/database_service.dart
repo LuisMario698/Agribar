@@ -62,16 +62,13 @@ Future<List<Map<String, dynamic>>> obtenerEmpleadosHabilitados() async {
       SELECT 
         e.id_empleado,
         e.nombre ||' '|| e.apellido_paterno ||' '|| e.apellido_materno as nombre,
-        'ID: ' ||CAST(dl.id_empleado AS TEXT) ||' Puesto '|| dl.puesto as puesto,
         e.curp,
         e.rfc,
         e.nss,
         e.estado_origen,
-        dl.tipo,
         e.codigo
       FROM empleados e
-      JOIN datos_laborales dl ON e.id_empleado = dl.id_empleado
-      WHERE dl.deshabilitado = false;
+
     ''');
     
     await db.close();
@@ -81,13 +78,11 @@ Future<List<Map<String, dynamic>>> obtenerEmpleadosHabilitados() async {
           (row) => {
             'id': row[0].toString(),
             'nombre': row[1],
-            'puesto': row[2],
-            'curp': row[3],
-            'rfc': row[4],
-            'nss': row[5],
-            'lugarProcedencia': row[6],
-            'tipoEmpleado': row[7],
-            'numeroEmpleado': row[8],
+            'curp': row[2],
+            'rfc': row[3],
+            'nss': row[4],
+            'lugarProcedencia': row[5],
+            'numeroEmpleado': row[6],
             'seleccionado': false,
           },
         )
