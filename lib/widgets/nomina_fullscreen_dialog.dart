@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../widgets/editable_data_table.dart';
+import '../widgets/nomina_tabla_editable.dart';
 
 class NominaFullscreenDialog extends StatelessWidget {
   final List<Map<String, dynamic>> empleados;
@@ -70,7 +70,7 @@ class NominaFullscreenDialog extends StatelessWidget {
                         width: MediaQuery.of(context).size.width * 0.9,
                         child: SingleChildScrollView(
                           controller: verticalController,
-                          child: EditableDataTableWidget(
+                          child: NominaTablaEditable(
                             empleados: empleados,
                             semanaSeleccionada: semanaSeleccionada,
                             onChanged: onChanged,

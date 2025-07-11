@@ -414,7 +414,7 @@ class _NominaArmarCuadrillaWidgetState
                   ),
                   const SizedBox(height: 16),
                   SizedBox(
-                    height: 500,
+                    height: 650, // Aumentado de 500 a 650 para mostrar más contenido
                     child: Row(
                       children: [
                         // Lista de empleados disponibles

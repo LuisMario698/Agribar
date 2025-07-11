@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
 import '../theme/app_styles.dart';
-import '../widgets/nueva_tabla_editable.dart';
-import '../widgets/custom_dropdown_menu.dart';
+import '../widgets/nomina_tabla_editable.dart';
 
-/// Diálogo modal para mostrar tablas en pantalla completa.
-/// Diseño simple y profesional para captura de nómina.
-class FullscreenTableDialog extends StatefulWidget {
+/// Diálogo modal para mostrar tablas de nómina en pantalla completa.
+/// Diseño optimizado y profesional para captura de datos.
+class NominaTablaDialogoCompleto extends StatefulWidget {
   /// Lista de empleados a mostrar en la tabla
   final List<Map<String, dynamic>> empleados;
   /// Rango de fechas seleccionado
@@ -20,12 +19,7 @@ class FullscreenTableDialog extends StatefulWidget {
   /// Controlador para el scroll vertical de la tabla
   final ScrollController verticalController;
   
-  // 🎯 Nuevas propiedades para el dropdown de cuadrillas
-  final List<Map<String, dynamic>> cuadrillas;
-  final Map<String, dynamic>? cuadrillaSeleccionada;
-  final Function(Map<String, dynamic>?) onCuadrillaChanged;
-  
-  const FullscreenTableDialog({
+  const NominaTablaDialogoCompleto({
     Key? key,
     required this.empleados,
     required this.semanaSeleccionada,
@@ -33,16 +27,13 @@ class FullscreenTableDialog extends StatefulWidget {
     required this.onClose,
     required this.horizontalController,
     required this.verticalController,
-    required this.cuadrillas,
-    this.cuadrillaSeleccionada,
-    required this.onCuadrillaChanged,
   }) : super(key: key);
 
   @override
-  State<FullscreenTableDialog> createState() => _FullscreenTableDialogState();
+  State<NominaTablaDialogoCompleto> createState() => _NominaTablaDialogoCompletoState();
 }
 
-class _FullscreenTableDialogState extends State<FullscreenTableDialog> {
+class _NominaTablaDialogoCompletoState extends State<NominaTablaDialogoCompleto> {
   final _searchController = TextEditingController();
   late List<Map<String, dynamic>> _filteredEmpleados;
 
@@ -243,42 +234,6 @@ class _FullscreenTableDialogState extends State<FullscreenTableDialog> {
                         
                         SizedBox(width: 24),
                         
-                        // Dropdown de cuadrillas (con widget genérico)
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Cuadrilla',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.grey.shade600,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                            SizedBox(height: 4),
-                            Container(
-                              width: 200,
-                              child: CustomDropdownMenu(
-                                options: widget.cuadrillas,
-                                selectedOption: widget.cuadrillaSeleccionada,
-                                onOptionSelected: widget.onCuadrillaChanged,
-                                displayKey: 'nombre',
-                                valueKey: 'nombre',
-                                hint: 'Seleccionar cuadrilla',
-                                icon: Icon(
-                                  Icons.groups,
-                                  color: AppColors.greenDark,
-                                ),
-                                allowDeselect: true,
-                                searchHint: 'Buscar cuadrilla...',
-                              ),
-                            ),
-                          ],
-                        ),
-                        
-                        SizedBox(width: 24),
-                        
                         // Campo de búsqueda (más compacto)
                         Container(
                           width: 280,
@@ -405,7 +360,7 @@ class _FullscreenTableDialogState extends State<FullscreenTableDialog> {
                                   child: SingleChildScrollView(
                                     controller: widget.verticalController,
                                     scrollDirection: Axis.vertical,
-                                    child: NuevaTablaEditable(
+                                    child: NominaTablaEditable(
                                       key: ValueKey('fullscreen_table_${_filteredEmpleados.length}_${_filteredEmpleados.hashCode}'), // Forzar reconstrucción
                                       empleados: _filteredEmpleados,
                                       semanaSeleccionada: widget.semanaSeleccionada,

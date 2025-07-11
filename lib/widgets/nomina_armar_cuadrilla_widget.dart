@@ -4,16 +4,26 @@ import 'dropdown_cuadrillas_armar.dart';
 import 'package:agribar/services/semana_service.dart';
 
 /// Widget modular mejorado para manejar el diálogo de "Armar Cuadrilla"
-/// Rediseñado con una interfaz moderna manteniendo toda la funcionalidad original
+/// Versión optimizada con mejor gestión de estado y flujo de trabajo
+///
+/// Este widget permite:
+/// - Seleccionar una cuadrilla para asignar empleados
+/// - Buscar y filtrar empleados disponibles
+/// - Agregar o quitar empleados de una cuadrilla
+/// - Guardar los cambios en la base de datos
+///
+/// Al guardar, se notifica mediante callbacks para actualizar las vistas relacionadas
 class NominaArmarCuadrillaWidget extends StatefulWidget {
   final List<Map<String, dynamic>> optionsCuadrilla;
   final Map<String, dynamic> selectedCuadrilla;
   final List<Map<String, dynamic>> todosLosEmpleados;
   final List<Map<String, dynamic>> empleadosEnCuadrilla;
-  final Function(Map<String, dynamic>, List<Map<String, dynamic>>)
-  onCuadrillaSaved;
+  final Function(Map<String, dynamic>, List<Map<String, dynamic>>) onCuadrillaSaved;
   final VoidCallback onClose;
   final Function(BuildContext, Map<String, dynamic>) onMostrarDetallesEmpleado;
+  /// Callback opcional que se ejecuta después de guardar para actualizar las tablas principal y expandida
+  /// Se llama justo después de onCuadrillaSaved y antes de cerrar el diálogo
+  final VoidCallback? onActualizarTablas;
 
   const NominaArmarCuadrillaWidget({
     Key? key,
@@ -24,42 +34,37 @@ class NominaArmarCuadrillaWidget extends StatefulWidget {
     required this.onCuadrillaSaved,
     required this.onClose,
     required this.onMostrarDetallesEmpleado,
+    this.onActualizarTablas, // Nuevo parámetro opcional
   }) : super(key: key);
   
   @override
-  State<NominaArmarCuadrillaWidget> createState() =>
-      _NominaArmarCuadrillaWidgetState();
+  State<NominaArmarCuadrillaWidget> createState() => _NominaArmarCuadrillaWidgetState();
 }
 
-class _NominaArmarCuadrillaWidgetState
-    extends State<NominaArmarCuadrillaWidget> {
-  // Variables locales para el manejo del widget
+class _NominaArmarCuadrillaWidgetState extends State<NominaArmarCuadrillaWidget> {
+  // Variables para manejar empleados y filtros
   List<Map<String, dynamic>> empleadosDisponiblesFiltrados = [];
-  List<Map<String, dynamic>> empleadosEnCuadrillaFiltrados = [];
   List<Map<String, dynamic>> empleadosEnCuadrillaLocal = [];
   Map<String, dynamic> selectedCuadrillaLocal = {};
-
-  // 🆕 NUEVO: Mapa para mantener empleados de todas las cuadrillas
-  Map<String, List<Map<String, dynamic>>> empleadosPorCuadrilla = {};
   
-  // 🆕 NUEVO: Set para rastrear qué cuadrillas han sido modificadas
-  Set<String> cuadrillasModificadas = {};
-
-  final TextEditingController _buscarDisponiblesController =
-      TextEditingController();
-  final TextEditingController _buscarEnCuadrillaController =
-      TextEditingController();
+  // Estado de modificación para controlar el botón de guardar
+  bool cuadrillaModificada = false;
+  bool guardando = false;
+  String? mensajeError;
+  
+  // Controladores para búsqueda
+  final TextEditingController _buscarDisponiblesController = TextEditingController();
+  final TextEditingController _buscarEnCuadrillaController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _inicializarDatos(desdeInitState: true);
+    _inicializarDatos();
   }
 
   @override
   void didUpdateWidget(NominaArmarCuadrillaWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Si los datos del widget han cambiado, actualizar las variables locales
     if (oldWidget.selectedCuadrilla != widget.selectedCuadrilla ||
         oldWidget.empleadosEnCuadrilla != widget.empleadosEnCuadrilla ||
         oldWidget.todosLosEmpleados != widget.todosLosEmpleados) {
@@ -67,66 +72,31 @@ class _NominaArmarCuadrillaWidgetState
     }
   }
 
-  /// Inicializa o actualiza los datos locales del widget
-  void _inicializarDatos({bool desdeInitState = false}) {
-    if (desdeInitState) {
-      // Durante initState, no usar setState
-      _actualizarDatosInternos();
-    } else {
-      // Fuera de initState, usar setState para refrescar la UI
-      setState(() {
-        _actualizarDatosInternos();
-      });
-    }
-  }
-
-  /// Actualiza los datos internos sin setState
-  void _actualizarDatosInternos() {
-    // Inicializar estados locales
-    selectedCuadrillaLocal = Map<String, dynamic>.from(
-      widget.selectedCuadrilla,
-    );
-    empleadosEnCuadrillaLocal = List<Map<String, dynamic>>.from(
-      widget.empleadosEnCuadrilla,
-    );
-
-    // 🆕 NUEVO: Inicializar mapa de empleados por cuadrilla si está vacío
-    if (empleadosPorCuadrilla.isEmpty) {
-      // Inicializar con los empleados actuales si hay una cuadrilla seleccionada
-      if (selectedCuadrillaLocal['nombre'] != null && selectedCuadrillaLocal['nombre'] != '') {
-        final nombreCuadrilla = selectedCuadrillaLocal['nombre'] as String;
-        empleadosPorCuadrilla[nombreCuadrilla] = List<Map<String, dynamic>>.from(empleadosEnCuadrillaLocal);
+  /// Inicializa los datos del widget
+  void _inicializarDatos() {
+    setState(() {
+      // Inicializar la cuadrilla seleccionada
+      selectedCuadrillaLocal = Map<String, dynamic>.from(widget.selectedCuadrilla);
+      
+      // Inicializar empleados en la cuadrilla
+      empleadosEnCuadrillaLocal = List<Map<String, dynamic>>.from(widget.empleadosEnCuadrilla);
+      
+      // Inicializar empleados disponibles (todos los empleados)
+      empleadosDisponiblesFiltrados = List.from(widget.todosLosEmpleados);
+      
+      // Asegurar que cada empleado tenga el campo 'puesto'
+      for (var empleado in empleadosEnCuadrillaLocal) {
+        empleado['puesto'] = empleado['puesto'] ?? 'Jornalero';
       }
       
-      // Inicializar todas las cuadrillas disponibles con listas vacías si no existen
-      for (var cuadrilla in widget.optionsCuadrilla) {
-        final nombre = cuadrilla['nombre'] as String;
-        if (!empleadosPorCuadrilla.containsKey(nombre)) {
-          empleadosPorCuadrilla[nombre] = [];
-        }
-      }
-    }
-
-    // 🆕 NUEVO: Cargar empleados de la cuadrilla seleccionada desde el mapa
-    if (selectedCuadrillaLocal['nombre'] != null && selectedCuadrillaLocal['nombre'] != '') {
-      final nombreCuadrilla = selectedCuadrillaLocal['nombre'] as String;
-      empleadosEnCuadrillaLocal = List<Map<String, dynamic>>.from(
-        empleadosPorCuadrilla[nombreCuadrilla] ?? []
-      );
-    }
-
-    // Inicializar listas filtradas
-    empleadosDisponiblesFiltrados = List.from(widget.todosLosEmpleados);
-    empleadosEnCuadrillaFiltrados = List.from(empleadosEnCuadrillaLocal);
-
-    // Asegurar que cada empleado en la cuadrilla tenga el campo 'puesto'
-    for (var empleado in empleadosEnCuadrillaLocal) {
-      empleado['puesto'] = empleado['puesto'] ?? 'Jornalero';
-    }
-
-    // Limpiar los controladores de búsqueda
-    _buscarDisponiblesController.clear();
-    _buscarEnCuadrillaController.clear();
+      // Resetear estado
+      cuadrillaModificada = false;
+      mensajeError = null;
+      
+      // Limpiar controladores de búsqueda
+      _buscarDisponiblesController.clear();
+      _buscarEnCuadrillaController.clear();
+    });
   }
 
   @override
@@ -136,8 +106,9 @@ class _NominaArmarCuadrillaWidgetState
     super.dispose();
   }
 
+  /// Maneja la adición o eliminación de un empleado de la cuadrilla
   void _toggleSeleccionEmpleado(Map<String, dynamic> empleado) {
-    // 🚫 No permitir agregar empleados si no hay cuadrilla seleccionada
+    // No permitir agregar empleados si no hay cuadrilla seleccionada
     if (selectedCuadrillaLocal['nombre'] == null || 
         selectedCuadrillaLocal['nombre'] == '') {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -164,261 +135,143 @@ class _NominaArmarCuadrillaWidgetState
 
       // Si el empleado ya está en la cuadrilla, quitarlo
       if (empleadosEnCuadrillaLocal.any((e) => e['id'] == empleado['id'])) {
-        // Primero eliminamos de la lista original
         empleadosEnCuadrillaLocal.removeWhere((e) => e['id'] == empleado['id']);
-
-        // Después actualizamos la lista filtrada
-        empleadosEnCuadrillaFiltrados.removeWhere(
-          (e) => e['id'] == empleado['id'],
-        );
       } else {
-        // Si no está en la cuadrilla, agregarlo a la lista original
+        // Si no está en la cuadrilla, agregarlo
         empleadosEnCuadrillaLocal.add(empleadoCopia);
-
-        // Luego decidir si debe ser visible en la lista filtrada según el filtro activo
-        if (_buscarEnCuadrillaController.text.isEmpty) {
-          // Si no hay filtro activo, el nuevo empleado se ve en la lista filtrada
-          empleadosEnCuadrillaFiltrados.add(empleadoCopia);
-        } else {
-          // Si hay filtro activo, verificamos si el empleado cumple con el criterio
-          final query = _buscarEnCuadrillaController.text.toLowerCase();
-          final nombre =
-              empleadoCopia['nombre']?.toString().toLowerCase() ?? '';
-          final puesto =
-              empleadoCopia['puesto']?.toString().toLowerCase() ?? '';
-          if (nombre.contains(query) || puesto.contains(query)) {
-            empleadosEnCuadrillaFiltrados.add(empleadoCopia);
-          }
-          // Si no cumple el criterio, no se agrega a la lista filtrada pero sí a la original
-        }
       }
       
-      // 🆕 NUEVO: Actualizar el mapa de empleados por cuadrilla y marcar como modificada
-      if (selectedCuadrillaLocal['nombre'] != null && selectedCuadrillaLocal['nombre'] != '') {
-        final nombreCuadrilla = selectedCuadrillaLocal['nombre'] as String;
-        empleadosPorCuadrilla[nombreCuadrilla] = List<Map<String, dynamic>>.from(empleadosEnCuadrillaLocal);
-        cuadrillasModificadas.add(nombreCuadrilla);
-      }
+      // Marcar la cuadrilla como modificada
+      cuadrillaModificada = true;
     });
   }
 
-  /// 🆕 NUEVO: Guarda todas las cuadrillas que han sido modificadas
-  void _guardarTodasLasCuadrillas() async {
-    final semanaId =
-        await obtenerSemanaAbierta(); //obtenerIdSemanaActiva(); // Debes tenerla
-    final cuadrillaId = selectedCuadrillaLocal['id'];
-
-    if (semanaId == null || cuadrillaId == null) return;
-
-    await guardarEmpleadosCuadrillaSemana(
-      semanaId: semanaId['id'],
-      cuadrillaId: cuadrillaId,
-      empleados: empleadosEnCuadrillaLocal,
-    );
-
-    widget.onCuadrillaSaved(selectedCuadrillaLocal, empleadosEnCuadrillaLocal);
-    /*if (cuadrillasModificadas.isEmpty) {
-      // Si no hay cuadrillas modificadas, usar el callback original
-      widget.onCuadrillaSaved(
-        selectedCuadrillaLocal,
-        empleadosEnCuadrillaLocal,
+  /// Guarda los empleados de la cuadrilla en la base de datos
+  /// 
+  /// Flujo de ejecución:
+  /// 1. Valida si hay una cuadrilla seleccionada
+  /// 2. Obtiene la semana activa
+  /// 3. Guarda los empleados en la BD (borrando registros previos)
+  /// 4. Notifica con onCuadrillaSaved
+  /// 5. Actualiza las tablas con onActualizarTablas
+  /// 6. Cierra el diálogo
+  Future<void> _guardarCuadrilla() async {
+    // Verificar si hay una cuadrilla seleccionada
+    if (selectedCuadrillaLocal['id'] == null) {
+      setState(() => mensajeError = 'No hay cuadrilla seleccionada');
+      return;
+    }
+    
+    // Iniciar proceso de guardado
+    setState(() {
+      guardando = true;
+      mensajeError = null;
+    });
+    
+    try {
+      // Obtener la semana activa
+      final semanaId = await obtenerSemanaAbierta();
+      
+      if (semanaId == null || semanaId['id'] == null) {
+        setState(() {
+          mensajeError = 'No hay semana activa disponible';
+          guardando = false;
+        });
+        return;
+      }
+      
+      // Guardar los empleados en la base de datos
+      await guardarEmpleadosCuadrillaSemana(
+        semanaId: semanaId['id'],
+        cuadrillaId: selectedCuadrillaLocal['id'],
+        empleados: empleadosEnCuadrillaLocal,
       );
+      
+      // Actualizar UI después de guardar
+      setState(() {
+        guardando = false;
+        cuadrillaModificada = false;
+      });
+      
+      // Mostrar mensaje de éxito
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.white),
+              SizedBox(width: 8),
+              Text('Cuadrilla guardada correctamente'),
+            ],
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
+      
+      // Notificar que se guardó la cuadrilla
+      widget.onCuadrillaSaved(selectedCuadrillaLocal, empleadosEnCuadrillaLocal);
+      
+      // Llamar al callback para actualizar tablas, si está definido
+      if (widget.onActualizarTablas != null) {
+        widget.onActualizarTablas!();
+      }
+      
+      // Cerrar el diálogo
+      widget.onClose();
+      
+    } catch (e) {
+      setState(() {
+        mensajeError = 'Error al guardar: $e';
+        guardando = false;
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al guardar la cuadrilla: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  /// Muestra un diálogo de confirmación para cerrar sin guardar
+  void _confirmarCerrarSinGuardar() {
+    // Si no hay modificaciones, cerrar directamente
+    if (!cuadrillaModificada) {
       widget.onClose();
       return;
     }
-   */
-    // Mostrar diálogo de confirmación con resumen
-    final confirmado = await showDialog<bool>(
+    
+    showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           title: Row(
             children: [
-              Icon(Icons.save_rounded, color: Colors.green.shade600),
+              Icon(Icons.warning_amber_rounded, color: Colors.orange),
               SizedBox(width: 8),
-              Text('Guardar Cuadrillas'),
+              Text('Cerrar sin guardar'),
             ],
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Se guardarán ${cuadrillasModificadas.length} cuadrilla(s) modificada(s):'),
-              SizedBox(height: 12),
-              ...cuadrillasModificadas.map((nombre) {
-                final empleados = empleadosPorCuadrilla[nombre] ?? [];
-                return Padding(
-                  padding: EdgeInsets.only(bottom: 4),
-                  child: Row(
-                    children: [
-                      Icon(Icons.group, size: 16, color: Colors.green.shade600),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text('$nombre (${empleados.length} empleados)'),
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
-            ],
+          content: Text(
+            'Si cierras la ventana sin guardar, se perderán todos los cambios realizados en esta cuadrilla.',
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
+              onPressed: () => Navigator.of(context).pop(),
               child: Text('Cancelar'),
             ),
             ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(true),
+              onPressed: () {
+                Navigator.of(context).pop();
+                widget.onClose();
+              },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green.shade600,
+                backgroundColor: Colors.orange,
                 foregroundColor: Colors.white,
               ),
-              child: Text('Guardar Todo'),
+              child: Text('Cerrar sin guardar'),
             ),
           ],
-        );
-      },
-    );
-
-    if (confirmado == true) {
-      // Procesar cada cuadrilla modificada
-      for (String nombreCuadrilla in cuadrillasModificadas) {
-        final empleados = empleadosPorCuadrilla[nombreCuadrilla] ?? [];
-        final cuadrilla = widget.optionsCuadrilla.firstWhere(
-          (c) => c['nombre'] == nombreCuadrilla,
-          orElse: () => {'nombre': nombreCuadrilla, 'id': null},
-        );
-        
-        // Llamar al callback para cada cuadrilla
-        widget.onCuadrillaSaved(cuadrilla, empleados);
-      }
-      
-      // Mostrar mensaje de éxito
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                Icon(Icons.check_circle, color: Colors.white),
-                SizedBox(width: 8),
-                Text('${cuadrillasModificadas.length} cuadrilla(s) guardada(s) exitosamente'),
-              ],
-            ),
-            backgroundColor: Colors.green.shade600,
-            behavior: SnackBarBehavior.floating,
-            duration: Duration(seconds: 3),
-          ),
-        );
-      }
-      
-      widget.onClose();
-    }
-  }
-
-  void _confirmarCerrarSinGuardar() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Container(
-            width: 450,
-            padding: const EdgeInsets.all(28),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Colors.white, Colors.orange.shade50],
-              ),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.shade100,
-                    borderRadius: BorderRadius.circular(50),
-                  ),
-                  child: Icon(
-                    Icons.warning_amber_rounded,
-                    size: 48,
-                    color: Colors.orange.shade700,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  'Cerrar sin guardar',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.orange.shade800,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Si cierras la ventana sin guardar, se perderán todos los cambios realizados en esta cuadrilla.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey.shade700,
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 28),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        style: OutlinedButton.styleFrom(
-                          padding: EdgeInsets.symmetric(vertical: 16),
-                          side: BorderSide(color: Colors.grey.shade400),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: Text(
-                          'Cancelar',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                          widget.onClose();
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.orange.shade600,
-                          foregroundColor: Colors.white,
-                          padding: EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: Text(
-                          'Cerrar sin guardar',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
         );
       },
     );
@@ -426,6 +279,11 @@ class _NominaArmarCuadrillaWidgetState
 
   @override
   Widget build(BuildContext context) {
+    // Filtrar empleados disponibles (excluir los que ya están en la cuadrilla)
+    final empleadosDisponibles = empleadosDisponiblesFiltrados
+        .where((e) => !empleadosEnCuadrillaLocal.any((ec) => ec['id'] == e['id']))
+        .toList();
+    
     return BackdropFilter(
       filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
       child: Container(
@@ -436,299 +294,43 @@ class _NominaArmarCuadrillaWidgetState
             width: MediaQuery.of(context).size.width * 0.9,
             height: MediaQuery.of(context).size.height * 0.85,
             decoration: BoxDecoration(
-              color: Colors.white, // 🎨 Fondo completamente blanco
+              color: Colors.white,
               borderRadius: BorderRadius.circular(24),
             ),
             child: Column(
               children: [
-                // ✨ Header moderno con gradiente
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Colors.green.shade600,
-                        Colors.green.shade700,
-                      ],
-                    ),
-                    borderRadius: BorderRadius.vertical(
-                      top: Radius.circular(24),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Icon(
-                          Icons.groups_rounded,
-                          size: 32,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Armar Cuadrilla',
-                              style: TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                            SizedBox(height: 4),
-                            Text(
-                              'Organiza y gestiona tu equipo de trabajo',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.white.withOpacity(0.9),
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: IconButton(
-                          onPressed: _confirmarCerrarSinGuardar,
-                          icon: Icon(
-                            Icons.close_rounded,
-                            color: Colors.white,
-                            size: 24,
-                          ),
-                          style: IconButton.styleFrom(
-                            padding: EdgeInsets.all(12),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                // Header con gradiente
+                _buildHeader(),
                 
-                // ✨ Contenido principal con padding mejorado
+                // Contenido principal
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.all(24),
                     child: Column(
                       children: [
-                        // ✨ Selector de cuadrilla rediseñado
-                        Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: Colors.green.shade200,
-                              width: 1.5,
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: Colors.green.shade100,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Icon(
-                                  Icons.swap_horiz_rounded,
-                                  color: Colors.green.shade700,
-                                  size: 24,
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Cuadrilla Activa',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.green.shade800,
-                                        letterSpacing: 0.5,
-                                      ),
-                                    ),
-                                    SizedBox(height: 4),
-                                    Text(
-                                      'Selecciona la cuadrilla a gestionar',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey.shade600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                flex: 2,
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: Colors.grey.shade300),
-                                  ),
-                                  child: DropdownCuadrillasArmar(
-                                    opcionesCuadrillas: widget.optionsCuadrilla,
-                                    cuadrillaSeleccionada:
-                                        selectedCuadrillaLocal['nombre'] == ''
-                                            ? null
-                                            : selectedCuadrillaLocal,
-                                    alSeleccionarCuadrilla: (Map<String, dynamic>? opcion) {
-                                      setState(() {
-                                        // 🆕 NUEVO: Guardar empleados de la cuadrilla anterior antes de cambiar
-                                        if (selectedCuadrillaLocal['nombre'] != null && 
-                                            selectedCuadrillaLocal['nombre'] != '') {
-                                          final nombreAnterior = selectedCuadrillaLocal['nombre'] as String;
-                                          empleadosPorCuadrilla[nombreAnterior] = List<Map<String, dynamic>>.from(empleadosEnCuadrillaLocal);
-                                          cuadrillasModificadas.add(nombreAnterior);
-                                        }
-                                        
-                                        if (opcion == null) {
-                                          selectedCuadrillaLocal = {
-                                            'nombre': '',
-                                            'empleados': [],
-                                          };
-                                          empleadosEnCuadrillaLocal = [];
-                                          empleadosDisponiblesFiltrados = List.from(
-                                            widget.todosLosEmpleados,
-                                          );
-                                          empleadosEnCuadrillaFiltrados = [];
-                                        } else {
-                                          selectedCuadrillaLocal = opcion;
-                                          
-                                          // 🆕 NUEVO: Cargar empleados de la nueva cuadrilla desde el mapa
-                                          final nombreNuevo = opcion['nombre'] as String;
-                                          empleadosEnCuadrillaLocal = List<Map<String, dynamic>>.from(
-                                            empleadosPorCuadrilla[nombreNuevo] ?? [],
-                                          );
-                                          
-                                          empleadosDisponiblesFiltrados = List.from(
-                                            widget.todosLosEmpleados,
-                                          );
-                                          empleadosEnCuadrillaFiltrados = List.from(
-                                            empleadosEnCuadrillaLocal,
-                                          );
-                                        }
-                                        _buscarDisponiblesController.clear();
-                                        _buscarEnCuadrillaController.clear();
-                                      });
-                                    },
-                                    textoPlaceholder: 'Seleccionar cuadrilla',
-                                    permitirDeseleccion: true,
-                                    textoBusqueda: 'Buscar cuadrilla...',
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                        // Selector de cuadrilla
+                        _buildCuadrillaSelector(),
                         
-                        // 🆕 NUEVO: Indicador de cuadrillas modificadas
-                        if (cuadrillasModificadas.isNotEmpty) ...[
-                          SizedBox(height: 12),
-                          Container(
-                            width: double.infinity,
-                            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: Colors.blue.shade50,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.blue.shade200),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(Icons.edit_rounded, size: 16, color: Colors.blue.shade700),
-                                SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    '${cuadrillasModificadas.length} cuadrilla(s) modificada(s): ${cuadrillasModificadas.join(', ')}',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.blue.shade700,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                        // Mensajes de error
+                        if (mensajeError != null) _buildErrorMessage(),
                         
                         const SizedBox(height: 24),
                         
-                        // ✨ Sección principal con listas de empleados
+                        // Listas de empleados
                         Expanded(
                           child: Row(
                             children: [
-                              // ✨ Lista de empleados disponibles
+                              // Lista de empleados disponibles
                               Expanded(
-                                child: _buildEmpleadosDisponibles(),
+                                child: _buildEmpleadosDisponibles(empleadosDisponibles),
                               ),
                               
-                              // ✨ Espacio entre columnas
+                              // Separador con indicadores
+                              SizedBox(width: 20),
+                              _buildSeparador(),
                               SizedBox(width: 20),
                               
-                              // ✨ Botones de transferencia en el centro
-                              Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Container(
-                                    padding: EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: Colors.green.shade100,
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Icon(
-                                      Icons.arrow_forward_rounded,
-                                      color: Colors.green.shade700,
-                                      size: 24,
-                                    ),
-                                  ),
-                                  SizedBox(height: 12),
-                                  Text(
-                                    'Arrastra o\ntoca para\nagregar',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade600,
-                                      height: 1.2,
-                                    ),
-                                  ),
-                                  SizedBox(height: 12),
-                                  Container(
-                                    padding: EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: Colors.red.shade100,
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Icon(
-                                      Icons.arrow_back_rounded,
-                                      color: Colors.red.shade700,
-                                      size: 24,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              
-                              // ✨ Espacio entre columnas
-                              SizedBox(width: 20),
-                              
-                              // ✨ Lista de empleados en cuadrilla
+                              // Lista de empleados en cuadrilla
                               Expanded(
                                 child: _buildEmpleadosEnCuadrilla(),
                               ),
@@ -738,60 +340,8 @@ class _NominaArmarCuadrillaWidgetState
                         
                         const SizedBox(height: 24),
                         
-                        // ✨ Botones de acción modernos
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: () => widget.onClose(),
-                                icon: Icon(Icons.cancel_outlined),
-                                label: Text('Cancelar'),
-                                style: OutlinedButton.styleFrom(
-                                  padding: EdgeInsets.symmetric(vertical: 16),
-                                  side: BorderSide(color: Colors.grey.shade400),
-                                  foregroundColor: Colors.grey.shade700,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            SizedBox(width: 16),
-                            Expanded(
-                              flex: 2,
-                              child: ElevatedButton.icon(
-                                onPressed: empleadosEnCuadrillaLocal.isNotEmpty
-                                    ? () {
-                                        // 🆕 NUEVO: Guardar la cuadrilla actual antes de proceder
-                                        if (selectedCuadrillaLocal['nombre'] != null && 
-                                            selectedCuadrillaLocal['nombre'] != '') {
-                                          final nombreActual = selectedCuadrillaLocal['nombre'] as String;
-                                          empleadosPorCuadrilla[nombreActual] = List<Map<String, dynamic>>.from(empleadosEnCuadrillaLocal);
-                                          cuadrillasModificadas.add(nombreActual);
-                                        }
-                                        
-                                        // 🆕 NUEVO: Guardar todas las cuadrillas modificadas
-                                        _guardarTodasLasCuadrillas();
-                                      }
-                                    : null,
-                                icon: Icon(Icons.save_rounded),
-                                label: Text(
-                                  cuadrillasModificadas.isEmpty 
-                                    ? 'Guardar Cuadrilla (${empleadosEnCuadrillaLocal.length})' 
-                                    : 'Guardar ${cuadrillasModificadas.length} Cuadrilla(s)',
-                                ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.green.shade600,
-                                  foregroundColor: Colors.white,
-                                  padding: EdgeInsets.symmetric(vertical: 16),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+                        // Botones de acción
+                        _buildActionButtons(),
                       ],
                     ),
                   ),
@@ -804,13 +354,280 @@ class _NominaArmarCuadrillaWidgetState
     );
   }
 
-  // ✨ Widget para la lista de empleados disponibles
-  Widget _buildEmpleadosDisponibles() {
-    // 🔧 REVERTIDO: Filtrar empleados que ya están en la cuadrilla (comportamiento original)
-    final empleadosDisponibles = empleadosDisponiblesFiltrados
-        .where((e) => !empleadosEnCuadrillaLocal.any((ec) => ec['id'] == e['id']))
-        .toList();
+  // Widget para el encabezado
+  Widget _buildHeader() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.green.shade600,
+            Colors.green.shade700,
+          ],
+        ),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(24),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(
+              Icons.groups_rounded,
+              size: 32,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Armar Cuadrilla',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Organiza y gestiona tu equipo de trabajo',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.white.withOpacity(0.9),
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: IconButton(
+              onPressed: _confirmarCerrarSinGuardar,
+              icon: Icon(
+                Icons.close_rounded,
+                color: Colors.white,
+                size: 24,
+              ),
+              style: IconButton.styleFrom(
+                padding: EdgeInsets.all(12),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
+  // Widget para el selector de cuadrilla
+  Widget _buildCuadrillaSelector() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.green.shade200,
+          width: 1.5,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.green.shade100,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              Icons.swap_horiz_rounded,
+              color: Colors.green.shade700,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Cuadrilla Activa',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.green.shade800,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Selecciona la cuadrilla a gestionar',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            flex: 2,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: DropdownCuadrillasArmar(
+                opcionesCuadrillas: widget.optionsCuadrilla,
+                cuadrillaSeleccionada:
+                    selectedCuadrillaLocal['nombre'] == ''
+                        ? null
+                        : selectedCuadrillaLocal,
+                alSeleccionarCuadrilla: (Map<String, dynamic>? opcion) {
+                  // Preguntar si quiere guardar cambios antes de cambiar de cuadrilla
+                  if (cuadrillaModificada) {
+                    showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: Text('Cambiar de cuadrilla'),
+                        content: Text('Hay cambios sin guardar. ¿Deseas cambiar de cuadrilla sin guardar?'),
+                        actions: [
+                          TextButton(
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                            },
+                            child: Text('Cancelar'),
+                          ),
+                          ElevatedButton(
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                              _cambiarCuadrilla(opcion);
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue,
+                            ),
+                            child: Text('Cambiar'),
+                          ),
+                        ],
+                      ),
+                    );
+                  } else {
+                    _cambiarCuadrilla(opcion);
+                  }
+                },
+                textoPlaceholder: 'Seleccionar cuadrilla',
+                permitirDeseleccion: true,
+                textoBusqueda: 'Buscar cuadrilla...',
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Cambia la cuadrilla seleccionada
+  void _cambiarCuadrilla(Map<String, dynamic>? opcion) {
+    setState(() {
+      if (opcion == null) {
+        selectedCuadrillaLocal = {'nombre': '', 'id': null};
+        empleadosEnCuadrillaLocal = [];
+      } else {
+        selectedCuadrillaLocal = opcion;
+        // Cargar los empleados de esta cuadrilla
+        empleadosEnCuadrillaLocal = widget.optionsCuadrilla
+            .firstWhere(
+                (c) => c['nombre'] == opcion['nombre'], 
+                orElse: () => {'empleados': []})['empleados'] ?? [];
+      }
+      
+      cuadrillaModificada = false;
+      _buscarDisponiblesController.clear();
+      _buscarEnCuadrillaController.clear();
+    });
+  }
+
+  // Widget para mensajes de error
+  Widget _buildErrorMessage() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.red.shade50,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.red.shade200),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.error_outline, size: 16, color: Colors.red.shade700),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                mensajeError!,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.red.shade700,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Widget separador con iconos de dirección
+  Widget _buildSeparador() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(
+          padding: EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.green.shade100,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(
+            Icons.arrow_forward_rounded,
+            color: Colors.green.shade700,
+            size: 24,
+          ),
+        ),
+        SizedBox(height: 12),
+        Text(
+          'Toca para\nagregar/quitar',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey.shade700,
+            height: 1.2,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Widget para lista de empleados disponibles
+  Widget _buildEmpleadosDisponibles(List<Map<String, dynamic>> empleadosDisponibles) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -854,14 +671,14 @@ class _NominaArmarCuadrillaWidgetState
                         'Empleados Disponibles',
                         style: TextStyle(
                           fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w600,
                           color: Colors.blue.shade800,
                         ),
                       ),
                       Text(
                         '${empleadosDisponibles.length} empleados',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 14,
                           color: Colors.blue.shade600,
                         ),
                       ),
@@ -908,74 +725,17 @@ class _NominaArmarCuadrillaWidgetState
           // Lista de empleados
           Expanded(
             child: empleadosDisponibles.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.person_off_rounded,
-                          size: 48,
-                          color: Colors.grey.shade400,
-                        ),
-                        SizedBox(height: 16),
-                        Text(
-                          'No hay empleados disponibles',
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
-                    ),
+                ? _buildEmptyState(
+                    'No hay empleados disponibles', 
+                    Icons.person_off_rounded
                   )
-                : Column(
-                    children: [
-                      // 🚫 Mensaje cuando no hay cuadrilla seleccionada
-                      if (selectedCuadrillaLocal['nombre'] == null || 
-                          selectedCuadrillaLocal['nombre'] == '') ...[
-                        Container(
-                          margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          padding: EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.orange.shade50,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.orange.shade200),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.info_outline,
-                                color: Colors.orange.shade600,
-                                size: 20,
-                              ),
-                              SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'Selecciona una cuadrilla para agregar empleados',
-                                  style: TextStyle(
-                                    color: Colors.orange.shade700,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                      
-                      // Lista de empleados
-                      Expanded(
-                        child: ListView.builder(
-                          padding: EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: empleadosDisponibles.length,
-                          itemBuilder: (context, index) {
-                            final empleado = empleadosDisponibles[index];
-                            return _buildEmpleadoCard(empleado, false);
-                          },
-                        ),
-                      ),
-                    ],
+                : ListView.builder(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: empleadosDisponibles.length,
+                    itemBuilder: (context, index) {
+                      final empleado = empleadosDisponibles[index];
+                      return _buildEmpleadoCard(empleado, false);
+                    },
                   ),
           ),
         ],
@@ -983,7 +743,7 @@ class _NominaArmarCuadrillaWidgetState
     );
   }
 
-  // ✨ Widget para la lista de empleados en cuadrilla
+  // Widget para lista de empleados en cuadrilla
   Widget _buildEmpleadosEnCuadrilla() {
     return Container(
       decoration: BoxDecoration(
@@ -1014,7 +774,7 @@ class _NominaArmarCuadrillaWidgetState
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(
-                    Icons.groups_rounded,
+                    Icons.group_rounded,
                     color: Colors.green.shade700,
                     size: 20,
                   ),
@@ -1025,17 +785,19 @@ class _NominaArmarCuadrillaWidgetState
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Cuadrilla Actual',
+                        selectedCuadrillaLocal['nombre'] != null && selectedCuadrillaLocal['nombre'] != ''
+                          ? 'Cuadrilla: ${selectedCuadrillaLocal['nombre']}'
+                          : 'Cuadrilla no seleccionada',
                         style: TextStyle(
                           fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w600,
                           color: Colors.green.shade800,
                         ),
                       ),
                       Text(
-                        '${empleadosEnCuadrillaLocal.length} empleados',
+                        '${empleadosEnCuadrillaLocal.length} empleados en la cuadrilla',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 14,
                           color: Colors.green.shade600,
                         ),
                       ),
@@ -1064,58 +826,41 @@ class _NominaArmarCuadrillaWidgetState
               ),
               onChanged: (value) {
                 setState(() {
-                  if (value.isEmpty) {
-                    empleadosEnCuadrillaFiltrados = List.from(empleadosEnCuadrillaLocal);
-                  } else {
-                    final query = value.toLowerCase();
-                    empleadosEnCuadrillaFiltrados = empleadosEnCuadrillaLocal.where((emp) {
-                      final nombre = emp['nombre']?.toString().toLowerCase() ?? '';
-                      final codigo = emp['codigo']?.toString().toLowerCase() ?? '';
-                      return nombre.contains(query) || codigo.contains(query);
-                    }).toList();
-                  }
+                  // La búsqueda se aplica directamente al renderizar la lista
                 });
               },
             ),
           ),
           
-          // Lista de empleados
+          // Lista de empleados en cuadrilla
           Expanded(
             child: empleadosEnCuadrillaLocal.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.group_add_rounded,
-                          size: 48,
-                          color: Colors.grey.shade400,
-                        ),
-                        SizedBox(height: 16),
-                        Text(
-                          'Cuadrilla vacía',
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          'Agrega empleados desde la lista',
-                          style: TextStyle(
-                            color: Colors.grey.shade500,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
+                ? _buildEmptyState(
+                    selectedCuadrillaLocal['nombre'] != null && selectedCuadrillaLocal['nombre'] != ''
+                      ? 'No hay empleados en esta cuadrilla'
+                      : 'Selecciona una cuadrilla primero', 
+                    Icons.group_off_rounded
                   )
                 : ListView.builder(
                     padding: EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: empleadosEnCuadrillaFiltrados.length,
+                    itemCount: empleadosEnCuadrillaLocal.length,
                     itemBuilder: (context, index) {
-                      final empleado = empleadosEnCuadrillaFiltrados[index];
+                      final empleado = empleadosEnCuadrillaLocal[index];
+                      
+                      // Filtrar por búsqueda si hay texto
+                      if (_buscarEnCuadrillaController.text.isNotEmpty) {
+                        final query = _buscarEnCuadrillaController.text.toLowerCase();
+                        final nombre = empleado['nombre']?.toString().toLowerCase() ?? '';
+                        final codigo = empleado['codigo']?.toString().toLowerCase() ?? '';
+                        final puesto = empleado['puesto']?.toString().toLowerCase() ?? '';
+                        
+                        if (!nombre.contains(query) && 
+                            !codigo.contains(query) &&
+                            !puesto.contains(query)) {
+                          return SizedBox.shrink();
+                        }
+                      }
+                      
                       return _buildEmpleadoCard(empleado, true);
                     },
                   ),
@@ -1125,9 +870,34 @@ class _NominaArmarCuadrillaWidgetState
     );
   }
 
-  // ✨ Widget para cada tarjeta de empleado
+  // Widget estado vacío
+  Widget _buildEmptyState(String mensaje, IconData icono) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            icono,
+            size: 48,
+            color: Colors.grey.shade400,
+          ),
+          SizedBox(height: 16),
+          Text(
+            mensaje,
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey.shade600,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Widget para cada tarjeta de empleado
   Widget _buildEmpleadoCard(Map<String, dynamic> empleado, bool enCuadrilla) {
-    // 🚫 Verificar si hay cuadrilla seleccionada para habilitar interacciones
+    // Verificar si hay cuadrilla seleccionada para habilitar interacciones
     final bool cuadrillaSeleccionada = selectedCuadrillaLocal['nombre'] != null && 
                                       selectedCuadrillaLocal['nombre'] != '';
     final bool isEnabled = enCuadrilla || cuadrillaSeleccionada;
@@ -1136,7 +906,7 @@ class _NominaArmarCuadrillaWidgetState
       margin: EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         color: !isEnabled 
-            ? Colors.grey.shade400 
+            ? Colors.grey.shade100 
             : (enCuadrilla ? Colors.green.shade50 : Colors.blue.shade50),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
@@ -1155,14 +925,16 @@ class _NominaArmarCuadrillaWidgetState
             child: Row(
               children: [
                 CircleAvatar(
+                  backgroundColor: enCuadrilla 
+                      ? Colors.green.shade200 
+                      : Colors.blue.shade200,
                   radius: 20,
-                  backgroundColor: !isEnabled 
-                      ? Colors.grey.shade400
-                      : (enCuadrilla ? Colors.green.shade600 : Colors.blue.shade600),
                   child: Text(
-                    empleado['nombre']?.toString().substring(0, 1).toUpperCase() ?? 'E',
+                    empleado['nombre'].toString().substring(0, 1).toUpperCase(),
                     style: TextStyle(
-                      color: Colors.white,
+                      color: enCuadrilla 
+                          ? Colors.green.shade800 
+                          : Colors.blue.shade800,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -1176,50 +948,46 @@ class _NominaArmarCuadrillaWidgetState
                         empleado['nombre'] ?? 'Sin nombre',
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                          color: !isEnabled 
-                              ? Colors.grey.shade500 
-                              : Colors.grey.shade800,
+                          color: isEnabled 
+                              ? Colors.grey.shade800 
+                              : Colors.grey.shade600,
                         ),
                       ),
-                      SizedBox(height: 2),
                       Text(
-                        'Código: ${empleado['codigo'] ?? 'N/A'}',
+                        empleado['puesto'] ?? 'Jornalero',
                         style: TextStyle(
                           fontSize: 12,
-                          color: !isEnabled 
-                              ? Colors.grey.shade400 
-                              : Colors.grey.shade600,
+                          color: Colors.grey.shade600,
                         ),
                       ),
                     ],
                   ),
                 ),
-                // ✨ Botón para ver detalles del empleado
-                Container(
-                  margin: EdgeInsets.only(right: 8),
-                  child: IconButton(
-                    onPressed: () => widget.onMostrarDetallesEmpleado(context, empleado),
-                    icon: Icon(
-                      Icons.visibility_outlined,
-                      size: 20,
-                      color: Colors.blue.shade700, // 🎨 Azul fuerte para el ícono
-                    ),
-                    style: IconButton.styleFrom(
-                      backgroundColor: Colors.blue.shade50, // 🎨 Fondo azul claro
-                      padding: EdgeInsets.all(6),
-                      minimumSize: Size(32, 32),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    tooltip: 'Ver detalles del empleado',
+                // Botón para ver detalles del empleado
+                IconButton(
+                  onPressed: () => widget.onMostrarDetallesEmpleado(context, empleado),
+                  icon: Icon(
+                    Icons.visibility,
+                    color: Colors.blue,
+                    size: 22,
                   ),
+                  tooltip: 'Ver detalles',
+                  constraints: BoxConstraints(),
+                  padding: EdgeInsets.all(4),
                 ),
-                Icon(
-                  enCuadrilla ? Icons.remove_circle_outline : Icons.add_circle_outline,
-                  color: !isEnabled 
-                      ? Colors.grey.shade400
-                      : (enCuadrilla ? Colors.red.shade600 : Colors.green.shade600),
-                ),
+                SizedBox(width: 4),
+                if (enCuadrilla)
+                  Icon(
+                    Icons.remove_circle,
+                    color: Colors.red.shade300,
+                    size: 20,
+                  )
+                else if (isEnabled)
+                  Icon(
+                    Icons.add_circle,
+                    color: Colors.green.shade400,
+                    size: 20,
+                  ),
               ],
             ),
           ),
@@ -1227,4 +995,97 @@ class _NominaArmarCuadrillaWidgetState
       ),
     );
   }
+
+  // Widget botones de acción
+  Widget _buildActionButtons() {
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: _confirmarCerrarSinGuardar,
+            icon: Icon(Icons.cancel_outlined),
+            label: Text('Cancelar'),
+            style: OutlinedButton.styleFrom(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              side: BorderSide(color: Colors.grey.shade400),
+              foregroundColor: Colors.grey.shade700,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ),
+        SizedBox(width: 16),
+        Expanded(
+          flex: 2,
+          child: ElevatedButton.icon(
+            onPressed: (cuadrillaModificada && !guardando && selectedCuadrillaLocal['id'] != null) 
+                ? _guardarCuadrilla 
+                : null,
+            icon: guardando 
+                ? SizedBox(
+                    width: 20, 
+                    height: 20, 
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : Icon(Icons.save_rounded),
+            label: Text(guardando 
+                ? 'Guardando...' 
+                : 'Guardar Cuadrilla'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: cuadrillaModificada 
+                  ? Colors.green.shade600 
+                  : Colors.grey.shade400,
+              foregroundColor: Colors.white,
+              padding: EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
+
+/// EJEMPLO DE USO:
+/// ```dart
+/// // En el widget padre que muestra el diálogo "Armar Cuadrilla":
+/// void _mostrarArmarCuadrillaDialog() {
+///   showDialog(
+///     context: context,
+///     builder: (context) => NominaArmarCuadrillaWidget(
+///       optionsCuadrilla: cuadrillas,
+///       selectedCuadrilla: cuadrillaSeleccionada,
+///       todosLosEmpleados: todosLosEmpleados,
+///       empleadosEnCuadrilla: empleadosEnCuadrilla,
+///       onCuadrillaSaved: (cuadrilla, empleados) {
+///         // Actualizar los datos locales con la información guardada
+///         setState(() {
+///           cuadrillaSeleccionada = cuadrilla;
+///           empleadosEnCuadrilla = empleados;
+///         });
+///       },
+///       onClose: () => Navigator.of(context).pop(),
+///       onMostrarDetallesEmpleado: (context, empleado) {
+///         // Mostrar detalles del empleado
+///         _mostrarDetallesEmpleado(context, empleado);
+///       },
+///       onActualizarTablas: () {
+///         // Código para actualizar la tabla principal
+///         _actualizarTablaPrincipal();
+///         
+///         // Código para actualizar la tabla expandida
+///         _actualizarTablaExpandida();
+///         
+///         // También puedes refrescar datos desde la BD si es necesario
+///         _cargarDatosActualizados();
+///       },
+///     ),
+///   );
+/// }
+/// ```

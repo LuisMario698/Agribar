@@ -1,30 +1,26 @@
 import 'package:flutter/material.dart';
 import '../theme/app_styles.dart';
 import '../widgets/nomina_tabla_editable.dart';
-import '../widgets/fullscreen_table_dialog.dart';
+import '../widgets/nomina_tabla_dialogo_completo.dart';
 
-/// Widget modular para la sección principal de la tabla
-/// Incluye el header, controles y la tabla de nómina
-class MainTableSection extends StatelessWidget {
+/// Widget modular para la sección principal de la tabla de nómina
+/// Incluye el header, controles y la tabla de empleados
+class NominaTablaSeccionPrincipal extends StatelessWidget {
   final List<Map<String, dynamic>> empleadosFiltrados;
   final DateTime? startDate;
   final DateTime? endDate;
   final Function(int, String, dynamic) onTableChange;
   final VoidCallback onMostrarSemanasCerradas;
-  final List<Map<String, dynamic>> cuadrillas;
-  final Map<String, dynamic>? cuadrillaSeleccionada;
-  final Function(Map<String, dynamic>?) onCuadrillaChanged;
+  final List<Map<String, dynamic>> empleadosNomina;
 
-  const MainTableSection({
+  const NominaTablaSeccionPrincipal({
     super.key,
     required this.empleadosFiltrados,
     this.startDate,
     this.endDate,
     required this.onTableChange,
+    required this.empleadosNomina, 
     required this.onMostrarSemanasCerradas,
-    required this.cuadrillas,
-    this.cuadrillaSeleccionada,
-    required this.onCuadrillaChanged,
   });
 
   void _showFullscreenTable(BuildContext context) {
@@ -35,7 +31,7 @@ class MainTableSection extends StatelessWidget {
       context: context,
       barrierColor: Colors.black.withOpacity(0.2),
       builder: (context) {
-        return FullscreenTableDialog(
+        return NominaTablaDialogoCompleto(
           empleados: empleadosFiltrados,
           semanaSeleccionada: startDate != null && endDate != null
               ? DateTimeRange(start: startDate!, end: endDate!)
@@ -44,9 +40,6 @@ class MainTableSection extends StatelessWidget {
           onClose: () => Navigator.of(context).pop(),
           horizontalController: modalHorizontal,
           verticalController: modalVertical,
-          cuadrillas: cuadrillas,
-          cuadrillaSeleccionada: cuadrillaSeleccionada,
-          onCuadrillaChanged: onCuadrillaChanged,
         );
       },
     );
@@ -92,9 +85,10 @@ class MainTableSection extends StatelessWidget {
                     IconButton(
                       icon: const Icon(Icons.fullscreen),
                       onPressed: () => _showFullscreenTable(context),
-                      tooltip: 'Ver en pantalla completa',
+                      tooltip: 'Abrir tabla expandida para editar',
                       style: IconButton.styleFrom(
-                        backgroundColor: Colors.grey.shade100,
+                        backgroundColor: Colors.orange.shade100,
+                        foregroundColor: Colors.orange.shade700,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -132,7 +126,8 @@ class MainTableSection extends StatelessWidget {
                     ],
                   ),
                   child: NominaTablaEditable(
-                    empleados: empleadosFiltrados,
+                    key: ValueKey('table_${empleadosFiltrados.length}_${empleadosFiltrados.hashCode}'), // Forzar reconstrucción
+                    empleados: empleadosFiltrados, // ✅ Usar empleadosFiltrados (misma fuente que tabla expandida)
                     semanaSeleccionada: startDate != null && endDate != null
                         ? DateTimeRange(start: startDate!, end: endDate!)
                         : null,

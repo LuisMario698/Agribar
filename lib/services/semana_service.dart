@@ -166,19 +166,37 @@ Future<void> guardarEmpleadosCuadrillaSemana({
   final db = DatabaseService();
   await db.connect();
 
-  // Insertar nuevos empleados
-  for (final empleado in empleados) {
-    await db.connection.query('''
-      INSERT INTO nomina_empleados_semanal (id_semana, id_cuadrilla, id_empleado)
-      VALUES (@semanaId, @cuadrillaId, @empleadoId);
+  try {
+    // Primero eliminar los registros existentes para evitar duplicados
+    await db.connection.execute('''
+      DELETE FROM nomina_empleados_semanal 
+      WHERE id_semana = @semanaId AND id_cuadrilla = @cuadrillaId;
     ''', substitutionValues: {
       'semanaId': semanaId,
       'cuadrillaId': cuadrillaId,
-      'empleadoId': empleado['id'],
     });
+    
+    // Insertar nuevos empleados
+    if (empleados.isNotEmpty) {
+      for (final empleado in empleados) {
+        await db.connection.execute('''
+          INSERT INTO nomina_empleados_semanal (id_semana, id_cuadrilla, id_empleado)
+          VALUES (@semanaId, @cuadrillaId, @empleadoId);
+        ''', substitutionValues: {
+          'semanaId': semanaId,
+          'cuadrillaId': cuadrillaId,
+          'empleadoId': empleado['id'],
+        });
+      }
+    }
+    
+    print('✅ Guardada cuadrilla $cuadrillaId con ${empleados.length} empleados para semana $semanaId');
+  } catch (e) {
+    print('❌ Error al guardar cuadrilla: $e');
+    rethrow; // Relanzar la excepción para que el llamador pueda manejarla
+  } finally {
+    await db.close();
   }
-
-  await db.close();
 }
 Future<List<Map<String, dynamic>>> obtenerCuadrillasDeSemana(int semanaId) async {
   final db = DatabaseService();

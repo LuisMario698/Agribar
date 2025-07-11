@@ -18,6 +18,7 @@ import 'AppTheme.dart';
 import 'Cuadrilla_Content.dart';
 import 'Reportes_screen.dart';
 import '../services/database_migration_service.dart';
+import '../widgets/nomina_tab_change_interceptor.dart';
 
 /// Widget principal del panel de control.
 ///
@@ -42,10 +43,16 @@ class DashboardScreen extends StatefulWidget {
 
 /// Estado del DashboardScreen que mantiene la lógica de navegación
 /// y la interacción con el menú lateral.
-class _DashboardScreenState extends State<DashboardScreen> {
+class _DashboardScreenState extends State<DashboardScreen> with NominaTabChangeGuardMixin {
   int selectedIndex = 0; // Índice del elemento seleccionado en el menú
   int? hoveredIndex; // Índice del elemento sobre el que está el cursor
   final ScrollController _scrollController = ScrollController();
+  
+  // Variables para manejar cambios no guardados en nómina
+  bool _tieneCambiosNoGuardados = false;
+  
+  // Función de guardado que será proporcionada por NominaScreen
+  Future<void> Function()? _funcionGuardadoNomina;
 
   /// Lista de elementos del menú lateral
   /// Cada elemento contiene un ícono y una etiqueta
@@ -131,6 +138,62 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.dispose();
   }
 
+  /// Maneja el cambio de pestaña con verificación de cambios no guardados
+  Future<void> _onTabSelected(int newIndex) async {
+    // Si estamos saliendo de la pestaña de nómina (índice 4) y hay cambios no guardados
+    if (selectedIndex == 4 && newIndex != 4 && _tieneCambiosNoGuardados) {
+      final puedeNavegar = await verificarCambiosAntesDeCambiarTab(
+        tieneCambiosNoGuardados: _tieneCambiosNoGuardados,
+        onGuardar: () async {
+          // Llamar a la función de guardado real de NominaScreen
+          if (_funcionGuardadoNomina != null) {
+            try {
+              await _funcionGuardadoNomina!();
+              setState(() {
+                _tieneCambiosNoGuardados = false;
+              });
+            } catch (e) {
+              // El error ya se maneja en _guardarNomina(), solo aseguramos que no cambie el estado
+              print('Error al guardar desde el interceptor: $e');
+              rethrow; // Re-lanzar para que el diálogo maneje el error
+            }
+          } else {
+            // Fallback si no hay función de guardado configurada
+            setState(() {
+              _tieneCambiosNoGuardados = false;
+            });
+          }
+        },
+        onSalirSinGuardar: () {
+          // Descartar cambios
+          setState(() {
+            _tieneCambiosNoGuardados = false;
+          });
+        },
+        mensajePersonalizado: 
+          'Los cambios en la nómina se perderán si cambias de sección sin guardar.\n\n¿Qué deseas hacer?',
+      );
+      
+      if (!puedeNavegar) return; // Cancelar navegación
+    }
+    
+    setState(() {
+      selectedIndex = newIndex;
+    });
+  }
+
+  /// Callback para recibir notificaciones de cambios desde NominaScreen
+  void _onNominaChanged(bool tieneCambios) {
+    setState(() {
+      _tieneCambiosNoGuardados = tieneCambios;
+    });
+  }
+
+  /// Método para establecer la función de guardado de nómina
+  void _setFuncionGuardadoNomina(Future<void> Function() funcionGuardado) {
+    _funcionGuardadoNomina = funcionGuardado;
+  }
+
   /// Retorna el widget correspondiente a la sección seleccionada
   /// basado en el índice actual del menú.
   Widget _getBodyContent() {
@@ -144,7 +207,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       case 3:
         return ActividadesContent();
       case 4:
-        return NominaScreen();
+        return NominaScreen(
+          onCambiosChanged: _onNominaChanged,
+          onGuardadoCallbackSet: _setFuncionGuardadoNomina,
+        );
       case 5:
         return ReportesScreen();
       case 6:
@@ -218,8 +284,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 label: item.label,
                                 selected: selectedIndex == index,
                                 hovered: hoveredIndex == index,
-                                onTap:
-                                    () => setState(() => selectedIndex = index),
+                                onTap: () => _onTabSelected(index),
                                 onHover:
                                     (isHovered) => setState(
                                       () =>

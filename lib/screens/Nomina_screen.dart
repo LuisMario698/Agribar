@@ -1,4 +1,3 @@
-
 /// Módulo de Nómina del Sistema Agribar
 /// Implementa la funcionalidad completa del sistema de nómina,
 /// incluyendo captura de días, cálculos y gestión de deducciones.
@@ -20,10 +19,11 @@ import '../widgets/nomina_detalles_empleado_widget.dart';
 import '../widgets/nomina_week_selection_card.dart';
 import '../widgets/nomina_cuadrilla_selection_card.dart';
 import '../widgets/nomina_indicators_row.dart';
-import '../widgets/nomina_main_table_section.dart';
+import '../widgets/nomina_tabla_seccion_principal.dart';
 import '../widgets/nomina_resumen_cuadrillas_dialog.dart';
 import '../widgets/nomina_export_section.dart';
 import '../widgets/nomina_flow_indicator.dart';
+import '../widgets/nomina_dialogo_cambios_no_guardados.dart';
 
 /// Widget principal de la pantalla de nómina.
 /// Gestiona el proceso completo de nómina semanal incluyendo:
@@ -46,17 +46,34 @@ class NominaScreen extends StatefulWidget {
     this.showFullTable = false, // Control de vista expandida
     this.onCloseFullTable, // Callback al cerrar vista completa
     this.onOpenFullTable, // Callback al abrir vista completa
+    this.onCambiosChanged, // Callback para notificar cambios no guardados
+    this.onGuardadoCallbackSet, // Callback para establecer función de guardado
   });
 
   final bool showFullTable;
   final VoidCallback? onCloseFullTable;
   final VoidCallback? onOpenFullTable;
+  final Function(bool)? onCambiosChanged; // Nuevo callback
+  final Function(Future<void> Function())? onGuardadoCallbackSet; // Callback para establecer función de guardado
 
   @override
   State<NominaScreen> createState() => _NominaScreenState();
 }
 
-class _NominaScreenState extends State<NominaScreen> {
+class _NominaScreenState extends State<NominaScreen> 
+    with CambiosNoGuardadosMixin {
+  
+  @override
+  void marcarCambiosNoGuardados() {
+    super.marcarCambiosNoGuardados();
+    widget.onCambiosChanged?.call(true); // Notificar al dashboard
+  }
+  
+  @override
+  void marcarCambiosGuardados() {
+    super.marcarCambiosGuardados();
+    widget.onCambiosChanged?.call(false); // Notificar al dashboard
+  }
   bool showTablaPrincipal =
       true; // true for tabla principal, false for dias trabajados
   bool isTableExpanded = false;
@@ -77,8 +94,7 @@ class _NominaScreenState extends State<NominaScreen> {
   int? idSemanaSeleccionada;
   Map<String, dynamic>? cuadrillaSeleccionada;
   final  List<Map<String, dynamic>> _optionsCuadrilla = [];
-  // Variables para detectar cambios no guardados
-  bool _hasUnsavedChanges = false;
+  // Variables para detectar cambios no guardados (usando CambiosNoGuardadosMixin)
   Map<String, dynamic> _originalNominaData = {};
   
   // 🔧 Variables para manejo de datos temporales (cambios en tiempo real sin guardar)
@@ -94,6 +110,9 @@ class _NominaScreenState extends State<NominaScreen> {
   // 🔄 Variables para indicadores de carga
   bool _isGuardando = false;
   bool _isCreandoSemana = false;
+  
+  // 🎯 Variable para forzar actualización de indicadores
+  int _indicatorsUpdateKey = 0;
   
   Map<String, dynamic> _selectedCuadrilla = {
     'nombre': '',
@@ -115,6 +134,9 @@ class _NominaScreenState extends State<NominaScreen> {
     if (_selectedCuadrilla['nombre'] == null || _selectedCuadrilla['nombre'] == '') {
       _selectedCuadrilla = {'nombre': '', 'empleados': []};
     }
+    
+    // Registrar la función de guardado con el Dashboard
+    widget.onGuardadoCallbackSet?.call(_guardarNomina);
     
     // Cargar datos iniciales
     _cargarCuadrillasHabilitadas();
@@ -145,10 +167,20 @@ class _NominaScreenState extends State<NominaScreen> {
   Future<void> cargarDatosNomina() async {
     if (semanaSeleccionada != null && cuadrillaSeleccionada != null) {
       
+      print('🔄 CARGANDO datos de nómina para cuadrilla: ${cuadrillaSeleccionada!['nombre']}');
+      
       final data = await obtenerNominaEmpleadosDeCuadrilla(
         semanaSeleccionada!['id'],
         cuadrillaSeleccionada!['id'],
       );
+
+      print('📊 Datos cargados: ${data.length} empleados');
+      if (data.isNotEmpty) {
+        final firstEmp = data.first;
+        print('  Primer empleado: ${firstEmp['nombre']}');
+        print('  Datos días: dia_0_s=${firstEmp['dia_0_s']}, dia_1_s=${firstEmp['dia_1_s']}');
+        print('  Total BD: ${firstEmp['total']}');
+      }
 
       if (mounted) {
         setState(() {
@@ -171,8 +203,19 @@ class _NominaScreenState extends State<NominaScreen> {
           empleadosEnCuadrilla = List<Map<String, dynamic>>.from(data);
         });
         
+        print('✅ Datos actualizados en state - empleadosFiltrados: ${empleadosFiltrados.length}');
+        
+        // ✅ Forzar una actualización adicional para asegurar que la tabla se redibuje
+        Future.microtask(() {
+          if (mounted) {
+            setState(() {
+              print('🔄 Forzando actualización final de UI después de cargar datos');
+            });
+          }
+        });
+        
         // ✅ Guardar los datos originales después de cargar SOLO si no hay cambios
-        if (!_hasUnsavedChanges) {
+        if (!tieneCambiosNoGuardados) {
           _saveOriginalData();
         }
       }
@@ -244,7 +287,7 @@ class _NominaScreenState extends State<NominaScreen> {
   
   /// Valida si hay cambios sin guardar antes de cambiar semana/cuadrilla
   Future<bool> _validarCambiosSinGuardar(String accion) async {
-    if (!_hasUnsavedChanges) return true;
+    if (!tieneCambiosNoGuardados) return true;
     
     final result = await showDialog<bool>(
       context: context,
@@ -613,7 +656,7 @@ class _NominaScreenState extends State<NominaScreen> {
             _selectedCuadrilla = {'nombre': '', 'empleados': []};
             empleadosFiltrados = [];
             empleadosNomina = [];
-            _hasUnsavedChanges = false;
+            marcarCambiosGuardados(); // Usar el método del mixin
           });
 
           await _cargarCuadrillasSemana(nuevaSemana['id']);
@@ -984,7 +1027,7 @@ class _NominaScreenState extends State<NominaScreen> {
       _bloqueadoPorFaltaSemana = true;
       _puedeArmarCuadrilla = false;
       _puedeCapturarDatos = false;
-      _hasUnsavedChanges = false;
+      marcarCambiosGuardados(); // Usar el método del mixin
       
       // 🔄 Cerrar diálogo de armar cuadrilla si está abierto
       showArmarCuadrilla = false;
@@ -1266,35 +1309,36 @@ class _NominaScreenState extends State<NominaScreen> {
     }
     
     if (!hayDatosValidos) {
-      final confirmar = await showDialog<bool>(
+      // Mostrar diálogo informativo que solo permite cancelar
+      await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
           title: Row(
             children: [
-              Icon(Icons.warning_amber_rounded, color: Colors.orange),
+              Icon(Icons.info_outline, color: Colors.blue),
               SizedBox(width: 8),
-              Text('Sin datos capturados'),
+              Text('Sin datos para guardar'),
             ],
           ),
           content: Text(
             'No se han detectado días trabajados en ningún empleado.\n\n'
-            '¿Deseas guardar de todas formas?'
+            'Primero captura algunos datos en la tabla antes de guardar.'
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: Text('Cancelar'),
-            ),
             ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-              child: Text('Guardar sin datos'),
+              onPressed: () => Navigator.of(context).pop(false),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+              ),
+              child: Text('Entendido'),
             ),
           ],
         ),
       );
       
-      if (confirmar != true) return;
+      // Siempre regresar sin guardar cuando no hay datos
+      return;
     }
     
     if (_startDate == null ||
@@ -1354,6 +1398,10 @@ class _NominaScreenState extends State<NominaScreen> {
       // Resetear el estado de cambios no guardados después de guardar exitosamente
       if (mounted) {
         _saveOriginalData();
+        marcarCambiosGuardados(); // ✅ Marcar como guardado
+        
+        // 🔄 Forzar actualización del Total semana después del guardado
+        _actualizarTotalSemana();
       }
     } catch (e) {
       if (mounted) {
@@ -1453,7 +1501,7 @@ class _NominaScreenState extends State<NominaScreen> {
       final emp = empleadosFiltrados[i];
       _originalNominaData[emp['id']] = Map<String, dynamic>.from(emp);
     }
-    _hasUnsavedChanges = false;
+    marcarCambiosGuardados(); // Usar el método del mixin
     
     // 🔧 También inicializar los datos temporales
     _initializeTempData();
@@ -1782,9 +1830,12 @@ class _NominaScreenState extends State<NominaScreen> {
     }
     
     // Detectar cambios no guardados
-    _hasUnsavedChanges = _detectUnsavedChanges();
+    bool hayCambios = _detectUnsavedChanges();
     
-    if (_hasUnsavedChanges) {
+    if (hayCambios) {
+      // Marcar que hay cambios
+      marcarCambiosNoGuardados();
+      
       final dialogResult = await _showUnsavedChangesDialog();
       
       // Si el usuario cancela (null), no hacer nada
@@ -1819,9 +1870,12 @@ class _NominaScreenState extends State<NominaScreen> {
   Future<void> _changeCuadrilla(Map<String, dynamic>? option) async {
     if (!mounted) return;
     
+    print('🔄 INICIANDO cambio de cuadrilla: ${option?['nombre'] ?? 'DESELECCIONAR'}');
+    
     setState(() {
       if (option == null) {
         // Deseleccionar cuadrilla
+        print('  ❌ Deseleccionando cuadrilla');
         _selectedCuadrilla = {
           'nombre': '',
           'empleados': [],
@@ -1836,13 +1890,11 @@ class _NominaScreenState extends State<NominaScreen> {
         // 🎯 Resetear estado de captura al deseleccionar cuadrilla
         _puedeCapturarDatos = false;
       } else {
-        // Seleccionar cuadrilla
+        // Seleccionar cuadrilla - SOLO actualizar referencias básicas
+        print('  ✅ Seleccionando cuadrilla: ${option['nombre']}');
         _selectedCuadrilla = option;
         cuadrillaSeleccionada = option;
-        empleadosFiltrados = List<Map<String, dynamic>>.from(option['empleados'] ?? []);
-        empleadosEnCuadrilla = List<Map<String, dynamic>>.from(option['empleados'] ?? []);
         empleadosDisponiblesFiltrados = List.from(todosLosEmpleados);
-        empleadosEnCuadrillaFiltrados = List.from(empleadosEnCuadrilla);
         _buscarDisponiblesController.clear();
         _buscarEnCuadrillaController.clear();
         
@@ -1853,16 +1905,21 @@ class _NominaScreenState extends State<NominaScreen> {
 
     // Cargar nómina solo si hay cuadrilla y semana seleccionada
     if (option != null && idSemanaSeleccionada != null) {
+      print('  🔄 Cargando datos desde BD...');
+      
       if (mounted) {
         setState(() {
           _selectedCuadrilla = option;
           cuadrillaSeleccionada = option;
           
-          // ✅ Siempre cargar desde BD para asegurar datos actualizados
+          // ✅ Resetear SOLO una vez antes de cargar desde BD
           empleadosNomina = [];
           empleadosFiltrados = [];
           empleadosNominaTemp = [];
+          empleadosEnCuadrilla = [];
+          empleadosEnCuadrillaFiltrados = [];
         });
+        print('  🔄 Listas reseteadas, cargando desde BD...');
       }
 
       // ✅ Cargar datos desde BD para obtener información completa
@@ -1879,6 +1936,9 @@ class _NominaScreenState extends State<NominaScreen> {
       }
       
       print('✅ Cuadrilla "${option['nombre']}" cargada con ${empleadosFiltrados.length} empleados');
+      print('📊 Datos finales empleadosFiltrados[0]: ${empleadosFiltrados.isNotEmpty ? empleadosFiltrados[0] : 'VACÍO'}');
+    } else {
+      print('❌ No se puede cargar: option=${option != null}, semana=${idSemanaSeleccionada != null}');
     }
   }
 
@@ -1894,16 +1954,27 @@ class _NominaScreenState extends State<NominaScreen> {
         
         // ✅ Actualizar directamente empleadosFiltrados (tabla principal)
         empleadosFiltrados[index][key] = processedValue;
-        _recalcularTotalesEmpleado(empleadosFiltrados[index]);
+        
+        // 🚫 NO recalcular aquí - dejar que NuevaTablaEditable se encargue del cálculo
+        // Solo recalcular si es un cambio en campos que no son totales calculados
+        if (!_isTotalField(key)) {
+          // Los totales los calculará NuevaTablaEditable automáticamente
+          print('📝 Campo actualizado por usuario: $key = $processedValue');
+        } else {
+          // Si es un total calculado, actualizar directamente sin recalcular
+          print('📊 Total actualizado por NuevaTablaEditable: $key = $processedValue');
+        }
         
         // ✅ Sincronizar con empleadosNominaTemp si existe
         if (index < empleadosNominaTemp.length) {
           empleadosNominaTemp[index][key] = processedValue;
-          _recalcularTotalesEmpleado(empleadosNominaTemp[index]);
+          // Tampoco recalcular aquí para evitar duplicación
         }
         
         // Detectar cambios para habilitar/deshabilitar el botón guardar
-        _hasUnsavedChanges = _detectUnsavedChanges();
+        if (_detectUnsavedChanges()) {
+          marcarCambiosNoGuardados();
+        }
       }
     });
   }
@@ -1916,6 +1987,13 @@ class _NominaScreenState extends State<NominaScreen> {
            key == 'totalNeto' || 
            key == 'debe' || 
            key == 'comedor';
+  }
+  
+  /// 🔧 Determina si un campo es un total calculado (no editable por el usuario)
+  bool _isTotalField(String key) {
+    return key == 'total' || 
+           key == 'subtotal' || 
+           key == 'totalNeto';
   }
 
   /// 🔧 Recalcula los totales de un empleado específico
@@ -1940,9 +2018,22 @@ class _NominaScreenState extends State<NominaScreen> {
     empleado['totalNeto'] = totalNeto;
   }
 
+  /// 🔄 Método para forzar la actualización del indicador Total semana
+  void _actualizarTotalSemana() {
+    // Forzar reconstrucción del widget de indicadores incrementando la key
+    setState(() {
+      _indicatorsUpdateKey++;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    return RawKeyboardListener(
+    return InterceptorSalidaNomina(
+      tieneCambiosNoGuardados: tieneCambiosNoGuardados,
+      onGuardar: _guardarTodosLosDatos,
+      onSalirSinGuardar: _salirSinGuardar,
+      mensajePersonalizado: 'Tienes cambios pendientes en la nómina. Los datos modificados se perderán si sales sin guardar.',
+      child: RawKeyboardListener(
       focusNode: FocusNode(),
       autofocus: true,
       onKey: _handleKeyEvent,
@@ -2042,6 +2133,7 @@ class _NominaScreenState extends State<NominaScreen> {
                         Expanded(
                           flex: 3,
                           child: NominaIndicatorsRow(
+                            key: ValueKey('indicators_$_indicatorsUpdateKey'),
                             empleadosFiltrados: empleadosFiltrados,
                             optionsCuadrilla: _optionsCuadrilla,
                             startDate: _startDate,
@@ -2055,16 +2147,13 @@ class _NominaScreenState extends State<NominaScreen> {
                       height: 24,
                     ), // Table section with modular design
                     Expanded(
-                      child: NominaMainTableSection(
+                      child: NominaTablaSeccionPrincipal(
                         empleadosFiltrados: empleadosFiltrados, // ✅ Siempre usar empleadosFiltrados
                         empleadosNomina: empleadosNomina, // ← ✅ Agregado aquí
                         startDate: _startDate,
                         endDate: _endDate,
                         onTableChange: _onFieldChanged,
                         onMostrarSemanasCerradas: _mostrarSemanasCerradas,
-                        cuadrillas: _optionsCuadrilla,
-                        cuadrillaSeleccionada: cuadrillaSeleccionada,
-                        onCuadrillaChanged: _handleCuadrillaChange,
                       ),
                     ), // Export section
                     const SizedBox(height: 24),
@@ -2074,7 +2163,7 @@ class _NominaScreenState extends State<NominaScreen> {
                       endDate: _endDate,
                       cuadrillaSeleccionada: cuadrillaSeleccionada,
                       empleadosFiltrados: empleadosFiltrados,
-                      onGuardar: guardarNomina,
+                      onGuardar: _guardarNomina,
                       // 🎯 Nueva propiedad para validación del flujo
                       puedeCapturarDatos: _puedeCapturarDatos,
                       // 🔄 Nueva propiedad para indicador de guardando
@@ -2090,19 +2179,20 @@ class _NominaScreenState extends State<NominaScreen> {
                 ),
               ),
             ),
-          ), // Overlay dialogs
-          if (showSemanasCerradas)
-            NominaHistorialSemanasCerradasWidget(
-              semanasCerradas: semanasCerradas,
-              onClose: () => setState(() => showSemanasCerradas = false),
-              onSemanaCerradaUpdated: (semanaActualizada) {
-                // Callback opcional para cuando se actualiza una semana cerrada
-                // Por ahora no necesitamos hacer nada adicional
-              },
-            ), // Diálogo de armar cuadrilla modularizado
-          if (showArmarCuadrilla)
-
-            NominaArmarCuadrillaWidget(
+            ),
+            // Overlay dialogs
+            if (showSemanasCerradas)
+              NominaHistorialSemanasCerradasWidget(
+                semanasCerradas: semanasCerradas,
+                onClose: () => setState(() => showSemanasCerradas = false),
+                onSemanaCerradaUpdated: (semanaActualizada) {
+                  // Callback opcional para cuando se actualiza una semana cerrada
+                  // Por ahora no necesitamos hacer nada adicional
+                },
+              ),
+            // Diálogo de armar cuadrilla modularizado
+            if (showArmarCuadrilla)
+              NominaArmarCuadrillaWidget(
               optionsCuadrilla: _optionsCuadrilla, // 🔧 Usar _optionsCuadrilla en lugar de cuadrillas
               selectedCuadrilla: cuadrillaSeleccionada ?? {},
               todosLosEmpleados: todosLosEmpleados,
@@ -2144,12 +2234,29 @@ class _NominaScreenState extends State<NominaScreen> {
                 // Cargar los datos completos de nómina usando la función existente
                 await cargarDatosNomina();
               },
+              onActualizarTablas: () {
+                // Actualizar las tablas después de guardar cambios en cuadrilla
+                setState(() {
+                  // Forzar rebuilding de la UI
+                });
+                
+                // Recalcular totales de los empleados
+                for (var empleado in empleadosFiltrados) {
+                  _recalcularTotalesEmpleado(empleado);
+                }
+                
+                // Marcar que hay cambios si es necesario
+                if (_detectUnsavedChanges()) {
+                  marcarCambiosNoGuardados();
+                }
+              },
               onClose: () => setState(() => showArmarCuadrilla = false),
               onMostrarDetallesEmpleado: _mostrarDetallesEmpleado,
             ),
           ],
         ),
       ),
+    ),
     );
   }
   void _mostrarResumenCuadrillasYCerrar() {
@@ -2273,5 +2380,87 @@ class _NominaScreenState extends State<NominaScreen> {
         onCancelar: () => Navigator.of(context).pop(),
       ),
     );
+  }
+
+  /// Método para guardar todos los datos (usado por el diálogo de cambios no guardados)
+  void _guardarTodosLosDatos() async {
+    try {
+      // Marcar que se están guardando los cambios
+      if (mounted) {
+        setState(() {
+          _isGuardando = true;
+        });
+      }
+      
+      // Llamar al método existente de guardado
+      await _guardarNomina();
+      
+      // Marcar que los cambios han sido guardados
+      marcarCambiosGuardados();
+      
+      // Mostrar mensaje de éxito
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 8),
+                Text('Todos los datos han sido guardados correctamente'),
+              ],
+            ),
+            backgroundColor: Colors.green.shade600,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+      
+    } catch (e) {
+      // Mostrar error si algo falla
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.white),
+                SizedBox(width: 8),
+                Expanded(child: Text('Error al guardar los datos: $e')),
+              ],
+            ),
+            backgroundColor: Colors.red.shade600,
+            duration: Duration(seconds: 5),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isGuardando = false;
+        });
+      }
+    }
+  }
+
+  /// Método para salir sin guardar (usado por el diálogo de cambios no guardados)
+  void _salirSinGuardar() {
+    // Limpiar los cambios no guardados
+    marcarCambiosGuardados();
+    
+    // Mostrar mensaje informativo
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.info_outline, color: Colors.white),
+              SizedBox(width: 8),
+              Text('Los cambios no guardados se han descartado'),
+            ],
+          ),
+          backgroundColor: Colors.orange.shade600,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
   }
 }

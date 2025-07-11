@@ -27,6 +27,8 @@ class NominaIndicatorsRow extends StatefulWidget {
 
 class _NominaIndicatorsRowState extends State<NominaIndicatorsRow> {
   double _totalSemana = 0.0;
+  bool _isCalculating = false;
+  bool _isDisposed = false;
 
   @override
   void initState() {
@@ -35,19 +37,58 @@ class _NominaIndicatorsRowState extends State<NominaIndicatorsRow> {
   }
 
   @override
+  void dispose() {
+    _isDisposed = true; // Marcar como eliminado
+    super.dispose();
+  }
+
+  @override
   void didUpdateWidget(NominaIndicatorsRow oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Recalcular cuando cambien los empleados filtrados o las cuadrillas
-    if (widget.empleadosFiltrados != oldWidget.empleadosFiltrados ||
-        widget.optionsCuadrilla != oldWidget.optionsCuadrilla ||
-        widget.semanaId != oldWidget.semanaId) {
+    
+    // 🛡️ No hacer nada si el widget está siendo eliminado
+    if (_isDisposed || !mounted) return;
+    
+    // Solo recalcular cuando cambien los empleados filtrados de manera significativa
+    // Evitar recálculos constantes durante transiciones
+    if (widget.empleadosFiltrados.length != oldWidget.empleadosFiltrados.length ||
+        widget.semanaId != oldWidget.semanaId ||
+        _shouldRecalculate(oldWidget)) {
+      
+      // 🕐 Recalcular inmediatamente, sin delay innecesario
+      _calcularTotalSemana();
+    }
+  }
+  
+  /// Determina si debe recalcular basado en cambios significativos en los datos
+  bool _shouldRecalculate(NominaIndicatorsRow oldWidget) {
+    // Solo recalcular si cambió la información significativa
+    return widget.startDate != oldWidget.startDate ||
+           widget.endDate != oldWidget.endDate ||
+           widget.empleadosFiltrados.length != oldWidget.empleadosFiltrados.length;
+  }
+
+  /// Función pública para forzar recálculo del total semana después de guardado
+  void actualizarTotalSemana() {
+    if (!_isDisposed && mounted && !_isCalculating) {
       _calcularTotalSemana();
     }
   }
 
-  /// Función pública para forzar recálculo del total semana
-  void actualizarTotalSemana() {
-    _calcularTotalSemana();
+  /// Función pública para cuando se inicia un guardado (mostrar loading)
+  void iniciarCalculoGuardado() {
+    if (!_isDisposed && mounted) {
+      setState(() {
+        _isCalculating = true;
+      });
+    }
+  }
+
+  /// Función pública para cuando termina un guardado (ocultar loading y recalcular)
+  void finalizarCalculoGuardado() {
+    if (!_isDisposed && mounted) {
+      _calcularTotalSemana(); // Esto automáticamente pondrá _isCalculating a false
+    }
   }
 
   /// Calcula el total neto de un empleado
@@ -84,6 +125,9 @@ class _NominaIndicatorsRowState extends State<NominaIndicatorsRow> {
 
   /// Calcula el acumulado de la cuadrilla actual
   double _calcularAcumuladoCuadrilla() {
+    // Si no hay empleados filtrados, retornar 0
+    if (widget.empleadosFiltrados.isEmpty) return 0.0;
+    
     // 🔧 Función auxiliar para convertir valores de manera segura
     num _safeParseNum(dynamic value) {
       if (value == null) return 0;
@@ -94,57 +138,200 @@ class _NominaIndicatorsRowState extends State<NominaIndicatorsRow> {
       return 0;
     }
 
-    return widget.empleadosFiltrados.fold<double>(
-      0,
-      (sum, emp) {
-        // Usar el totalNeto ya calculado en el empleado si existe, 
-        // de lo contrario calcularlo aquí
-        final totalNeto = emp['totalNeto'] != null 
-            ? _safeParseNum(emp['totalNeto']).toDouble()
-            : _calcularTotalEmpleado(emp);
-        return sum + totalNeto;
-      },
-    );
+    double total = 0.0;
+    
+    for (var emp in widget.empleadosFiltrados) {
+      // Usar el totalNeto ya calculado en el empleado si existe y es válido
+      if (emp['totalNeto'] != null) {
+        final totalNeto = _safeParseNum(emp['totalNeto']).toDouble();
+        total += totalNeto;
+      } else {
+        // Si no existe totalNeto, calcularlo aquí como fallback
+        final calculatedTotal = _calcularTotalEmpleado(emp);
+        total += calculatedTotal;
+      }
+    }
+    
+    print('🔍 Acumulado cuadrilla calculado: $total (${widget.empleadosFiltrados.length} empleados)');
+    return total;
   }
 
   /// Calcula el total de toda la semana obteniendo datos de la BD
   Future<void> _calcularTotalSemana() async {
-    if (widget.semanaId == null) {
-      setState(() {
-        _totalSemana = 0.0;
-      });
+    // 🛡️ Verificaciones de seguridad ANTES de cualquier operación
+    if (_isDisposed || !mounted) {
+      print('🚫 Cálculo cancelado: Widget desmontado');
       return;
     }
 
+    if (widget.semanaId == null) {
+      if (mounted && !_isDisposed) {
+        setState(() {
+          _totalSemana = 0.0;
+          _isCalculating = false;
+        });
+      }
+      return;
+    }
+
+    // 🔄 Marcar como calculando solo si el widget sigue montado
+    if (mounted && !_isDisposed) {
+      setState(() {
+        _isCalculating = true;
+      });
+    }
+
+    DatabaseService? db;
     try {
-      final db = DatabaseService();
+      // ⚡ Verificar otra vez antes de la operación costosa
+      if (_isDisposed || !mounted) {
+        print('🚫 Cálculo cancelado durante inicialización BD');
+        return;
+      }
+
+      db = DatabaseService();
       await db.connect();
+
+      // 🔍 Verificar antes de la consulta
+      if (_isDisposed || !mounted) {
+        print('🚫 Cálculo cancelado antes de consulta BD');
+        await db.close();
+        return;
+      }
 
       // Obtener el total neto de todas las cuadrillas de la semana
       final result = await db.connection.query(
         '''
-  SELECT total_semana
-    FROM resumen_nomina
-    WHERE id_semana = (SELECT MAX(id_semana) FROM resumen_nomina);
-        '''
-       
+        SELECT COALESCE(SUM(total_neto), 0) as total_semana
+        FROM nomina_empleados_semanal
+        WHERE id_semana = @semanaId;
+        ''',
+        substitutionValues: {'semanaId': widget.semanaId},
       );
 
-      await db.close();
+      // 🎯 VERIFICACIÓN CRÍTICA: Solo setState si el widget SIGUE montado
+      if (!_isDisposed && mounted) {
+        final totalFromDB = result.isNotEmpty
+            ? double.tryParse(result.first[0].toString()) ?? 0.0
+            : 0.0;
 
-     final totalFromDB = result.isNotEmpty
-  ? double.tryParse(result.first[0].toString()) ?? 0.0
-  : 0.0;
+        setState(() {
+          _totalSemana = totalFromDB;
+          _isCalculating = false; // ✅ IMPORTANTE: Detener la animación
+        });
+        
+        print('✅ Total semana actualizado correctamente: \$${_totalSemana.toStringAsFixed(2)}');
+      } else {
+        print('⚠️ Widget desmontado durante consulta - setState cancelado');
+      }
 
-setState(() {
-  _totalSemana = totalFromDB;
-});
     } catch (e) {
-      print('Error al calcular total semana: $e');
-      setState(() {
-        _totalSemana = 0.0;
-      });
+      print('❌ Error al calcular total semana: $e');
+      
+      // 🛡️ setState con protección incluso en errores + detener animación
+      if (!_isDisposed && mounted) {
+        setState(() {
+          _totalSemana = 0.0;
+          _isCalculating = false; // ✅ IMPORTANTE: Detener animación en errores también
+        });
+      }
+    } finally {
+      // 🧹 Siempre cerrar la conexión de BD
+      if (db != null) {
+        try {
+          await db.close();
+        } catch (e) {
+          print('⚠️ Error al cerrar conexión BD: $e');
+        }
+      }
     }
+  }
+
+  /// Construye un indicador de carga animado para el total de semana
+  Widget _buildLoadingIndicatorCard() {
+    return Container(
+      height: 120,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppDimens.cardRadius),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.shade200,
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Icono con animación
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.0, end: 1.0),
+            duration: const Duration(seconds: 1),
+            builder: (context, value, child) {
+              return Transform.rotate(
+                angle: value * 2 * 3.14159, // Rotación completa
+                child: Icon(
+                  Icons.monetization_on,
+                  size: 32,
+                  color: AppColors.greenDark.withOpacity(0.7),
+                ),
+              );
+            },
+          ),
+          
+          const SizedBox(height: 8),
+          
+          // Texto del título
+          Text(
+            'Total semana',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade600,
+            ),
+          ),
+          
+          const SizedBox(height: 4),
+          
+          // Indicador de progreso con puntos animados
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(3, (index) {
+              return TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0.0, end: 1.0),
+                duration: Duration(milliseconds: 600 + (index * 200)),
+                builder: (context, value, child) {
+                  return Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 2),
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: AppColors.greenDark.withOpacity(value),
+                      shape: BoxShape.circle,
+                    ),
+                  );
+                },
+              );
+            }),
+          ),
+          
+          const SizedBox(height: 4),
+          
+          // Texto de cargando
+          Text(
+            'Calculando...',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey.shade500,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -172,11 +359,13 @@ setState(() {
           ),
           const SizedBox(width: 16),
           Expanded(
-            child: IndicatorCard(
-              title: 'Total semana',
-              value: '\$${_totalSemana.toStringAsFixed(2)}',
-              icon: Icons.monetization_on,
-            ),
+            child: _isCalculating 
+                ? _buildLoadingIndicatorCard()
+                : IndicatorCard(
+                    title: 'Total semana',
+                    value: '\$${_totalSemana.toStringAsFixed(2)}',
+                    icon: Icons.monetization_on,
+                  ),
           ),
         ],
       ),

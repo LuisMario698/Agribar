@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_styles.dart';
-import '../widgets/editable_data_table.dart';
-import '../widgets/fullscreen_table_dialog.dart';
+import '../widgets/nomina_tabla_editable.dart';
+import '../widgets/nomina_tabla_dialogo_completo.dart';
 
 /// Widget modular para la sección principal de la tabla
 /// Incluye el header, controles y la tabla de nómina
@@ -39,7 +39,7 @@ class NominaMainTableSection extends StatelessWidget {
       context: context,
       barrierColor: Colors.black.withOpacity(0.2),
       builder: (context) {
-        return FullscreenTableDialog(
+        return NominaTablaDialogoCompleto(
           empleados: empleadosFiltrados,
           semanaSeleccionada: startDate != null && endDate != null
               ? DateTimeRange(start: startDate!, end: endDate!)
@@ -48,9 +48,6 @@ class NominaMainTableSection extends StatelessWidget {
           onClose: () => Navigator.of(context).pop(),
           horizontalController: modalHorizontal,
           verticalController: modalVertical,
-          cuadrillas: cuadrillas,
-          cuadrillaSeleccionada: cuadrillaSeleccionada,
-          onCuadrillaChanged: onCuadrillaChanged,
         );
       },
     );
@@ -135,7 +132,8 @@ class NominaMainTableSection extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: EditableDataTableWidget(
+                  child: NominaTablaEditable(
+                    key: ValueKey('table_${empleadosFiltrados.length}_${empleadosFiltrados.hashCode}'), // Forzar reconstrucción
                     empleados: empleadosFiltrados, // ✅ Usar empleadosFiltrados (misma fuente que tabla expandida)
                     semanaSeleccionada: startDate != null && endDate != null
                         ? DateTimeRange(start: startDate!, end: endDate!)

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_styles.dart';
 import 'indicator_card.dart';
-import 'editable_data_table.dart';
+import 'nomina_tabla_editable.dart';
 
 class HistorialSemanasWidget extends StatefulWidget {
   final List<Map<String, dynamic>> semanasCerradas;
@@ -507,7 +507,7 @@ class _HistorialSemanasWidgetState extends State<HistorialSemanasWidget> with Si
                                                       ),                                                      const SizedBox(height: 8),
                                                       Padding(
                                                         padding: const EdgeInsets.all(16),
-                                                        child: EditableDataTableWidget(
+                                                        child: NominaTablaEditable(
                                                           empleados: cuadrillas[cuadrillaSeleccionada]['empleados'],
                                                           readOnly: true,
                                                           semanaSeleccionada: DateTimeRange(
