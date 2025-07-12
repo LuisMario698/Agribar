@@ -4,7 +4,6 @@
 
 import 'package:agribar/services/database_service.dart';
 import 'package:flutter/material.dart';
-import 'Dashboard_screen.dart';
 import 'package:agribar/widgets/metric_card.dart';
 import 'package:agribar/widgets/chart_card.dart';
 
@@ -17,10 +16,14 @@ import 'package:agribar/widgets/chart_card.dart';
 class DashboardHomeContent extends StatefulWidget {
   final String userName; // Nombre del usuario actual
   final int userRole; // Rol del usuario (Admin, Supervisor, etc.)
+  final String tipoUsuario; // Tipo de usuario (Capturista, Supervisor, Administrador)
+  final List<String> seccionesPermitidas; // Secciones a las que tiene acceso
 
   const DashboardHomeContent({
     required this.userName,
     required this.userRole,
+    this.tipoUsuario = 'Usuario',
+    this.seccionesPermitidas = const [],
     Key? key,
   }) : super(key: key);
 
@@ -169,6 +172,20 @@ SELECT total_semana
     });
   }
 
+  /// Obtiene el color apropiado según el tipo de usuario
+  Color _getColorForTipoUsuario(String tipoUsuario) {
+    switch (tipoUsuario.toLowerCase()) {
+      case 'administrador':
+        return const Color(0xFF7BAE2F); // Verde
+      case 'supervisor':
+        return const Color(0xFF7B6A3A); // Marrón
+      case 'capturista':
+        return const Color(0xFF2B8DDB); // Azul
+      default:
+        return Colors.grey[600] ?? Colors.grey;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -218,7 +235,7 @@ SELECT total_semana
                             radius: 44,
                           ),
                           SizedBox(width: isSmallScreen ? 16 : 32),
-                          Column(
+                            Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
@@ -229,16 +246,23 @@ SELECT total_semana
                                 ),
                               ),
                               Text(
-                                widget.userRole.toString() == '1'
-                                    ? 'Administrador'
-                                    : widget.userRole.toString() == '2'
-                                        ? 'Supervisor'
-                                        : 'Empleado',
+                                widget.tipoUsuario.toUpperCase(),
                                 style: TextStyle(
                                   fontSize: isSmallScreen ? 16 : 22,
-                                  color: Colors.grey[600],
+                                  color: _getColorForTipoUsuario(widget.tipoUsuario),
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
+                              // if (widget.seccionesPermitidas.isNotEmpty) ...[
+                              //   SizedBox(height: 4),
+                              //   Text(
+                              //     'Acceso: ${widget.seccionesPermitidas.length} secciones',
+                              //     style: TextStyle(
+                              //       fontSize: isSmallScreen ? 12 : 14,
+                              //       color: Colors.grey[500],
+                              //     ),
+                              //   ),
+                              // ],
                             ],
                           ),
                         ],

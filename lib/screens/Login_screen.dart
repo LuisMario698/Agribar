@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'Dashboard_screen.dart';
-import '../services/usuarios_service.dart';
+import '../services/control_usuario_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -12,9 +12,20 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _userController = TextEditingController();
   final TextEditingController _passController = TextEditingController();
+  final FocusNode _userFocusNode = FocusNode();
+  final FocusNode _passwordFocusNode = FocusNode();
   String? _errorMessage;
   bool _isLoading = false;
   bool _obscurePassword = true;
+
+  @override
+  void dispose() {
+    _userController.dispose();
+    _passController.dispose();
+    _userFocusNode.dispose();
+    _passwordFocusNode.dispose();
+    super.dispose();
+  }
 
   Future<void> _login() async {
     final username = _userController.text.trim();
@@ -33,19 +44,23 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      final usuariosService = UsuariosService();
-      final usuario = await usuariosService.validarCredenciales(username, password);
+      final controlUsuarioService = ControlUsuarioService();
+      final usuario = await controlUsuarioService.validarCredencialesConTipo(username, password);
 
       if (usuario != null) {
-        // Obtener datos del usuario autenticado
+        // Obtener datos del usuario autenticado con permisos
         final nombre = usuario['nombre_usuario'];
-        final rol = usuario['rol']; // Ahora es int (id_rol)
+        final rol = usuario['rol']; // ID del rol
+        final tipoUsuario = usuario['tipo_usuario'];
+        final seccionesPermitidas = usuario['secciones_permitidas'];
 
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => DashboardScreen(
             nombre: nombre,
             rol: rol,
+            tipoUsuario: tipoUsuario,
+            seccionesPermitidas: seccionesPermitidas,
           )),
         );
       } else {
@@ -111,6 +126,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         label: 'Usuario',
                         icon: Icons.person_outline_rounded,
                         keyboardType: TextInputType.text,
+                        focusNode: _userFocusNode,
+                        nextFocusNode: _passwordFocusNode,
                       ),
                       const SizedBox(height: 24),
 
@@ -146,7 +163,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ],
                           ),
                         ),
-
+                      const SizedBox(height: 45),
                       // Botón de login
                       _buildLoginButton(),
                     ],
@@ -201,6 +218,8 @@ class _LoginScreenState extends State<LoginScreen> {
     required String label,
     required IconData icon,
     TextInputType keyboardType = TextInputType.text,
+    FocusNode? focusNode,
+    FocusNode? nextFocusNode,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -229,7 +248,16 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           child: TextField(
             controller: controller,
+            focusNode: focusNode,
             keyboardType: keyboardType,
+            textInputAction: nextFocusNode != null ? TextInputAction.next : TextInputAction.done,
+            onSubmitted: (value) {
+              if (nextFocusNode != null) {
+                FocusScope.of(context).requestFocus(nextFocusNode);
+              } else {
+                _login();
+              }
+            },
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w500,
@@ -308,7 +336,10 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           child: TextField(
             controller: _passController,
+            focusNode: _passwordFocusNode,
             obscureText: _obscurePassword,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (value) => _login(),
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w500,

@@ -17,6 +17,7 @@ import 'Configuracion_content.dart';
 import 'AppTheme.dart';
 import 'Cuadrilla_Content.dart';
 import 'Reportes_screen.dart';
+import 'Login_screen.dart';
 import '../services/database_migration_service.dart';
 import '../widgets/nomina_tab_change_interceptor.dart';
 
@@ -28,13 +29,19 @@ class DashboardScreen extends StatefulWidget {
   final AppTheme appTheme; // Tema actual de la aplicación
   final void Function(AppTheme)?
   onThemeChanged; // Callback para cambiar el tema
- final String nombre;
+  final String nombre;
   final int rol;
+  final String? tipoUsuario;
+  final List<String>? seccionesPermitidas;
+  
   const DashboardScreen({
     super.key,
     this.appTheme = AppTheme.light, // Por defecto usa el tema claro
     this.onThemeChanged,
-     required this.nombre, required this.rol
+    required this.nombre, 
+    required this.rol,
+    this.tipoUsuario,
+    this.seccionesPermitidas,
   });
 
   @override
@@ -56,33 +63,62 @@ class _DashboardScreenState extends State<DashboardScreen> with NominaTabChangeG
 
   /// Lista de elementos del menú lateral
   /// Cada elemento contiene un ícono y una etiqueta
-  final List<_SidebarItemData> menuItems = [
-    _SidebarItemData(icon: Icons.home, label: 'Dashboard'), // Panel principal
+  final List<_SidebarItemData> _allMenuItems = [
+    _SidebarItemData(icon: Icons.home, label: 'Dashboard', seccion: 'dashboard'), // Panel principal
     _SidebarItemData(
       icon: Icons.people,
       label: 'Empleados',
+      seccion: 'empleados',
     ), // Gestión de empleados
     _SidebarItemData(
       icon: Icons.groups,
       label: 'Cuadrillas',
+      seccion: 'cuadrillas',
     ), // Gestión de cuadrillas
     _SidebarItemData(
       icon: Icons.event_note,
       label: 'Actividades',
+      seccion: 'actividades',
     ), // Registro de actividades
     _SidebarItemData(
       icon: Icons.attach_money,
       label: 'Nomina',
+      seccion: 'nomina',
     ), // Gestión de nómina
     _SidebarItemData(
       icon: Icons.bar_chart,
       label: 'Reportes',
+      seccion: 'reportes',
     ), // Generación de reportes
     _SidebarItemData(
       icon: Icons.settings,
       label: 'Configuraciones',
+      seccion: 'configuracion',
     ), // Configuración del sistema
   ];
+
+  /// Lista filtrada de elementos del menú según permisos del usuario
+  List<_SidebarItemData> get menuItems {
+    if (widget.seccionesPermitidas == null) {
+      // Si no hay permisos específicos, mostrar todo (compatibilidad)
+      return _allMenuItems;
+    }
+
+    // Filtrar elementos según permisos
+    List<_SidebarItemData> itemsPermitidos = [];
+    
+    for (var item in _allMenuItems) {
+      if (item.seccion == 'dashboard') {
+        // Dashboard siempre visible
+        itemsPermitidos.add(item);
+      } else if (widget.seccionesPermitidas!.contains(item.seccion)) {
+        // Solo agregar si tiene permisos
+        itemsPermitidos.add(item);
+      }
+    }
+    
+    return itemsPermitidos;
+  }
 
   @override
   void initState() {
@@ -199,7 +235,12 @@ class _DashboardScreenState extends State<DashboardScreen> with NominaTabChangeG
   Widget _getBodyContent() {
     switch (selectedIndex) {
       case 0:
-        return DashboardHomeContent(userName: widget.nombre,userRole: widget.rol,);
+        return DashboardHomeContent(
+          userName: widget.nombre,
+          userRole: widget.rol,
+          tipoUsuario: widget.tipoUsuario ?? 'Usuario',
+          seccionesPermitidas: widget.seccionesPermitidas ?? [],
+        );
       case 1:
         return EmpleadosContent();
       case 2:
@@ -228,6 +269,175 @@ class _DashboardScreenState extends State<DashboardScreen> with NominaTabChangeG
           ),
         );
     }
+  }
+
+  /// Construye la card del usuario y el botón de cerrar sesión
+  Widget _buildUserCard(bool isDark, Color sidebarColor, Color sidebarText) {
+    // Obtener el color del tipo de usuario usando ControlUsuarioService
+    Color getUserTypeColor() {
+      if (widget.tipoUsuario != null) {
+        switch (widget.tipoUsuario!.toLowerCase()) {
+          case 'administrador':
+            return Color(0xFF7BAE2F); // Verde
+          case 'supervisor':
+            return Color(0xFF7B6A3A); // Marrón
+          case 'capturista':
+            return Color(0xFF2B8DDB); // Azul
+          default:
+            return Color(0xFF6B7280); // Gris
+        }
+      }
+      return Color(0xFF6B7280); // Gris por defecto
+    }
+
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Column(
+        children: [
+          // Separador
+          Container(
+            height: 1,
+            margin: EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.white.withOpacity(0.1) : Colors.grey.withOpacity(0.3),
+            ),
+          ),
+          // Card del usuario
+          Container(
+            padding: EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: isDark ? Color(0xFF2D2D2D) : Color(0xFFF8F9FA),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isDark ? Colors.white.withOpacity(0.1) : Colors.grey.withOpacity(0.2),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    // Avatar con color del tipo de usuario
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: getUserTypeColor(),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Icon(
+                        Icons.person,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                    ),
+                    SizedBox(width: 12),
+                    // Información del usuario
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.nombre,
+                            style: TextStyle(
+                              color: sidebarText,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            widget.tipoUsuario ?? 'Usuario',
+                            style: TextStyle(
+                              color: getUserTypeColor(),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 16),
+                // Botón de cerrar sesión
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _showLogoutDialog(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red.withOpacity(0.9),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    icon: Icon(Icons.logout, size: 18),
+                    label: Text(
+                      'Cerrar sesión',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Muestra el diálogo de confirmación para cerrar sesión
+  void _showLogoutDialog() {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black54,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.logout, color: Colors.red, size: 24),
+            SizedBox(width: 8),
+            Text('Cerrar sesión'),
+          ],
+        ),
+        content: Text(
+          '¿Estás seguro que deseas cerrar sesión?',
+          style: TextStyle(fontSize: 16),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(
+              'Cancelar',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(
+                  builder: (context) => const LoginScreen(),
+                ),
+                (route) => false,
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: Text('Cerrar sesión'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -303,6 +513,8 @@ class _DashboardScreenState extends State<DashboardScreen> with NominaTabChangeG
                     ),
                   ),
                 ),
+                // Card del usuario y botón de cerrar sesión
+                _buildUserCard(isDark, sidebarColor, sidebarText),
               ],
             ),
           ),
@@ -317,7 +529,12 @@ class _DashboardScreenState extends State<DashboardScreen> with NominaTabChangeG
 class _SidebarItemData {
   final IconData icon;
   final String label;
-  const _SidebarItemData({required this.icon, required this.label});
+  final String seccion;
+  const _SidebarItemData({
+    required this.icon, 
+    required this.label, 
+    required this.seccion,
+  });
 }
 
 class _SidebarItem extends StatelessWidget {
@@ -402,119 +619,3 @@ class _SidebarItem extends StatelessWidget {
     );
   }
 }
-
-class _MetricCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData? icon;
-  final Color? iconColor;
-  final Color? valueColor;
-  final double fontSize;
-  const _MetricCard({
-    required this.title,
-    required this.value, this.icon, this.iconColor, this.valueColor, required this.fontSize,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 12,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 22,
-              color: Colors.grey[700],
-              fontWeight: FontWeight.w400,
-            ),
-          ),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: fontSize,
-                  fontWeight: FontWeight.bold,
-                  color: valueColor ?? Colors.black,
-                ),
-              ),
-              if (icon != null) ...[
-                SizedBox(width: 8),
-                Icon(icon, color: iconColor ?? Colors.black, size: 32),
-              ],
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ChartCard extends StatelessWidget {
-  final String title;
-  final Widget child;
-  const _ChartCard({required this.title, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 12,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-              ),
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text('Abr', style: TextStyle(fontSize: 14)),
-              ),
-            ],
-          ),
-          SizedBox(height: 16),
-          child,
-        ],
-      ),
-    );
-  }
-}
-

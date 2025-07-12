@@ -1,6 +1,5 @@
-// import 'package:agribar/screens/Login_screen.dart'; // 🚧 TEMPORAL: Comentado para pruebas
-import 'package:agribar/screens/Dashboard_screen.dart';
 import 'package:agribar/screens/Login_screen.dart';
+import 'package:agribar/screens/Dashboard_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:agribar/theme/app_styles.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -66,10 +65,8 @@ class _MainAppState extends State<MainApp> {
       theme: AppThemes.light,
       darkTheme: AppThemes.dark,
       themeMode: _themeMode,
-      // 🚧 TEMPORAL: Saltar login para pruebas - cambiar a LoginScreen() en producción
-      home: const LoginScreen(
-        // Temporal para testing (1 = admin, 2 = usuario)
-      ),
+      // ✅ Login habilitado - Los usuarios deben autenticarse
+      home: const LoginScreen(),
       
       // 🔧 Configuración para mejorar el manejo de eventos de teclado
       debugShowCheckedModeBanner: false,

@@ -1,580 +1,0 @@
-PGDMP  "                    }             AGRIBAR    17.5    17.5 w    v           0    0    ENCODING    ENCODING        SET client_encoding = 'UTF8';
-                           false            w           0    0 
-   STDSTRINGS 
-   STDSTRINGS     (   SET standard_conforming_strings = 'on';
-                           false            x           0    0 
-   SEARCHPATH 
-   SEARCHPATH     8   SELECT pg_catalog.set_config('search_path', '', false);
-                           false            y           1262    16384     AGRIBAR    DATABASE     |   CREATE DATABASE "AGRIBAR" WITH TEMPLATE = template0 ENCODING = 'UTF8' LOCALE_PROVIDER = libc LOCALE = 'Spanish_Spain.1252';
-    DROP DATABASE "AGRIBAR";
-                     postgres    false            õ            1255    24871    actualizar_total_neto_semana()    FUNCTION       CREATE FUNCTION public.actualizar_total_neto_semana() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-DECLARE
-  semana_id INTEGER;
-BEGIN
-  -- Detecta si fue INSERT o UPDATE
-  IF (TG_OP = 'INSERT' OR TG_OP = 'UPDATE') THEN
-    semana_id := NEW.id_semana;
-  ELSE
-    semana_id := OLD.id_semana;
-  END IF;
-
-  -- Calcula la suma de total_neto para la semana
-  INSERT INTO resumen_nomina(id_semana, total_semana)
-  VALUES (
-    semana_id,
-    (SELECT COALESCE(SUM(total_neto),0) FROM nomina_empleados_semanal WHERE id_semana = semana_id)
-  )
-  ON CONFLICT (id_semana)
-  DO UPDATE SET total_semana = EXCLUDED.total_semana;
-
-  RETURN NULL;
-END;
-$$;
- 5   DROP FUNCTION public.actualizar_total_neto_semana();
-       public               postgres    false            ô            1255    24815 7   obtener_nomina_por_cuadrilla_y_semana(integer, integer)    FUNCTION     ï  CREATE FUNCTION public.obtener_nomina_por_cuadrilla_y_semana(semanaid integer, cuadrillaid integer) RETURNS TABLE(id_empleado integer, nombre text, codigo text, dia_1 integer, dia_2 integer, dia_3 integer, dia_4 integer, dia_5 integer, dia_6 integer, dia_7 integer, total integer, debe integer, subtotal integer, comedor boolean)
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-  RETURN QUERY
-  SELECT 
-    e.id_empleado,
-    e.nombre,
-    e.codigo,
-    n.dia_1,
-    n.dia_2,
-    n.dia_3,
-    n.dia_4,
-    n.dia_5,
-    n.dia_6,
-    n.dia_7,
-    n.total,
-    n.debe,
-    n.subtotal,
-    n.comedor
-  FROM nomina_empleados_semanal n
-  INNER JOIN empleados e ON e.id_empleado = n.id_empleado
-  WHERE n.id_semana = semanaId AND n.id_cuadrilla = cuadrillaId;
-END;
-$$;
- c   DROP FUNCTION public.obtener_nomina_por_cuadrilla_y_semana(semanaid integer, cuadrillaid integer);
-       public               postgres    false            ä            1259    16546 
-   actividades    TABLE     ¶   CREATE TABLE public.actividades (
-    id_actividad integer NOT NULL,
-    clave character varying(20),
-    nombre character varying(100),
-    importe numeric(10,2),
-    fecha date
-);
-    DROP TABLE public.actividades;
-       public         heap r       postgres    false            ã            1259    16545    actividades_id_actividad_seq    SEQUENCE     ”   CREATE SEQUENCE public.actividades_id_actividad_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
- 3   DROP SEQUENCE public.actividades_id_actividad_seq;
-       public               postgres    false    228            z           0    0    actividades_id_actividad_seq    SEQUENCE OWNED BY     ]   ALTER SEQUENCE public.actividades_id_actividad_seq OWNED BY public.actividades.id_actividad;
-          public               postgres    false    227            â            1259    16536 
-   cuadrillas    TABLE       CREATE TABLE public.cuadrillas (
-    id_cuadrilla integer NOT NULL,
-    clave character varying(20) NOT NULL,
-    nombre character varying(100) NOT NULL,
-    grupo character varying(100),
-    actividad character varying(100),
-    estado boolean DEFAULT true
-);
-    DROP TABLE public.cuadrillas;
-       public         heap r       postgres    false            á            1259    16535    cuadrillas_id_cuadrilla_seq    SEQUENCE     “   CREATE SEQUENCE public.cuadrillas_id_cuadrilla_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
- 2   DROP SEQUENCE public.cuadrillas_id_cuadrilla_seq;
-       public               postgres    false    226            {           0    0    cuadrillas_id_cuadrilla_seq    SEQUENCE OWNED BY     [   ALTER SEQUENCE public.cuadrillas_id_cuadrilla_seq OWNED BY public.cuadrillas.id_cuadrilla;
-          public               postgres    false    225            ì            1259    16598    cuadrillas_nomina    TABLE     œ   CREATE TABLE public.cuadrillas_nomina (
-    id integer NOT NULL,
-    id_semana integer,
-    id_cuadrilla integer,
-    total_pago numeric(10,2) DEFAULT 0
-);
- %   DROP TABLE public.cuadrillas_nomina;
-       public         heap r       postgres    false            ë            1259    16597    cuadrillas_nomina_id_seq    SEQUENCE        CREATE SEQUENCE public.cuadrillas_nomina_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
- /   DROP SEQUENCE public.cuadrillas_nomina_id_seq;
-       public               postgres    false    236            |           0    0    cuadrillas_nomina_id_seq    SEQUENCE OWNED BY     U   ALTER SEQUENCE public.cuadrillas_nomina_id_seq OWNED BY public.cuadrillas_nomina.id;
-          public               postgres    false    235            Þ            1259    16510    datos_laborales    TABLE     ~  CREATE TABLE public.datos_laborales (
-    id_datos_laborales integer NOT NULL,
-    id_empleado integer,
-    tipo character varying(50),
-    id_cuadrilla integer,
-    fecha_ingreso date,
-    empresa character varying(100),
-    puesto character varying(100),
-    registro_patronal character varying(100),
-    inactivo boolean DEFAULT false,
-    deshabilitado boolean DEFAULT false
-);
- #   DROP TABLE public.datos_laborales;
-       public         heap r       postgres    false            Ý            1259    16509 &   datos_laborales_id_datos_laborales_seq    SEQUENCE     ž   CREATE SEQUENCE public.datos_laborales_id_datos_laborales_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
- =   DROP SEQUENCE public.datos_laborales_id_datos_laborales_seq;
-       public               postgres    false    222            }           0    0 &   datos_laborales_id_datos_laborales_seq    SEQUENCE OWNED BY     q   ALTER SEQUENCE public.datos_laborales_id_datos_laborales_seq OWNED BY public.datos_laborales.id_datos_laborales;
-          public               postgres    false    221            à            1259    16524    datos_nomina    TABLE        CREATE TABLE public.datos_nomina (
-    id_datos_nomina integer NOT NULL,
-    id_empleado integer,
-    sueldo numeric(10,2),
-    domingo_laboral numeric(10,2),
-    descuento_comedor numeric(5,2),
-    tipo_descuento_infonavit character varying(100),
-    descuento_infonavit numeric(5,2)
-);
-     DROP TABLE public.datos_nomina;
-       public         heap r       postgres    false            ß            1259    16523     datos_nomina_id_datos_nomina_seq    SEQUENCE     ˜   CREATE SEQUENCE public.datos_nomina_id_datos_nomina_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
- 7   DROP SEQUENCE public.datos_nomina_id_datos_nomina_seq;
-       public               postgres    false    224            ~           0    0     datos_nomina_id_datos_nomina_seq    SEQUENCE OWNED BY     e   ALTER SEQUENCE public.datos_nomina_id_datos_nomina_seq OWNED BY public.datos_nomina.id_datos_nomina;
-          public               postgres    false    223            Ü            1259    16499 	   empleados    TABLE       CREATE TABLE public.empleados (
-    id_empleado integer NOT NULL,
-    codigo character varying(20) NOT NULL,
-    nombre character varying(100) NOT NULL,
-    apellido_paterno character varying(100) NOT NULL,
-    apellido_materno character varying(100),
-    curp character varying(20) NOT NULL,
-    rfc character varying(20),
-    nss character varying(20),
-    estado_origen character varying(100)
-);
-    DROP TABLE public.empleados;
-       public         heap r       postgres    false            Û            1259    16498    empleados_id_empleado_seq    SEQUENCE     ‘   CREATE SEQUENCE public.empleados_id_empleado_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
- 0   DROP SEQUENCE public.empleados_id_empleado_seq;
-       public               postgres    false    220                       0    0    empleados_id_empleado_seq    SEQUENCE OWNED BY     W   ALTER SEQUENCE public.empleados_id_empleado_seq OWNED BY public.empleados.id_empleado;
-          public               postgres    false    219            î            1259    16616    empleados_nomina    TABLE     L  CREATE TABLE public.empleados_nomina (
-    id integer NOT NULL,
-    id_cuadrilla_nomina integer,
-    id_empleado integer,
-    dias_trabajados integer,
-    horas_extra integer,
-    sueldo_diario numeric(10,2),
-    debe numeric(10,2) DEFAULT 0,
-    comedor boolean DEFAULT false,
-    subtotal numeric(10,2),
-    neto numeric(10,2)
-);
- $   DROP TABLE public.empleados_nomina;
-       public         heap r       postgres    false            í            1259    16615    empleados_nomina_id_seq    SEQUENCE        CREATE SEQUENCE public.empleados_nomina_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
- .   DROP SEQUENCE public.empleados_nomina_id_seq;
-       public               postgres    false    238            €           0    0    empleados_nomina_id_seq    SEQUENCE OWNED BY     S   ALTER SEQUENCE public.empleados_nomina_id_seq OWNED BY public.empleados_nomina.id;
-          public               postgres    false    237            ò            1259    24817    nomina_empleados_historial    TABLE        CREATE TABLE public.nomina_empleados_historial (
-    id integer NOT NULL,
-    id_empleado integer NOT NULL,
-    id_semana integer NOT NULL,
-    id_cuadrilla integer NOT NULL,
-    dia_1 integer DEFAULT 0,
-    dia_2 integer DEFAULT 0,
-    dia_3 integer DEFAULT 0,
-    dia_4 integer DEFAULT 0,
-    dia_5 integer DEFAULT 0,
-    dia_6 integer DEFAULT 0,
-    total integer DEFAULT 0,
-    debe integer DEFAULT 0,
-    subtotal integer DEFAULT 0,
-    comedor integer DEFAULT 0.00,
-    total_neto integer DEFAULT 0,
-    fecha_cierre timestamp without time zone DEFAULT now(),
-    usuario_cierre character varying(100) DEFAULT 'sistema'::character varying,
-    dia_7 integer,
-    act_1 integer,
-    act_2 integer,
-    act_3 integer,
-    act_4 integer,
-    act_5 integer,
-    act_6 integer,
-    act_7 integer
-);
- .   DROP TABLE public.nomina_empleados_historial;
-       public         heap r       postgres    false            ñ            1259    24816 !   nomina_empleados_historial_id_seq    SEQUENCE     ™   CREATE SEQUENCE public.nomina_empleados_historial_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
- 8   DROP SEQUENCE public.nomina_empleados_historial_id_seq;
-       public               postgres    false    242                       0    0 !   nomina_empleados_historial_id_seq    SEQUENCE OWNED BY     g   ALTER SEQUENCE public.nomina_empleados_historial_id_seq OWNED BY public.nomina_empleados_historial.id;
-          public               postgres    false    241            ð            1259    24781    nomina_empleados_semanal    TABLE     (  CREATE TABLE public.nomina_empleados_semanal (
-    id_nomina integer NOT NULL,
-    id_empleado integer NOT NULL,
-    id_semana integer NOT NULL,
-    id_cuadrilla integer NOT NULL,
-    dia_1 numeric(10,2) DEFAULT 0,
-    dia_2 numeric(10,2) DEFAULT 0,
-    dia_3 numeric(10,2) DEFAULT 0,
-    dia_4 numeric(10,2) DEFAULT 0,
-    dia_5 numeric(10,2) DEFAULT 0,
-    dia_6 numeric(10,2) DEFAULT 0,
-    dia_7 numeric(10,2) DEFAULT 0,
-    total numeric(10,2) DEFAULT 0,
-    debe numeric(10,2) DEFAULT 0,
-    comedor numeric(10,2),
-    subtotal numeric(10,2) DEFAULT 0,
-    total_neto numeric(10,2) DEFAULT 0,
-    actualizado_en timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    act_1 integer,
-    act_2 integer,
-    act_3 integer,
-    act_4 integer,
-    act_5 integer,
-    act_6 integer,
-    act_7 integer
-);
- ,   DROP TABLE public.nomina_empleados_semanal;
-       public         heap r       postgres    false            ï            1259    24780 &   nomina_empleados_semanal_id_nomina_seq    SEQUENCE     ž   CREATE SEQUENCE public.nomina_empleados_semanal_id_nomina_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
- =   DROP SEQUENCE public.nomina_empleados_semanal_id_nomina_seq;
-       public               postgres    false    240            ‚           0    0 &   nomina_empleados_semanal_id_nomina_seq    SEQUENCE OWNED BY     q   ALTER SEQUENCE public.nomina_empleados_semanal_id_nomina_seq OWNED BY public.nomina_empleados_semanal.id_nomina;
-          public               postgres    false    239            è            1259    16576     nominas    TABLE       CREATE TABLE public.nominas (
-    id_nomina integer NOT NULL,
-    id_empleado integer,
-    semana character varying(20),
-    dias_trabajados integer,
-    total numeric(10,2),
-    debe numeric(10,2),
-    subtotal numeric(10,2),
-    comedor numeric(10,2),
-    neto numeric(10,2)
-);
-    DROP TABLE public.nominas;
-       public         heap r       postgres    false            ç            1259    16575    nominas_id_nomina_seq    SEQUENCE        CREATE SEQUENCE public.nominas_id_nomina_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
- ,   DROP SEQUENCE public.nominas_id_nomina_seq;
-       public               postgres    false    232            ƒ           0    0    nominas_id_nomina_seq    SEQUENCE OWNED BY     O   ALTER SEQUENCE public.nominas_id_nomina_seq OWNED BY public.nominas.id_nomina;
-          public               postgres    false    231            æ            1259    16553    registro_actividades    TABLE     Q  CREATE TABLE public.registro_actividades (
-    id_registro integer NOT NULL,
-    id_empleado integer,
-    id_actividad integer,
-    id_cuadrilla integer,
-    dia_semana integer,
-    horas numeric(4,2),
-    total_dia numeric(10,2),
-    CONSTRAINT registro_actividades_dia_semana_check CHECK (((dia_semana >= 1) AND (dia_semana <= 7)))
-);
- (   DROP TABLE public.registro_actividades;
-       public         heap r       postgres    false            å            1259    16552 $   registro_actividades_id_registro_seq    SEQUENCE     œ   CREATE SEQUENCE public.registro_actividades_id_registro_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
- ;   DROP SEQUENCE public.registro_actividades_id_registro_seq;
-       public               postgres    false    230            „           0    0 $   registro_actividades_id_registro_seq    SEQUENCE OWNED BY     m   ALTER SEQUENCE public.registro_actividades_id_registro_seq OWNED BY public.registro_actividades.id_registro;
-          public               postgres    false    229            ó            1259    24863    resumen_nomina    TABLE     k   CREATE TABLE public.resumen_nomina (
-    id_semana integer NOT NULL,
-    total_semana numeric DEFAULT 0
-);
- "   DROP TABLE public.resumen_nomina;
-       public         heap r       postgres    false            ê            1259    16589    semanas_nomina    TABLE     P  CREATE TABLE public.semanas_nomina (
-    id_semana integer NOT NULL,
-    fecha_inicio date NOT NULL,
-    fecha_fin date NOT NULL,
-    esta_cerrada boolean DEFAULT false,
-    autorizado_por character varying(100),
-    fecha_autorizacion timestamp without time zone,
-    creado_en timestamp without time zone DEFAULT CURRENT_TIMESTAMP
-);
- "   DROP TABLE public.semanas_nomina;
-       public         heap r       postgres    false            é            1259    16588    semanas_nomina_id_semana_seq    SEQUENCE     ”   CREATE SEQUENCE public.semanas_nomina_id_semana_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
- 3   DROP SEQUENCE public.semanas_nomina_id_semana_seq;
-       public               postgres    false    234            …           0    0    semanas_nomina_id_semana_seq    SEQUENCE OWNED BY     ]   ALTER SEQUENCE public.semanas_nomina_id_semana_seq OWNED BY public.semanas_nomina.id_semana;
-          public               postgres    false    233            Ú            1259    16487    usuarios    TABLE     ~  CREATE TABLE public.usuarios (
-    id_usuario integer NOT NULL,
-    nombre_usuario character varying(100) NOT NULL,
-    correo character varying(150) NOT NULL,
-    "contraseÃ±a" text NOT NULL,
-    rol character varying(50) NOT NULL,
-    CONSTRAINT usuarios_rol_check CHECK (((rol)::text = ANY ((ARRAY['capturista'::character varying, 'supervisor'::character varying])::text[])))
-);
-    DROP TABLE public.usuarios;
-       public         heap r       postgres    false            Ù            1259    16486    usuarios_id_usuario_seq    SEQUENCE        CREATE SEQUENCE public.usuarios_id_usuario_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
- .   DROP SEQUENCE public.usuarios_id_usuario_seq;
-       public               postgres    false    218            †           0    0    usuarios_id_usuario_seq    SEQUENCE OWNED BY     S   ALTER SEQUENCE public.usuarios_id_usuario_seq OWNED BY public.usuarios.id_usuario;
-          public               postgres    false    217            k           2604    24837    actividades id_actividad     DEFAULT     „   ALTER TABLE ONLY public.actividades ALTER COLUMN id_actividad SET DEFAULT nextval('public.actividades_id_actividad_seq'::regclass);
- G   ALTER TABLE public.actividades ALTER COLUMN id_actividad DROP DEFAULT;
-       public               postgres    false    228    227    228            i           2604    24838    cuadrillas id_cuadrilla     DEFAULT     ‚   ALTER TABLE ONLY public.cuadrillas ALTER COLUMN id_cuadrilla SET DEFAULT nextval('public.cuadrillas_id_cuadrilla_seq'::regclass);
- F   ALTER TABLE public.cuadrillas ALTER COLUMN id_cuadrilla DROP DEFAULT;
-       public               postgres    false    225    226    226            q           2604    24839    cuadrillas_nomina id     DEFAULT     |   ALTER TABLE ONLY public.cuadrillas_nomina ALTER COLUMN id SET DEFAULT nextval('public.cuadrillas_nomina_id_seq'::regclass);
- C   ALTER TABLE public.cuadrillas_nomina ALTER COLUMN id DROP DEFAULT;
-       public               postgres    false    236    235    236            e           2604    24840 "   datos_laborales id_datos_laborales     DEFAULT     ˜   ALTER TABLE ONLY public.datos_laborales ALTER COLUMN id_datos_laborales SET DEFAULT nextval('public.datos_laborales_id_datos_laborales_seq'::regclass);
- Q   ALTER TABLE public.datos_laborales ALTER COLUMN id_datos_laborales DROP DEFAULT;
-       public               postgres    false    222    221    222            h           2604    24841    datos_nomina id_datos_nomina     DEFAULT     Œ   ALTER TABLE ONLY public.datos_nomina ALTER COLUMN id_datos_nomina SET DEFAULT nextval('public.datos_nomina_id_datos_nomina_seq'::regclass);
- K   ALTER TABLE public.datos_nomina ALTER COLUMN id_datos_nomina DROP DEFAULT;
-       public               postgres    false    224    223    224            d           2604    24842    empleados id_empleado     DEFAULT     ~   ALTER TABLE ONLY public.empleados ALTER COLUMN id_empleado SET DEFAULT nextval('public.empleados_id_empleado_seq'::regclass);
- D   ALTER TABLE public.empleados ALTER COLUMN id_empleado DROP DEFAULT;
-       public               postgres    false    220    219    220            s           2604    24843    empleados_nomina id     DEFAULT     z   ALTER TABLE ONLY public.empleados_nomina ALTER COLUMN id SET DEFAULT nextval('public.empleados_nomina_id_seq'::regclass);
- B   ALTER TABLE public.empleados_nomina ALTER COLUMN id DROP DEFAULT;
-       public               postgres    false    238    237    238            ƒ           2604    24844    nomina_empleados_historial id     DEFAULT     Ž   ALTER TABLE ONLY public.nomina_empleados_historial ALTER COLUMN id SET DEFAULT nextval('public.nomina_empleados_historial_id_seq'::regclass);
- L   ALTER TABLE public.nomina_empleados_historial ALTER COLUMN id DROP DEFAULT;
-       public               postgres    false    242    241    242            v           2604    24845 "   nomina_empleados_semanal id_nomina     DEFAULT     ˜   ALTER TABLE ONLY public.nomina_empleados_semanal ALTER COLUMN id_nomina SET DEFAULT nextval('public.nomina_empleados_semanal_id_nomina_seq'::regclass);
- Q   ALTER TABLE public.nomina_empleados_semanal ALTER COLUMN id_nomina DROP DEFAULT;
-       public               postgres    false    239    240    240            m           2604    24846    nominas id_nomina     DEFAULT     v   ALTER TABLE ONLY public.nominas ALTER COLUMN id_nomina SET DEFAULT nextval('public.nominas_id_nomina_seq'::regclass);
- @   ALTER TABLE public.nominas ALTER COLUMN id_nomina DROP DEFAULT;
-       public               postgres    false    231    232    232            l           2604    24847     registro_actividades id_registro     DEFAULT     ”   ALTER TABLE ONLY public.registro_actividades ALTER COLUMN id_registro SET DEFAULT nextval('public.registro_actividades_id_registro_seq'::regclass);
- O   ALTER TABLE public.registro_actividades ALTER COLUMN id_registro DROP DEFAULT;
-       public               postgres    false    229    230    230            n           2604    24848    semanas_nomina id_semana     DEFAULT     „   ALTER TABLE ONLY public.semanas_nomina ALTER COLUMN id_semana SET DEFAULT nextval('public.semanas_nomina_id_semana_seq'::regclass);
- G   ALTER TABLE public.semanas_nomina ALTER COLUMN id_semana DROP DEFAULT;
-       public               postgres    false    233    234    234            c           2604    24849    usuarios id_usuario     DEFAULT     z   ALTER TABLE ONLY public.usuarios ALTER COLUMN id_usuario SET DEFAULT nextval('public.usuarios_id_usuario_seq'::regclass);
- B   ALTER TABLE public.usuarios ALTER COLUMN id_usuario DROP DEFAULT;
-       public               postgres    false    218    217    218            d          0    16546 
-   actividades 
-   TABLE DATA           R   COPY public.actividades (id_actividad, clave, nombre, importe, fecha) FROM stdin;
-    public               postgres    false    228   »¬       b          0    16536 
-   cuadrillas 
-   TABLE DATA           [   COPY public.cuadrillas (id_cuadrilla, clave, nombre, grupo, actividad, estado) FROM stdin;
-    public               postgres    false    226   ­       l          0    16598    cuadrillas_nomina 
-   TABLE DATA           T   COPY public.cuadrillas_nomina (id, id_semana, id_cuadrilla, total_pago) FROM stdin;
-    public               postgres    false    236   Ó­       ^          0    16510    datos_laborales 
-   TABLE DATA           ª   COPY public.datos_laborales (id_datos_laborales, id_empleado, tipo, id_cuadrilla, fecha_ingreso, empresa, puesto, registro_patronal, inactivo, deshabilitado) FROM stdin;
-    public               postgres    false    222   ð­       `          0    16524    datos_nomina 
-   TABLE DATA           Ÿ   COPY public.datos_nomina (id_datos_nomina, id_empleado, sueldo, domingo_laboral, descuento_comedor, tipo_descuento_infonavit, descuento_infonavit) FROM stdin;
-    public               postgres    false    224   å®       \          0    16499 	   empleados 
-   TABLE DATA           ƒ   COPY public.empleados (id_empleado, codigo, nombre, apellido_paterno, apellido_materno, curp, rfc, nss, estado_origen) FROM stdin;
-    public               postgres    false    220   ¯       n          0    16616    empleados_nomina 
-   TABLE DATA           œ   COPY public.empleados_nomina (id, id_cuadrilla_nomina, id_empleado, dias_trabajados, horas_extra, sueldo_diario, debe, comedor, subtotal, neto) FROM stdin;
-    public               postgres    false    238   g±       r          0    24817    nomina_empleados_historial 
-   TABLE DATA           
-  COPY public.nomina_empleados_historial (id, id_empleado, id_semana, id_cuadrilla, dia_1, dia_2, dia_3, dia_4, dia_5, dia_6, total, debe, subtotal, comedor, total_neto, fecha_cierre, usuario_cierre, dia_7, act_1, act_2, act_3, act_4, act_5, act_6, act_7) FROM stdin;
-    public               postgres    false    242   „±       p          0    24781    nomina_empleados_semanal 
-   TABLE DATA             COPY public.nomina_empleados_semanal (id_nomina, id_empleado, id_semana, id_cuadrilla, dia_1, dia_2, dia_3, dia_4, dia_5, dia_6, dia_7, total, debe, comedor, subtotal, total_neto, actualizado_en, act_1, act_2, act_3, act_4, act_5, act_6, act_7) FROM stdin;
-    public               postgres    false    240   Â²       h          0    16576     nominas 
-   TABLE DATA           x   COPY public.nominas (id_nomina, id_empleado, semana, dias_trabajados, total, debe, subtotal, comedor, neto) FROM stdin;
-    public               postgres    false    232   Ý³       f          0    16553    registro_actividades 
-   TABLE DATA           ‚   COPY public.registro_actividades (id_registro, id_empleado, id_actividad, id_cuadrilla, dia_semana, horas, total_dia) FROM stdin;
-    public               postgres    false    230   ú³       s          0    24863    resumen_nomina 
-   TABLE DATA           A   COPY public.resumen_nomina (id_semana, total_semana) FROM stdin;
-    public               postgres    false    243   ´       j          0    16589    semanas_nomina 
-   TABLE DATA           ‰   COPY public.semanas_nomina (id_semana, fecha_inicio, fecha_fin, esta_cerrada, autorizado_por, fecha_autorizacion, creado_en) FROM stdin;
-    public               postgres    false    234   >´       Z          0    16487    usuarios 
-   TABLE DATA           Z   COPY public.usuarios (id_usuario, nombre_usuario, correo, "contraseÃ±a", rol) FROM stdin;
-    public               postgres    false    218   »´       ‡           0    0    actividades_id_actividad_seq    SEQUENCE SET     J   SELECT pg_catalog.setval('public.actividades_id_actividad_seq', 5, true);
-          public               postgres    false    227            ˆ           0    0    cuadrillas_id_cuadrilla_seq    SEQUENCE SET     J   SELECT pg_catalog.setval('public.cuadrillas_id_cuadrilla_seq', 13, true);
-          public               postgres    false    225            ‰           0    0    cuadrillas_nomina_id_seq    SEQUENCE SET     G   SELECT pg_catalog.setval('public.cuadrillas_nomina_id_seq', 1, false);
-          public               postgres    false    235            Š           0    0 &   datos_laborales_id_datos_laborales_seq    SEQUENCE SET     T   SELECT pg_catalog.setval('public.datos_laborales_id_datos_laborales_seq', 8, true);
-          public               postgres    false    221            ‹           0    0     datos_nomina_id_datos_nomina_seq    SEQUENCE SET     O   SELECT pg_catalog.setval('public.datos_nomina_id_datos_nomina_seq', 13, true);
-          public               postgres    false    223            Œ           0    0    empleados_id_empleado_seq    SEQUENCE SET     G   SELECT pg_catalog.setval('public.empleados_id_empleado_seq', 8, true);
-          public               postgres    false    219                       0    0    empleados_nomina_id_seq    SEQUENCE SET     F   SELECT pg_catalog.setval('public.empleados_nomina_id_seq', 1, false);
-          public               postgres    false    237            Ž           0    0 !   nomina_empleados_historial_id_seq    SEQUENCE SET     P   SELECT pg_catalog.setval('public.nomina_empleados_historial_id_seq', 12, true);
-          public               postgres    false    241                       0    0 &   nomina_empleados_semanal_id_nomina_seq    SEQUENCE SET     U   SELECT pg_catalog.setval('public.nomina_empleados_semanal_id_nomina_seq', 52, true);
-          public               postgres    false    239                       0    0    nominas_id_nomina_seq    SEQUENCE SET     D   SELECT pg_catalog.setval('public.nominas_id_nomina_seq', 1, false);
-          public               postgres    false    231            ‘           0    0 $   registro_actividades_id_registro_seq    SEQUENCE SET     S   SELECT pg_catalog.setval('public.registro_actividades_id_registro_seq', 1, false);
-          public               postgres    false    229            ’           0    0    semanas_nomina_id_semana_seq    SEQUENCE SET     J   SELECT pg_catalog.setval('public.semanas_nomina_id_semana_seq', 7, true);
-          public               postgres    false    233            “           0    0    usuarios_id_usuario_seq    SEQUENCE SET     E   SELECT pg_catalog.setval('public.usuarios_id_usuario_seq', 2, true);
-          public               postgres    false    217            §           2606    16551    actividades actividades_pkey 
-   CONSTRAINT     d   ALTER TABLE ONLY public.actividades
-    ADD CONSTRAINT actividades_pkey PRIMARY KEY (id_actividad);
- F   ALTER TABLE ONLY public.actividades DROP CONSTRAINT actividades_pkey;
-       public                 postgres    false    228            £           2606    16544    cuadrillas cuadrillas_clave_key 
-   CONSTRAINT     [   ALTER TABLE ONLY public.cuadrillas
-    ADD CONSTRAINT cuadrillas_clave_key UNIQUE (clave);
- I   ALTER TABLE ONLY public.cuadrillas DROP CONSTRAINT cuadrillas_clave_key;
-       public                 postgres    false    226            ¯           2606    16604 (   cuadrillas_nomina cuadrillas_nomina_pkey 
-   CONSTRAINT     f   ALTER TABLE ONLY public.cuadrillas_nomina
-    ADD CONSTRAINT cuadrillas_nomina_pkey PRIMARY KEY (id);
- R   ALTER TABLE ONLY public.cuadrillas_nomina DROP CONSTRAINT cuadrillas_nomina_pkey;
-       public                 postgres    false    236            ¥           2606    16542    cuadrillas cuadrillas_pkey 
-   CONSTRAINT     b   ALTER TABLE ONLY public.cuadrillas
-    ADD CONSTRAINT cuadrillas_pkey PRIMARY KEY (id_cuadrilla);
- D   ALTER TABLE ONLY public.cuadrillas DROP CONSTRAINT cuadrillas_pkey;
-       public                 postgres    false    226            Ÿ           2606    16517 $   datos_laborales datos_laborales_pkey 
-   CONSTRAINT     r   ALTER TABLE ONLY public.datos_laborales
-    ADD CONSTRAINT datos_laborales_pkey PRIMARY KEY (id_datos_laborales);
- N   ALTER TABLE ONLY public.datos_laborales DROP CONSTRAINT datos_laborales_pkey;
-       public                 postgres    false    222            ¡           2606    16529    datos_nomina datos_nomina_pkey 
-   CONSTRAINT     i   ALTER TABLE ONLY public.datos_nomina
-    ADD CONSTRAINT datos_nomina_pkey PRIMARY KEY (id_datos_nomina);
- H   ALTER TABLE ONLY public.datos_nomina DROP CONSTRAINT datos_nomina_pkey;
-       public                 postgres    false    224            ™           2606    16506    empleados empleados_codigo_key 
-   CONSTRAINT     [   ALTER TABLE ONLY public.empleados
-    ADD CONSTRAINT empleados_codigo_key UNIQUE (codigo);
- H   ALTER TABLE ONLY public.empleados DROP CONSTRAINT empleados_codigo_key;
-       public                 postgres    false    220            ›           2606    16508    empleados empleados_curp_key 
-   CONSTRAINT     W   ALTER TABLE ONLY public.empleados
-    ADD CONSTRAINT empleados_curp_key UNIQUE (curp);
- F   ALTER TABLE ONLY public.empleados DROP CONSTRAINT empleados_curp_key;
-       public                 postgres    false    220            ±           2606    16623 &   empleados_nomina empleados_nomina_pkey 
-   CONSTRAINT     d   ALTER TABLE ONLY public.empleados_nomina
-    ADD CONSTRAINT empleados_nomina_pkey PRIMARY KEY (id);
- P   ALTER TABLE ONLY public.empleados_nomina DROP CONSTRAINT empleados_nomina_pkey;
-       public                 postgres    false    238                       2606    16504    empleados empleados_pkey 
-   CONSTRAINT     _   ALTER TABLE ONLY public.empleados
-    ADD CONSTRAINT empleados_pkey PRIMARY KEY (id_empleado);
- B   ALTER TABLE ONLY public.empleados DROP CONSTRAINT empleados_pkey;
-       public                 postgres    false    220            ·           2606    24836 :   nomina_empleados_historial nomina_empleados_historial_pkey 
-   CONSTRAINT     x   ALTER TABLE ONLY public.nomina_empleados_historial
-    ADD CONSTRAINT nomina_empleados_historial_pkey PRIMARY KEY (id);
- d   ALTER TABLE ONLY public.nomina_empleados_historial DROP CONSTRAINT nomina_empleados_historial_pkey;
-       public                 postgres    false    242            ³           2606    24799 6   nomina_empleados_semanal nomina_empleados_semanal_pkey 
-   CONSTRAINT     {   ALTER TABLE ONLY public.nomina_empleados_semanal
-    ADD CONSTRAINT nomina_empleados_semanal_pkey PRIMARY KEY (id_nomina);
- `   ALTER TABLE ONLY public.nomina_empleados_semanal DROP CONSTRAINT nomina_empleados_semanal_pkey;
-       public                 postgres    false    240            µ           2606    24857 &   nomina_empleados_semanal nomina_unique 
-   CONSTRAINT        ALTER TABLE ONLY public.nomina_empleados_semanal
-    ADD CONSTRAINT nomina_unique UNIQUE (id_empleado, id_semana, id_cuadrilla);
- P   ALTER TABLE ONLY public.nomina_empleados_semanal DROP CONSTRAINT nomina_unique;
-       public                 postgres    false    240    240    240            «           2606    16581    nominas nominas_pkey 
-   CONSTRAINT     Y   ALTER TABLE ONLY public.nominas
-    ADD CONSTRAINT nominas_pkey PRIMARY KEY (id_nomina);
- >   ALTER TABLE ONLY public.nominas DROP CONSTRAINT nominas_pkey;
-       public                 postgres    false    232            ©           2606    16559 .   registro_actividades registro_actividades_pkey 
-   CONSTRAINT     u   ALTER TABLE ONLY public.registro_actividades
-    ADD CONSTRAINT registro_actividades_pkey PRIMARY KEY (id_registro);
- X   ALTER TABLE ONLY public.registro_actividades DROP CONSTRAINT registro_actividades_pkey;
-       public                 postgres    false    230            ¹           2606    24870 "   resumen_nomina resumen_nomina_pkey 
-   CONSTRAINT     g   ALTER TABLE ONLY public.resumen_nomina
-    ADD CONSTRAINT resumen_nomina_pkey PRIMARY KEY (id_semana);
- L   ALTER TABLE ONLY public.resumen_nomina DROP CONSTRAINT resumen_nomina_pkey;
-       public                 postgres    false    243            ­           2606    16596 "   semanas_nomina semanas_nomina_pkey 
-   CONSTRAINT     g   ALTER TABLE ONLY public.semanas_nomina
-    ADD CONSTRAINT semanas_nomina_pkey PRIMARY KEY (id_semana);
- L   ALTER TABLE ONLY public.semanas_nomina DROP CONSTRAINT semanas_nomina_pkey;
-       public                 postgres    false    234            •           2606    16497    usuarios usuarios_correo_key 
-   CONSTRAINT     Y   ALTER TABLE ONLY public.usuarios
-    ADD CONSTRAINT usuarios_correo_key UNIQUE (correo);
- F   ALTER TABLE ONLY public.usuarios DROP CONSTRAINT usuarios_correo_key;
-       public                 postgres    false    218            —           2606    16495    usuarios usuarios_pkey 
-   CONSTRAINT     \   ALTER TABLE ONLY public.usuarios
-    ADD CONSTRAINT usuarios_pkey PRIMARY KEY (id_usuario);
- @   ALTER TABLE ONLY public.usuarios DROP CONSTRAINT usuarios_pkey;
-       public                 postgres    false    218            Ç           2620    24873 =   nomina_empleados_semanal trigger_actualizar_total_neto_semana     TRIGGER     ½   CREATE TRIGGER trigger_actualizar_total_neto_semana AFTER INSERT OR DELETE OR UPDATE ON public.nomina_empleados_semanal FOR EACH ROW EXECUTE FUNCTION public.actualizar_total_neto_semana();
- V   DROP TRIGGER trigger_actualizar_total_neto_semana ON public.nomina_empleados_semanal;
-       public               postgres    false    240    245            À           2606    16610 5   cuadrillas_nomina cuadrillas_nomina_id_cuadrilla_fkey 
-   FK CONSTRAINT     ¨   ALTER TABLE ONLY public.cuadrillas_nomina
-    ADD CONSTRAINT cuadrillas_nomina_id_cuadrilla_fkey FOREIGN KEY (id_cuadrilla) REFERENCES public.cuadrillas(id_cuadrilla);
- _   ALTER TABLE ONLY public.cuadrillas_nomina DROP CONSTRAINT cuadrillas_nomina_id_cuadrilla_fkey;
-       public               postgres    false    4773    236    226            Á           2606    16605 2   cuadrillas_nomina cuadrillas_nomina_id_semana_fkey 
-   FK CONSTRAINT     µ   ALTER TABLE ONLY public.cuadrillas_nomina
-    ADD CONSTRAINT cuadrillas_nomina_id_semana_fkey FOREIGN KEY (id_semana) REFERENCES public.semanas_nomina(id_semana) ON DELETE CASCADE;
- \   ALTER TABLE ONLY public.cuadrillas_nomina DROP CONSTRAINT cuadrillas_nomina_id_semana_fkey;
-       public               postgres    false    236    234    4781            º           2606    16518 0   datos_laborales datos_laborales_id_empleado_fkey 
-   FK CONSTRAINT     ²   ALTER TABLE ONLY public.datos_laborales
-    ADD CONSTRAINT datos_laborales_id_empleado_fkey FOREIGN KEY (id_empleado) REFERENCES public.empleados(id_empleado) ON DELETE CASCADE;
- Z   ALTER TABLE ONLY public.datos_laborales DROP CONSTRAINT datos_laborales_id_empleado_fkey;
-       public               postgres    false    220    4765    222            »           2606    16530 *   datos_nomina datos_nomina_id_empleado_fkey 
-   FK CONSTRAINT     ¬   ALTER TABLE ONLY public.datos_nomina
-    ADD CONSTRAINT datos_nomina_id_empleado_fkey FOREIGN KEY (id_empleado) REFERENCES public.empleados(id_empleado) ON DELETE CASCADE;
- T   ALTER TABLE ONLY public.datos_nomina DROP CONSTRAINT datos_nomina_id_empleado_fkey;
-       public               postgres    false    220    4765    224            Â           2606    16624 :   empleados_nomina empleados_nomina_id_cuadrilla_nomina_fkey 
-   FK CONSTRAINT     ±   ALTER TABLE ONLY public.empleados_nomina
-    ADD CONSTRAINT empleados_nomina_id_cuadrilla_nomina_fkey FOREIGN KEY (id_cuadrilla_nomina) REFERENCES public.cuadrillas_nomina(id);
- d   ALTER TABLE ONLY public.empleados_nomina DROP CONSTRAINT empleados_nomina_id_cuadrilla_nomina_fkey;
-       public               postgres    false    236    4783    238            Ã           2606    16629 2   empleados_nomina empleados_nomina_id_empleado_fkey 
-   FK CONSTRAINT     ¢   ALTER TABLE ONLY public.empleados_nomina
-    ADD CONSTRAINT empleados_nomina_id_empleado_fkey FOREIGN KEY (id_empleado) REFERENCES public.empleados(id_empleado);
- \   ALTER TABLE ONLY public.empleados_nomina DROP CONSTRAINT empleados_nomina_id_empleado_fkey;
-       public               postgres    false    4765    238    220            Ä           2606    24810 C   nomina_empleados_semanal nomina_empleados_semanal_id_cuadrilla_fkey 
-   FK CONSTRAINT     ¶   ALTER TABLE ONLY public.nomina_empleados_semanal
-    ADD CONSTRAINT nomina_empleados_semanal_id_cuadrilla_fkey FOREIGN KEY (id_cuadrilla) REFERENCES public.cuadrillas(id_cuadrilla);
- m   ALTER TABLE ONLY public.nomina_empleados_semanal DROP CONSTRAINT nomina_empleados_semanal_id_cuadrilla_fkey;
-       public               postgres    false    4773    226    240            Å           2606    24800 B   nomina_empleados_semanal nomina_empleados_semanal_id_empleado_fkey 
-   FK CONSTRAINT     ²   ALTER TABLE ONLY public.nomina_empleados_semanal
-    ADD CONSTRAINT nomina_empleados_semanal_id_empleado_fkey FOREIGN KEY (id_empleado) REFERENCES public.empleados(id_empleado);
- l   ALTER TABLE ONLY public.nomina_empleados_semanal DROP CONSTRAINT nomina_empleados_semanal_id_empleado_fkey;
-       public               postgres    false    4765    220    240            Æ           2606    24805 @   nomina_empleados_semanal nomina_empleados_semanal_id_semana_fkey 
-   FK CONSTRAINT     ±   ALTER TABLE ONLY public.nomina_empleados_semanal
-    ADD CONSTRAINT nomina_empleados_semanal_id_semana_fkey FOREIGN KEY (id_semana) REFERENCES public.semanas_nomina(id_semana);
- j   ALTER TABLE ONLY public.nomina_empleados_semanal DROP CONSTRAINT nomina_empleados_semanal_id_semana_fkey;
-       public               postgres    false    4781    240    234            ¿           2606    16582     nominas nominas_id_empleado_fkey 
-   FK CONSTRAINT     ¢   ALTER TABLE ONLY public.nominas
-    ADD CONSTRAINT nominas_id_empleado_fkey FOREIGN KEY (id_empleado) REFERENCES public.empleados(id_empleado) ON DELETE CASCADE;
- J   ALTER TABLE ONLY public.nominas DROP CONSTRAINT nominas_id_empleado_fkey;
-       public               postgres    false    220    4765    232            ¼           2606    16565 ;   registro_actividades registro_actividades_id_actividad_fkey 
-   FK CONSTRAINT     Â   ALTER TABLE ONLY public.registro_actividades
-    ADD CONSTRAINT registro_actividades_id_actividad_fkey FOREIGN KEY (id_actividad) REFERENCES public.actividades(id_actividad) ON DELETE SET NULL;
- e   ALTER TABLE ONLY public.registro_actividades DROP CONSTRAINT registro_actividades_id_actividad_fkey;
-       public               postgres    false    230    228    4775            ½           2606    16570 ;   registro_actividades registro_actividades_id_cuadrilla_fkey 
-   FK CONSTRAINT     Á   ALTER TABLE ONLY public.registro_actividades
-    ADD CONSTRAINT registro_actividades_id_cuadrilla_fkey FOREIGN KEY (id_cuadrilla) REFERENCES public.cuadrillas(id_cuadrilla) ON DELETE SET NULL;
- e   ALTER TABLE ONLY public.registro_actividades DROP CONSTRAINT registro_actividades_id_cuadrilla_fkey;
-       public               postgres    false    4773    230    226            ¾           2606    16560 :   registro_actividades registro_actividades_id_empleado_fkey 
-   FK CONSTRAINT     ¼   ALTER TABLE ONLY public.registro_actividades
-    ADD CONSTRAINT registro_actividades_id_empleado_fkey FOREIGN KEY (id_empleado) REFERENCES public.empleados(id_empleado) ON DELETE CASCADE;
- d   ALTER TABLE ONLY public.registro_actividades DROP CONSTRAINT registro_actividades_id_empleado_fkey;
-       public               postgres    false    230    4765    220            d   F   xœ3ätq600ätI-.IÌÊç420Ò30 Q¦º¦ºF\F%Fx”C”ãQbQb‚G‰)D‰)%1z\\\ 
-&û      b   ²   xœmÎ=
-Â0àùò+º
-’ôÃUAqs¹6©¤Ø’8Ø_ošPÉP7Ü=yïì
-JtÚŠì‚ÆI%Ø¡A5H%á ¬ÃNƒ#y¤y¤ýDëZxJi7ó5Î¦1L	\ô:–dÈÂ°mXWgplç¡½ÞúÇÓqãNãmGa´’>qvqèÆÓF¼¿*ƒ3¾ÐpLMÌöo&rG•µ>³‘¶I~.	!?£‘dL      l   
-   xœ‹Ñãââ Å ©      ^   å   xœ}Ð1oÂ0àùå¿Ùg;„±P•fd¹&Ne”ÆÈ†þú&54B]<œÞçç³‚BÍ_§€Ã$I
-©„²xùŒ~Ë»{î\(ß¤ThÑfZJþk44Bëkßó¬¦²_õ~9¹xõCˆ‰QbfY¥ÍU¥«CçêóÝº,ì™Ç¦*ò$üpæ¤tR9rTnT‘»;´BZAöwe´þ HÝâk¬ñ:MþFµn†ÍÀéHÉÅ“‹s!
-Œ¯áþÛ÷UÉ|äf\ÄX“›$7Ø<•däüÛÉVY–ý G|M      `   š   xœeM
-ƒ@…×/‡‘ÉÏÌèº”ÀM)Rt¡PÚûW“BaºÉ#ÉÇ{ICrêR‚¦¯œõ²¬;Ø'T!ó±!ù¬×ýyŸ·×mqöÔC‘ÃäWÆe{¼·Ý`¾Mskâ„)±ä6Íd°¸—:fÖp*
-ê:¼•Ú’ê¤¢ kóÁ4Æñl8î—ÿ­??uDô”ÙAã      \   È  xœU‘Ïnâ0‡Ïã§à	VþÈ%‘iUU{™Å^H1k']©oÓã8õòb;!Ò¤(3ùÅþôy,`Qn8°îê+šþ£±î*<õ—@ÍjQ­SZÁÅ*¨ÊGnn¢ççgRi“Lg)Q¶¾ñ™©JýaÝž	•¹ð†Më"¬Ÿ²2\rYæYUñÙMt•Pà±Ž;ÏÔHUa8ú›þï XtýÇP7‹"›®¸"Ñâ¥âú&ºgâP:¤‡é‘ªaÞØà–ýç‰h¹;îÑzX>åóÔpÍ5™æë%íýŠî©¾»€»Ð½33B
->ìÝ0†¶¿4„ÝÒxw jÊù¶H%7ÜíöqÅ§7Ñ=×À¦s?È ÛáÕG79a¨q{|SŸ<D´£N,PI¬F“€þßjÈ<·&Ìt”K®8»axkëA0ZŒV ²BEúVIR(Auh—6øÚaëÙl$MiZ$°	¤‰ë&MçÞü$¸}ÛàÇ¿ta4yP3ÔÄ|EtxÆÈÒ‘7£±‘Ù²kk»9½­oè:¤’ƒÆu«r6þºšIõç·ƒ¼
-Øì=ûñ1ö%pÏê      n   
-   xœ‹Ñãââ Å ©      r   .  xœ¥SInÃ0<S¯È l”HÉ~D^KöC$hß_RJÛu7¤± ƒ3äP" P hC&3¢Ÿ4D`déP;N;Æ(cÌ½"Gexz~=¾yÄaÿ{¾ò“q‘ÌÁV’P6ŠyØªZ„8S[¬‚­"ÙZÕŸB	R\ÎTÉox·ub
-¦aþ‹/¼ìAŠU2äÚ¢É§iåeÇq$eè
-r‚óçÇËéëx~?Z0];cÀÕ±u2”–þôXXð^âÒ®¬e«êÎ8ZY¬vîíe²ÛOÙ6}Á›/–—¾hM^*°=
-™¯=¹3S{²üóP/­‹©±º·j7ÜøzÍz+'
-â6M?Û¤
-æjx¾Z}áŒòÕ?      p   
-  xœµ“ëmÃ0„SSt$Å—2D'ÈþsÔ¢TTMì ÈàÙ ËßI¦Ä@À*ã†Ôt‘æ)nœ¦§8¦YÉ¥kNÄÕcŸŠ¬ô
-ê ×+ëUi
-i»
-½öáDEt$9tˆ%Ët¥(§ðÕÐ—«Ea~šBE÷ÅS&©ý®H€-Xd$Xj,þ8-™ðÆXpn@Ž"müŒù±¿–Ûçòð&¾ó6¦&­ö÷®¢8¶ýåL1´$]~=Ò+Å	“!ÞÂTÒ c¦ÔÞÚ@–ó=žÃBŽ)mTÛ†A­ŽöÁïQDö†Nî¿ÖzWq”í 5pºŸž7áÔ"îp·­”ò©Êë      h   
-   xœ‹Ñãââ Å ©      f   
-   xœ‹Ñãââ Å ©      s      xœ3ç4µ46Ô30àŠÑãââ ¨S      j   m   xœMŒK
-Ã0×Ò)rù)’?‡è	]%¡…ÖÐöþ”@À·xÌ8A`A<¤4°Ðžý»Þ÷õÓßW?¯Ä¦ä
-ÖDcü¢Oin:7“˜«V/œ‡……6ZnÇ.MèÑ„FhUã%2ó,ñ´      Z   \   xœ3ätÌKTp?¼97µŠ39± ¤´(³¸$Ñ!1½(3)±H/9?*œhhdŒ¤‚Ëˆ3+¿8UÁ=µ(?/37Ÿ³¸´ µ¨,³8¿E3B¤ÁãŠÑãââ œ-~     
