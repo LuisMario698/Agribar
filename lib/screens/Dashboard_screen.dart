@@ -231,30 +231,49 @@ class _DashboardScreenState extends State<DashboardScreen> with NominaTabChangeG
   }
 
   /// Retorna el widget correspondiente a la sección seleccionada
-  /// basado en el índice actual del menú.
+  /// basado en el índice actual del menú filtrado.
   Widget _getBodyContent() {
-    switch (selectedIndex) {
-      case 0:
+    // Obtener el elemento seleccionado de la lista filtrada
+    final selectedItem = selectedIndex < menuItems.length 
+        ? menuItems[selectedIndex] 
+        : null;
+    
+    if (selectedItem == null) {
+      return Center(
+        child: Text(
+          'Sección no encontrada',
+          style: TextStyle(
+            color: widget.appTheme == AppTheme.dark
+                ? Colors.white
+                : Colors.black,
+          ),
+        ),
+      );
+    }
+
+    // Usar la sección real en lugar del índice
+    switch (selectedItem.seccion) {
+      case 'dashboard':
         return DashboardHomeContent(
           userName: widget.nombre,
           userRole: widget.rol,
           tipoUsuario: widget.tipoUsuario ?? 'Usuario',
           seccionesPermitidas: widget.seccionesPermitidas ?? [],
         );
-      case 1:
+      case 'empleados':
         return EmpleadosContent();
-      case 2:
+      case 'cuadrillas':
         return CuadrillaContent();
-      case 3:
+      case 'actividades':
         return ActividadesContent();
-      case 4:
+      case 'nomina':
         return NominaScreen(
           onCambiosChanged: _onNominaChanged,
           onGuardadoCallbackSet: _setFuncionGuardadoNomina,
         );
-      case 5:
+      case 'reportes':
         return ReportesScreen();
-      case 6:
+      case 'configuracion':
         return ConfiguracionContent();
       default:
         return Center(

@@ -218,9 +218,7 @@ ORDER BY id_empleado ASC LIMIT 100 OFFSET 0;
     return Center(
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final cardWidth =
-              (constraints.maxWidth < 800 ? constraints.maxWidth * 0.9 : 1400)
-                  .toDouble();
+          final cardWidth = constraints.maxWidth * 0.95; // Usar 95% del ancho disponible
 
           return Card(
             elevation: 8,
@@ -561,7 +559,7 @@ class _RegistroEmpleadoWizardState extends State<RegistroEmpleadoWizard> {
           Expanded(
             child: Center(
               child: Container(
-                constraints: BoxConstraints(maxWidth: 1200),
+                width: MediaQuery.of(context).size.width * 0.95, // Usar 95% del ancho de pantalla
                 margin: const EdgeInsets.symmetric(horizontal: 24),
                 decoration: BoxDecoration(
                   color: Colors.white,

@@ -16,11 +16,8 @@ class _ConfiguracionContentState extends State<ConfiguracionContent> {
   String? modalTitle; // Título del modal actual
   
   final UsuariosService _usuariosService = UsuariosService();
-  final RolesService _rolesService = RolesService();
   List<Map<String, dynamic>> _users = [];
-  List<Map<String, dynamic>> _roles = [];
   bool _isLoadingUsers = true;
-  bool _isLoadingRoles = true;
 
   @override
   void initState() {
@@ -32,17 +29,9 @@ class _ConfiguracionContentState extends State<ConfiguracionContent> {
   Future<void> _loadUsersAndRoles() async {
     setState(() {
       _isLoadingUsers = true;
-      _isLoadingRoles = true;
     });
 
     try {
-      // Cargar roles primero
-      final roles = await _rolesService.obtenerRoles();
-      setState(() {
-        _roles = roles;
-        _isLoadingRoles = false;
-      });
-
       // Cargar usuarios
       final usuarios = await _usuariosService.obtenerUsuarios();
       setState(() {
@@ -61,7 +50,6 @@ class _ConfiguracionContentState extends State<ConfiguracionContent> {
       print('Error cargando datos: $e');
       setState(() {
         _isLoadingUsers = false;
-        _isLoadingRoles = false;
       });
     }
   }
@@ -135,9 +123,7 @@ class _ConfiguracionContentState extends State<ConfiguracionContent> {
             
             return Container(
               padding: const EdgeInsets.all(32),
-              constraints: BoxConstraints(
-                maxWidth: isSmallScreen ? constraints.maxWidth : 1400,
-              ),
+              width: constraints.maxWidth * 0.95, // Usar 95% del ancho disponible
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -162,7 +148,20 @@ class _ConfiguracionContentState extends State<ConfiguracionContent> {
                         _buildUserSection(),
                       ],
                     ),
-
+                  const SizedBox(height: 24),
+                  // Label simple de resolución abajo a la derecha
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Text(
+                        'Resolución: ${MediaQuery.of(context).size.width.toInt()} x ${MediaQuery.of(context).size.height.toInt()}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[500],
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             );

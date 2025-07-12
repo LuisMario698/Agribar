@@ -15,21 +15,21 @@ void main() async {
     await windowManager.ensureInitialized();
 
     // Definir opciones de ventana predeterminadas
-    WindowOptions windowOptions = const WindowOptions(
-      size: Size(1820, 960), // Tamaño inicial de la venta
-      minimumSize: Size(1220, 770), // Tamaño mínimo permitido
-      maximumSize: Size(1920, 1080), // Tamaño maximo permitido
-      center: true, // Centrar la ventana al inicio
-      backgroundColor: Colors.transparent,
-      skipTaskbar: false,
-      titleBarStyle: TitleBarStyle.normal,
-    );
+    // WindowOptions windowOptions = const WindowOptions(
+    //   size: Size(1820, 960), // Tamaño inicial de la venta
+    //   minimumSize: Size(1220, 770), // Tamaño mínimo permitido
+    //   maximumSize: Size(1920, 1080), // Tamaño maximo permitido
+    //   center: true, // Centrar la ventana al inicio
+    //   backgroundColor: Colors.transparent,
+    //   skipTaskbar: false,
+    //   titleBarStyle: TitleBarStyle.normal,
+    // );
 
     // Mostrar y enfocar la ventana una vez que esté lista
-    await windowManager.waitUntilReadyToShow(windowOptions, () async {
-      await windowManager.show();
-      await windowManager.focus();
-    });
+    // await windowManager.waitUntilReadyToShow(windowOptions, () async {
+    //   await windowManager.show();
+    //   await windowManager.focus();
+    // });
   }
 
   runApp(MainApp());

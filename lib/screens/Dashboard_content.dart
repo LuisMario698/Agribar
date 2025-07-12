@@ -194,14 +194,13 @@ SELECT total_semana
           builder: (context, constraints) {
             // Configuración de layout responsivo
             final isSmallScreen = constraints.maxWidth < 800;
-            final cardWidth =
-                (isSmallScreen ? constraints.maxWidth * 0.9 : 1400).toDouble();
+            final cardWidth = constraints.maxWidth * 0.95; // Usar 95% del ancho disponible
             final metricCardWidth =
-                (isSmallScreen ? constraints.maxWidth * 0.22 : 288).toDouble();
+                (isSmallScreen ? constraints.maxWidth * 0.22 : 320).toDouble();
             final chartWidth =
-                (isSmallScreen ? constraints.maxWidth * 0.45 : 600).toDouble();
+                (isSmallScreen ? constraints.maxWidth * 0.45 : 700).toDouble();
             final chartHeight =
-                (isSmallScreen ? constraints.maxWidth * 0.45 : 300).toDouble();
+                (isSmallScreen ? constraints.maxWidth * 0.45 : 350).toDouble();
 
             // Contenedor principal con estilo de tarjeta
             return Card(
@@ -211,7 +210,7 @@ SELECT total_semana
               ),
               margin: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
               child: Container(
-                constraints: BoxConstraints(maxWidth: cardWidth),
+                width: cardWidth, // Usar el ancho calculado directamente
                 padding: const EdgeInsets.symmetric(
                   vertical: 40,
                   horizontal: 40,

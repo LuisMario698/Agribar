@@ -111,8 +111,7 @@ Future<void> agregarActividad() async {
       child: Center(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final isSmallScreen = constraints.maxWidth < 800;
-            final cardWidth = (isSmallScreen ? constraints.maxWidth * 0.9 : 1400).toDouble();
+            final cardWidth = constraints.maxWidth * 0.95; // Usar 95% del ancho disponible
 
             return Card(
               elevation: 12,
