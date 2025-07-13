@@ -26,9 +26,17 @@ class SeccionPrincipalNomina extends StatefulWidget {
 
 class _SeccionPrincipalNominaState extends State<SeccionPrincipalNomina> {
   bool _mostrandoTablaCompleta = false;
+  bool _isDisposed = false;
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    super.dispose();
+  }
 
   /// Abre el diálogo de tabla completa
   void _abrirTablaCompleta() {
+    if (_isDisposed || !mounted) return;
     setState(() {
       _mostrandoTablaCompleta = true;
     });
@@ -43,7 +51,7 @@ class _SeccionPrincipalNominaState extends State<SeccionPrincipalNomina> {
             widget.onCambio!(index, campo, valor);
           }
           // Actualizar la UI principal cuando se hagan cambios en el diálogo
-          if (mounted) {
+          if (mounted && !_isDisposed) {
             setState(() {});
           }
         },
@@ -52,7 +60,7 @@ class _SeccionPrincipalNominaState extends State<SeccionPrincipalNomina> {
         verticalController: ScrollController(),
       ),
     ).then((_) {
-      if (mounted) {
+      if (mounted && !_isDisposed) {
         setState(() {
           _mostrandoTablaCompleta = false;
         });
@@ -75,7 +83,7 @@ class _SeccionPrincipalNominaState extends State<SeccionPrincipalNomina> {
       widget.onActualizarTotales!();
     }
     
-    if (mounted) {
+    if (mounted && !_isDisposed) {
       setState(() {});
     }
   }

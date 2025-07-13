@@ -89,27 +89,36 @@ class _NominaTabChangeDialog extends StatefulWidget {
 
 class _NominaTabChangeDialogState extends State<_NominaTabChangeDialog> {
   bool _isGuardando = false;
+  bool _isDisposed = false;
 
   Future<void> _handleGuardar() async {
-    if (_isGuardando) return; // Evitar doble guardado
+    if (_isGuardando || _isDisposed) return; // Evitar doble guardado
     
-    setState(() {
-      _isGuardando = true;
-    });
+    if (mounted && !_isDisposed) {
+      setState(() {
+        _isGuardando = true;
+      });
+    }
     
     try {
       await widget.onGuardar();
-      if (mounted) {
+      if (mounted && !_isDisposed) {
         Navigator.of(context).pop(true);
       }
     } catch (e) {
       // El error ya se maneja en la función de guardado, solo restauramos el estado
-      if (mounted) {
+      if (mounted && !_isDisposed) {
         setState(() {
           _isGuardando = false;
         });
       }
     }
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    super.dispose();
   }
 
   @override

@@ -101,6 +101,9 @@ class _NominaScreenState extends State<NominaScreen>
   List<Map<String, dynamic>> empleadosNominaTemp = [];
   Map<String, dynamic> _originalDataBeforeEditing = {};
   
+  // 🛡️ Variable para control de lifecycle del widget
+  bool _isDisposed = false;
+  
   // 🎯 Variables para control de flujo robusto
   bool _puedeArmarCuadrilla = false;
   bool _puedeCapturarDatos = false;
@@ -146,6 +149,14 @@ class _NominaScreenState extends State<NominaScreen>
     verificarSemanaActiva();
     
     // Esperar un poco para que se carguen los datos antes de restaurar estado
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    _buscarDisponiblesController.dispose();
+    _buscarEnCuadrillaController.dispose();
+    super.dispose();
   }
 
   /// Restaura el estado anterior si existe (cuadrilla seleccionada)
@@ -279,6 +290,7 @@ class _NominaScreenState extends State<NominaScreen>
   
   /// Actualiza los estados de validación del flujo
   void _actualizarEstadosValidacion() {
+    if (!mounted || _isDisposed) return;
     setState(() {
       _puedeArmarCuadrilla = _validarPuedeArmarCuadrilla();
       _puedeCapturarDatos = _validarPuedeCapturarDatos();
@@ -376,9 +388,11 @@ class _NominaScreenState extends State<NominaScreen>
         ) : null,
       ),
     ).closed.then((_) {
-      setState(() {
-        _mostrandoMensajeGuia = false;
-      });
+      if (mounted && !_isDisposed) {
+        setState(() {
+          _mostrandoMensajeGuia = false;
+        });
+      }
     });
   }
   
@@ -579,6 +593,32 @@ class _NominaScreenState extends State<NominaScreen>
         }
       }
       
+      // 🔧 CRÍTICO: Si hay una cuadrilla seleccionada, actualizar también empleadosFiltrados
+      if (mounted && cuadrillaSeleccionada != null) {
+        final cuadrillaActual = _optionsCuadrilla.firstWhere(
+          (c) => c['id'] == cuadrillaSeleccionada!['id'],
+          orElse: () => <String, dynamic>{},
+        );
+        
+        if (cuadrillaActual.isNotEmpty && cuadrillaActual['empleados'] != null) {
+          setState(() {
+            empleadosFiltrados = List<Map<String, dynamic>>.from(cuadrillaActual['empleados']);
+            empleadosNomina = List<Map<String, dynamic>>.from(cuadrillaActual['empleados']);
+            empleadosNominaTemp = List<Map<String, dynamic>>.from(cuadrillaActual['empleados']);
+            empleadosEnCuadrilla = List<Map<String, dynamic>>.from(cuadrillaActual['empleados']);
+            
+            // Actualizar también la referencia de la cuadrilla seleccionada
+            _selectedCuadrilla['empleados'] = List<Map<String, dynamic>>.from(cuadrillaActual['empleados']);
+            cuadrillaSeleccionada!['empleados'] = List<Map<String, dynamic>>.from(cuadrillaActual['empleados']);
+          });
+          
+          // Actualizar estados de validación
+          _puedeCapturarDatos = _validarPuedeCapturarDatos();
+          
+          print('✅ Empleados sincronizados para cuadrilla seleccionada: ${empleadosFiltrados.length} empleados');
+        }
+      }
+      
       print('🔄 Empleados cargados para todas las cuadrillas desde BD');
     } catch (e) {
       print('❌ Error al cargar empleados de cuadrillas: $e');
@@ -627,6 +667,7 @@ class _NominaScreenState extends State<NominaScreen>
     );
 
     if (picked != null) {
+      if (!mounted || _isDisposed) return;
       setState(() {
         _isCreandoSemana = true;
       });
@@ -639,6 +680,7 @@ class _NominaScreenState extends State<NominaScreen>
         );
         
         if (nuevaSemana != null) {
+          if (!mounted || _isDisposed) return;
           setState(() {
             _startDate = nuevaSemana['fechaInicio'];
             _endDate = nuevaSemana['fechaFin'];
@@ -681,6 +723,7 @@ class _NominaScreenState extends State<NominaScreen>
           );
         }
       } finally {
+        if (!mounted || _isDisposed) return;
         setState(() {
           _isCreandoSemana = false;
         });
@@ -1003,6 +1046,7 @@ class _NominaScreenState extends State<NominaScreen>
       'cuadrillaSeleccionada': 0,
     };
 
+    if (!mounted || _isDisposed) return;
     setState(() {
       semanasCerradas.add(semanaCerrada);
       _isWeekClosed = true;
@@ -1075,10 +1119,10 @@ class _NominaScreenState extends State<NominaScreen>
   Map<String, dynamic> _procesarEmpleado(Map<String, dynamic> emp) {
     final numDays = _endDate!.difference(_startDate!).inDays + 1;
 
-    // Tabla Principal: días normales y total
+    // Tabla Principal: días normales y total - usar el formato correcto de la BD
     final diasNormales = List.generate(
       numDays,
-      (i) => double.tryParse(emp['dia_$i']?.toString() ?? '0') ?? 0.0,
+      (i) => double.tryParse(emp['dia_${i}_s']?.toString() ?? '0') ?? 0.0,
     );
 
     // Calcular totales
@@ -1087,28 +1131,31 @@ class _NominaScreenState extends State<NominaScreen>
       (sum, dia) => sum + dia,
     );
 
-    // Calcular deducciones
+    // Calcular deducciones - usando datos reales de la BD
     final debe = double.tryParse(emp['debe']?.toString() ?? '0') ?? 0.0;
-    final comedorValue = (emp['comedor'] == true) ? 400.0 : 0.0;
+    final comedorValue = double.tryParse(emp['comedor']?.toString() ?? '0') ?? 0.0;
 
-    // Calcular total neto
-    final subtotal = totalDiasNormales;
-    final totalNeto = subtotal - debe - comedorValue;
+    // Calcular subtotal y total neto
+    final subtotal = totalDiasNormales - debe;
+    final totalNeto = subtotal - comedorValue;
 
     // Crear objeto con todos los datos
     return {
       ...emp, // Mantener datos básicos del empleado
+      'totalNeto': totalNeto, // Agregar totalNeto directamente
       'tabla_principal': {
         'dias': diasNormales,
         'total': totalDiasNormales,
         'debe': debe,
         'comedor': comedorValue,
+        'subtotal': subtotal,
         'neto': totalNeto,
       },
     };
   }
 
   void _mostrarSemanasCerradas() {
+    if (!mounted || _isDisposed) return;
     setState(() {
       showSemanasCerradas = true;
       semanaCerradaSeleccionada = null;
@@ -1145,6 +1192,7 @@ class _NominaScreenState extends State<NominaScreen>
       // Cuando ya está abierto, guardar cambios
       // Asegurarnos de actualizar la lista real de empleados en la cuadrilla
       // antes de cerrar el diálogo (guardamos lo que está en empleadosEnCuadrilla)
+      if (!mounted || _isDisposed) return;
       setState(() {
         // Actualizamos la lista real en _selectedCuadrilla
         _selectedCuadrilla['empleados'] = List<Map<String, dynamic>>.from(
@@ -1161,6 +1209,7 @@ class _NominaScreenState extends State<NominaScreen>
             empleadosCompletoCuadrilla: _selectedCuadrilla['empleados'] ?? [],
             onMantenerDatos: () {
               // Mantener los datos existentes
+              if (!mounted || _isDisposed) return;
               setState(() {
                 // Crear un mapa de los empleados existentes para mantener sus datos
                 final empleadosExistentesMap = Map.fromEntries(
@@ -1194,6 +1243,7 @@ class _NominaScreenState extends State<NominaScreen>
             },
             onEmpezarDeCero: () {
               // Reiniciar con datos nuevos
+              if (!mounted || _isDisposed) return;
               setState(() {
                 final listaCompleta = List<Map<String, dynamic>>.from(
                   _selectedCuadrilla['empleados'] ?? [],
@@ -1223,6 +1273,7 @@ class _NominaScreenState extends State<NominaScreen>
       );
     } else {
       // Al abrir el diálogo, resetear selecciones y cargar empleados actuales
+      if (!mounted || _isDisposed) return;
       setState(() {
         showArmarCuadrilla = true;
 
@@ -1434,15 +1485,40 @@ class _NominaScreenState extends State<NominaScreen>
         cuadrillaSeleccionada!['nombre'] != null &&
         cuadrillaSeleccionada!['nombre'] != '';
 
-    // Verificar que hay empleados en la cuadrilla
-    bool hasEmpleados =
-        empleadosFiltrados.isNotEmpty ||
-        empleadosNomina.isNotEmpty ||
-        (cuadrillaSeleccionada != null &&
+    // Verificar que hay empleados en la cuadrilla (verificar múltiples fuentes)
+    bool hasEmpleados = false;
+    
+    // Verificar empleadosFiltrados (tabla principal visible)
+    if (empleadosFiltrados.isNotEmpty) {
+      hasEmpleados = true;
+    } 
+    // Verificar empleadosNomina (datos cargados de BD)
+    else if (empleadosNomina.isNotEmpty) {
+      hasEmpleados = true;
+    } 
+    // Verificar cuadrilla seleccionada
+    else if (cuadrillaSeleccionada != null &&
             cuadrillaSeleccionada!['empleados'] != null &&
-            (cuadrillaSeleccionada!['empleados'] as List).isNotEmpty);
+            (cuadrillaSeleccionada!['empleados'] as List).isNotEmpty) {
+      hasEmpleados = true;
+    }
+    // Verificar _selectedCuadrilla como última opción
+    else if (_selectedCuadrilla['empleados'] != null &&
+            (_selectedCuadrilla['empleados'] as List).isNotEmpty) {
+      hasEmpleados = true;
+    }
 
-    return hasSemana && hasCuadrilla && hasEmpleados;
+    final canSave = hasSemana && hasCuadrilla && hasEmpleados;
+    
+    // Debug para troubleshooting
+    if (!canSave) {
+      print('🔍 _canSave = false: hasSemana=$hasSemana, hasCuadrilla=$hasCuadrilla, hasEmpleados=$hasEmpleados');
+      print('   empleadosFiltrados.length=${empleadosFiltrados.length}');
+      print('   empleadosNomina.length=${empleadosNomina.length}');
+      print('   cuadrillaSeleccionada empleados=${cuadrillaSeleccionada != null ? (cuadrillaSeleccionada!['empleados'] as List?)?.length ?? 0 : 0}');
+    }
+    
+    return canSave;
   }
 
   // Mostrar diálogo para reiniciar semana con opciones
@@ -1868,7 +1944,7 @@ class _NominaScreenState extends State<NominaScreen>
 
   /// Realiza el cambio de cuadrilla
   Future<void> _changeCuadrilla(Map<String, dynamic>? option) async {
-    if (!mounted) return;
+    if (!mounted || _isDisposed) return;
     
     print('🔄 INICIANDO cambio de cuadrilla: ${option?['nombre'] ?? 'DESELECCIONAR'}');
     
@@ -1907,7 +1983,7 @@ class _NominaScreenState extends State<NominaScreen>
     if (option != null && idSemanaSeleccionada != null) {
       print('  🔄 Cargando datos desde BD...');
       
-      if (mounted) {
+      if (mounted && !_isDisposed) {
         setState(() {
           _selectedCuadrilla = option;
           cuadrillaSeleccionada = option;
@@ -1923,12 +1999,12 @@ class _NominaScreenState extends State<NominaScreen>
       }
 
       // ✅ Cargar datos desde BD para obtener información completa
-      if (mounted) {
+      if (mounted && !_isDisposed) {
         await cargarDatosNomina();
       }
       
       // Guardar los datos originales después de cargar
-      if (mounted) {
+      if (mounted && !_isDisposed) {
         _saveOriginalData();
         
         // 🎯 Actualizar estado de captura después de cargar cuadrilla
@@ -2233,6 +2309,12 @@ class _NominaScreenState extends State<NominaScreen>
                 
                 // Cargar los datos completos de nómina usando la función existente
                 await cargarDatosNomina();
+                
+                // 🔧 IMPORTANTE: Guardar datos originales después de cargar para evitar falsos positivos de cambios
+                if (mounted) {
+                  _saveOriginalData();
+                  marcarCambiosGuardados();
+                }
               },
               onActualizarTablas: () {
                 // Actualizar las tablas después de guardar cambios en cuadrilla
@@ -2259,8 +2341,52 @@ class _NominaScreenState extends State<NominaScreen>
     ),
     );
   }
-  void _mostrarResumenCuadrillasYCerrar() {
+  void _mostrarResumenCuadrillasYCerrar() async {
     if (_startDate == null || _endDate == null) return;
+
+    // 🚨 CRÍTICO: Guardar todos los datos pendientes ANTES de mostrar el resumen
+    if (_detectUnsavedChanges() || empleadosNominaTemp.isNotEmpty) {
+      // Mostrar indicador de guardado
+      if (mounted) {
+        setState(() {
+          _isGuardando = true;
+        });
+      }
+      
+      try {
+        // Aplicar cambios temporales y guardar
+        _applyTempChangesToReal();
+        await guardarNomina();
+        
+        // Marcar como guardado
+        if (mounted) {
+          _saveOriginalData();
+          marcarCambiosGuardados();
+        }
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Datos guardados antes del cierre'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error al guardar datos: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return; // No continuar con el cierre si hay error
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isGuardando = false;
+          });
+        }
+      }
+    }
 
     // Crear una lista de todas las cuadrillas con sus empleados y datos completos
     List<Map<String, dynamic>> cuadrillasInfo = [];
@@ -2269,47 +2395,47 @@ class _NominaScreenState extends State<NominaScreen>
     for (var cuadrilla in _optionsCuadrilla) {
       List<Map<String, dynamic>> empleadosConTablas = [];
 
-      // Si es la cuadrilla actual seleccionada, usamos directamente empleadosFiltrados 
-      // (que es la tabla principal visible con datos actualizados)
-      if (cuadrilla['nombre'] == _selectedCuadrilla['nombre']) {
-        // Usar datos temporales si existen, sino usar empleadosFiltrados
-        final empleadosParaUsar = empleadosNominaTemp.isNotEmpty 
-            ? empleadosNominaTemp 
-            : empleadosFiltrados;
-            
-        empleadosConTablas = empleadosParaUsar.map((emp) {
-          // Calcular totales usando los datos actuales de la tabla
-          final numDays = _endDate!.difference(_startDate!).inDays + 1;
+      // 🔧 OBTENER DATOS ACTUALIZADOS DE LA BD para cada cuadrilla con empleados
+      final empleadosCuadrilla = List<Map<String, dynamic>>.from(
+        cuadrilla['empleados'] ?? [],
+      );
+      
+      // Solo procesar si la cuadrilla tiene empleados asignados
+      if (empleadosCuadrilla.isNotEmpty && idSemanaSeleccionada != null) {
+        try {
+          // Obtener datos actualizados de la BD para esta cuadrilla
+          final datosActualizados = await obtenerNominaEmpleadosDeCuadrilla(
+            idSemanaSeleccionada!,
+            cuadrilla['id'],
+          );
           
-          // Sumar solo las celdas "S" (salario) por día
-          final totalDias = List.generate(numDays, (i) {
-            return int.tryParse(emp['dia_${i}_s']?.toString() ?? '0') ?? 0;
-          }).reduce((a, b) => a + b);
-          
-          final debe = int.tryParse(emp['debe']?.toString() ?? '0') ?? 0;
-          final comedorValue = int.tryParse(emp['comedor']?.toString() ?? '0') ?? 0;
-          final subtotal = totalDias - debe;
-          final totalNeto = subtotal - comedorValue;
-
-          return {
-            ...emp,
-            'tabla_principal': {
-              'total': totalDias,
-              'debe': debe,
-              'comedor': comedorValue,
-              'subtotal': subtotal,
-              'neto': totalNeto,
-            },
-          };
-        }).toList();
-      } else {
-        // Para otras cuadrillas, verificar si tienen empleados registrados
-        final empleadosCuadrilla = List<Map<String, dynamic>>.from(
-          cuadrilla['empleados'] ?? [],
-        );
-        
-        // Solo procesar si la cuadrilla tiene empleados asignados
-        if (empleadosCuadrilla.isNotEmpty) {
+          // Si hay datos en la BD, usarlos; sino usar cálculos locales
+          if (datosActualizados.isNotEmpty) {
+            empleadosConTablas = datosActualizados.map((emp) {
+              // Los datos ya vienen con todos los cálculos desde la BD
+              final totalNeto = double.tryParse(emp['totalNeto']?.toString() ?? '0') ?? 0.0;
+              
+              return {
+                ...emp,
+                'totalNeto': totalNeto,
+                'tabla_principal': {
+                  'total': double.tryParse(emp['total']?.toString() ?? '0') ?? 0.0,
+                  'debe': double.tryParse(emp['debe']?.toString() ?? '0') ?? 0.0,
+                  'comedor': double.tryParse(emp['comedor']?.toString() ?? '0') ?? 0.0,
+                  'subtotal': double.tryParse(emp['subtotal']?.toString() ?? '0') ?? 0.0,
+                  'neto': totalNeto,
+                },
+              };
+            }).toList();
+          } else {
+            // Fallback: usar procesamiento local solo si no hay datos en BD
+            empleadosConTablas = empleadosCuadrilla.map((emp) {
+              return _procesarEmpleado(emp);
+            }).toList();
+          }
+        } catch (e) {
+          print('⚠️ Error obteniendo datos de cuadrilla ${cuadrilla['nombre']}: $e');
+          // Fallback: usar procesamiento local
           empleadosConTablas = empleadosCuadrilla.map((emp) {
             return _procesarEmpleado(emp);
           }).toList();
@@ -2318,10 +2444,10 @@ class _NominaScreenState extends State<NominaScreen>
       
       // Solo agregamos cuadrillas que tienen empleados
       if (empleadosConTablas.isNotEmpty) {
-        // Calculamos el total de la cuadrilla
+        // Calculamos el total de la cuadrilla usando totalNeto directamente
         final totalCuadrilla = empleadosConTablas.fold<double>(
           0.0,
-          (sum, emp) => sum + (emp['tabla_principal']?['neto'] as num? ?? 0).toDouble(),
+          (sum, emp) => sum + (double.tryParse(emp['totalNeto']?.toString() ?? '0') ?? 0.0),
         );
 
         cuadrillasInfo.add({
@@ -2329,42 +2455,14 @@ class _NominaScreenState extends State<NominaScreen>
           'empleados': empleadosConTablas,
           'total': totalCuadrilla,
         });
-      }
-    }
-
-    // Crear un mapa de datos temporales agrupados por cuadrilla
-    Map<String, List<Map<String, dynamic>>> empleadosTemporalesPorCuadrilla = {};
-    if (empleadosNominaTemp.isNotEmpty) {
-      // 🔧 Agrupar empleados temporales por su cuadrilla real (desde todos los empleados de nómina)
-      for (var empleado in empleadosNomina) {
-        // Buscar el empleado correspondiente en los datos temporales
-        final empleadoTemp = empleadosNominaTemp.firstWhere(
-          (empTemp) => empTemp['id'] == empleado['id'],
-          orElse: () => <String, dynamic>{},
-        );
         
-        if (empleadoTemp.isNotEmpty) {
-          // Encontrar la cuadrilla de este empleado
-          String? nombreCuadrilla;
-          for (var cuadrilla in _optionsCuadrilla) {
-            final empleadosCuadrilla = cuadrilla['empleados'] as List<dynamic>? ?? [];
-            if (empleadosCuadrilla.any((emp) => emp['id_empleado'] == empleado['id'])) {
-              nombreCuadrilla = cuadrilla['nombre'] as String;
-              break;
-            }
-          }
-          
-          if (nombreCuadrilla != null) {
-            if (!empleadosTemporalesPorCuadrilla.containsKey(nombreCuadrilla)) {
-              empleadosTemporalesPorCuadrilla[nombreCuadrilla] = [];
-            }
-            empleadosTemporalesPorCuadrilla[nombreCuadrilla]!.add(empleadoTemp);
-          }
-        }
+        print('✅ Cuadrilla ${cuadrilla['nombre']}: ${empleadosConTablas.length} empleados, Total: \$${totalCuadrilla.toStringAsFixed(2)}');
       }
     }
 
-    // Mostrar diálogo de resumen
+    print('🔍 Resumen final: ${cuadrillasInfo.length} cuadrillas con datos');
+
+    // Mostrar diálogo de resumen (sin datos temporales ya que todo está guardado)
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -2372,7 +2470,7 @@ class _NominaScreenState extends State<NominaScreen>
         cuadrillasInfo: cuadrillasInfo,
         fechaInicio: _startDate!,
         fechaFin: _endDate!,
-        empleadosNominaTemp: empleadosTemporalesPorCuadrilla.isNotEmpty ? empleadosTemporalesPorCuadrilla : null,
+        empleadosNominaTemp: null, // Ya no necesitamos datos temporales
         onConfirmarCierre: () async {
           Navigator.of(context).pop();
           await _cerrarSemanaActual();

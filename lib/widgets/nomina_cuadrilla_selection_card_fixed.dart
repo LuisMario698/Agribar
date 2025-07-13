@@ -574,10 +574,9 @@ class _CuadrillaDropdownConEmpleadosState extends State<_CuadrillaDropdownConEmp
       return Container(); // Return empty container if disposed
     }
     
-    // Comentado: variable no usada después de eliminar el indicador de empleados
-    // final empleadosEnSeleccionada = widget.cuadrillaSeleccionada != null 
-    //     ? ((widget.cuadrillaSeleccionada!['empleados'] as List?)?.length ?? 0)
-    //     : 0;
+    final empleadosEnSeleccionada = widget.cuadrillaSeleccionada != null 
+        ? ((widget.cuadrillaSeleccionada!['empleados'] as List?)?.length ?? 0)
+        : 0;
     
     return CompositedTransformTarget(
       link: _layerLink,
@@ -628,18 +627,17 @@ class _CuadrillaDropdownConEmpleadosState extends State<_CuadrillaDropdownConEmp
                               fontWeight: FontWeight.w500,
                             ),
                           ),
-                          // Comentado: indicador de empleados eliminado por solicitud del usuario
-                          // if (empleadosEnSeleccionada > 0)
-                          //   Text(
-                          //     '$empleadosEnSeleccionada empleado${empleadosEnSeleccionada != 1 ? 's' : ''}',
-                          //     style: TextStyle(
-                          //       color: widget.isDisabled
-                          //           ? Colors.grey.shade400
-                          //           : Colors.green.shade600,
-                          //       fontSize: 11,
-                          //       fontWeight: FontWeight.w500,
-                          //     ),
-                          //   ),
+                          if (empleadosEnSeleccionada > 0)
+                            Text(
+                              '$empleadosEnSeleccionada empleado${empleadosEnSeleccionada != 1 ? 's' : ''}',
+                              style: TextStyle(
+                                color: widget.isDisabled
+                                    ? Colors.grey.shade400
+                                    : Colors.green.shade600,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
                         ],
                       )
                     : Text(

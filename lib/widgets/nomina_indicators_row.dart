@@ -345,7 +345,9 @@ class _NominaIndicatorsRowState extends State<NominaIndicatorsRow> {
           Expanded(
             child: IndicatorCard(
               title: 'Empleados',
-              value: '${widget.empleadosFiltrados.length}',
+              value: widget.empleadosFiltrados.isEmpty 
+                  ? '--' 
+                  : '${widget.empleadosFiltrados.length}',
               icon: Icons.people,
             ),
           ),
@@ -353,7 +355,9 @@ class _NominaIndicatorsRowState extends State<NominaIndicatorsRow> {
           Expanded(
             child: IndicatorCard(
               title: 'Acumulado',
-              value: '\$${_calcularAcumuladoCuadrilla().toStringAsFixed(2)}',
+              value: widget.empleadosFiltrados.isEmpty 
+                  ? '--' 
+                  : '\$${_calcularAcumuladoCuadrilla().toStringAsFixed(2)}',
               icon: Icons.payments,
             ),
           ),

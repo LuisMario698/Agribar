@@ -2,17 +2,10 @@ import 'package:flutter/material.dart';
 import 'dart:ui';
 import 'dropdown_cuadrillas_armar.dart';
 import 'package:agribar/services/semana_service.dart';
+import 'package:agribar/services/database_service.dart';
 
 /// Widget modular mejorado para manejar el diálogo de "Armar Cuadrilla"
 /// Versión optimizada con mejor gestión de estado y flujo de trabajo
-///
-/// Este widget permite:
-/// - Seleccionar una cuadrilla para asignar empleados
-/// - Buscar y filtrar empleados disponibles
-/// - Agregar o quitar empleados de una cuadrilla
-/// - Guardar los cambios en la base de datos
-///
-/// Al guardar, se notifica mediante callbacks para actualizar las vistas relacionadas
 class NominaArmarCuadrillaWidget extends StatefulWidget {
   final List<Map<String, dynamic>> optionsCuadrilla;
   final Map<String, dynamic> selectedCuadrilla;
@@ -21,9 +14,6 @@ class NominaArmarCuadrillaWidget extends StatefulWidget {
   final Function(Map<String, dynamic>, List<Map<String, dynamic>>) onCuadrillaSaved;
   final VoidCallback onClose;
   final Function(BuildContext, Map<String, dynamic>) onMostrarDetallesEmpleado;
-  /// Callback opcional que se ejecuta después de guardar para actualizar las tablas principal y expandida
-  /// Se llama justo después de onCuadrillaSaved y antes de cerrar el diálogo
-  final VoidCallback? onActualizarTablas;
 
   const NominaArmarCuadrillaWidget({
     Key? key,
@@ -34,7 +24,6 @@ class NominaArmarCuadrillaWidget extends StatefulWidget {
     required this.onCuadrillaSaved,
     required this.onClose,
     required this.onMostrarDetallesEmpleado,
-    this.onActualizarTablas, // Nuevo parámetro opcional
   }) : super(key: key);
   
   @override
@@ -48,7 +37,6 @@ class _NominaArmarCuadrillaWidgetState extends State<NominaArmarCuadrillaWidget>
   Map<String, dynamic> selectedCuadrillaLocal = {};
   
   // Estado de modificación para controlar el botón de guardar
-  bool _isDisposed = false;
   bool cuadrillaModificada = false;
   bool guardando = false;
   String? mensajeError;
@@ -75,8 +63,6 @@ class _NominaArmarCuadrillaWidgetState extends State<NominaArmarCuadrillaWidget>
 
   /// Inicializa los datos del widget
   void _inicializarDatos() {
-    if (_isDisposed || !mounted) return;
-    
     setState(() {
       // Inicializar la cuadrilla seleccionada
       selectedCuadrillaLocal = Map<String, dynamic>.from(widget.selectedCuadrilla);
@@ -104,7 +90,6 @@ class _NominaArmarCuadrillaWidgetState extends State<NominaArmarCuadrillaWidget>
 
   @override
   void dispose() {
-    _isDisposed = true;
     _buscarDisponiblesController.dispose();
     _buscarEnCuadrillaController.dispose();
     super.dispose();
@@ -132,8 +117,6 @@ class _NominaArmarCuadrillaWidgetState extends State<NominaArmarCuadrillaWidget>
       return;
     }
     
-    if (_isDisposed || !mounted) return;
-    
     setState(() {
       // Crear una copia del empleado para la cuadrilla
       final empleadoCopia = Map<String, dynamic>.from(empleado);
@@ -153,24 +136,14 @@ class _NominaArmarCuadrillaWidgetState extends State<NominaArmarCuadrillaWidget>
   }
 
   /// Guarda los empleados de la cuadrilla en la base de datos
-  /// 
-  /// Flujo de ejecución:
-  /// 1. Valida si hay una cuadrilla seleccionada
-  /// 2. Obtiene la semana activa
-  /// 3. Guarda los empleados en la BD (borrando registros previos)
-  /// 4. Notifica con onCuadrillaSaved
-  /// 5. Actualiza las tablas con onActualizarTablas
-  /// 6. Cierra el diálogo
   Future<void> _guardarCuadrilla() async {
     // Verificar si hay una cuadrilla seleccionada
     if (selectedCuadrillaLocal['id'] == null) {
-      if (_isDisposed || !mounted) return;
       setState(() => mensajeError = 'No hay cuadrilla seleccionada');
       return;
     }
     
     // Iniciar proceso de guardado
-    if (_isDisposed || !mounted) return;
     setState(() {
       guardando = true;
       mensajeError = null;
@@ -181,7 +154,6 @@ class _NominaArmarCuadrillaWidgetState extends State<NominaArmarCuadrillaWidget>
       final semanaId = await obtenerSemanaAbierta();
       
       if (semanaId == null || semanaId['id'] == null) {
-        if (_isDisposed || !mounted) return;
         setState(() {
           mensajeError = 'No hay semana activa disponible';
           guardando = false;
@@ -197,7 +169,6 @@ class _NominaArmarCuadrillaWidgetState extends State<NominaArmarCuadrillaWidget>
       );
       
       // Actualizar UI después de guardar
-      if (_isDisposed || !mounted) return;
       setState(() {
         guardando = false;
         cuadrillaModificada = false;
@@ -220,16 +191,10 @@ class _NominaArmarCuadrillaWidgetState extends State<NominaArmarCuadrillaWidget>
       // Notificar que se guardó la cuadrilla
       widget.onCuadrillaSaved(selectedCuadrillaLocal, empleadosEnCuadrillaLocal);
       
-      // Llamar al callback para actualizar tablas, si está definido
-      if (widget.onActualizarTablas != null) {
-        widget.onActualizarTablas!();
-      }
-      
       // Cerrar el diálogo
       widget.onClose();
       
     } catch (e) {
-      if (_isDisposed || !mounted) return;
       setState(() {
         mensajeError = 'Error al guardar: $e';
         guardando = false;
@@ -555,7 +520,6 @@ class _NominaArmarCuadrillaWidgetState extends State<NominaArmarCuadrillaWidget>
 
   // Cambia la cuadrilla seleccionada
   void _cambiarCuadrilla(Map<String, dynamic>? opcion) {
-    if (_isDisposed || !mounted) return;
     setState(() {
       if (opcion == null) {
         selectedCuadrillaLocal = {'nombre': '', 'id': null};
@@ -575,6 +539,7 @@ class _NominaArmarCuadrillaWidgetState extends State<NominaArmarCuadrillaWidget>
     });
   }
 
+  // Widget para indicador de modificación
   // Widget para mensajes de error
   Widget _buildErrorMessage() {
     return Padding(
@@ -718,7 +683,6 @@ class _NominaArmarCuadrillaWidgetState extends State<NominaArmarCuadrillaWidget>
                 contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
               onChanged: (value) {
-                if (_isDisposed || !mounted) return;
                 setState(() {
                   if (value.isEmpty) {
                     empleadosDisponiblesFiltrados = List.from(widget.todosLosEmpleados);
@@ -838,7 +802,6 @@ class _NominaArmarCuadrillaWidgetState extends State<NominaArmarCuadrillaWidget>
                 contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
               onChanged: (value) {
-                if (_isDisposed || !mounted) return;
                 setState(() {
                   // La búsqueda se aplica directamente al renderizar la lista
                 });
@@ -977,19 +940,6 @@ class _NominaArmarCuadrillaWidgetState extends State<NominaArmarCuadrillaWidget>
                     ],
                   ),
                 ),
-                // Botón para ver detalles del empleado
-                IconButton(
-                  onPressed: () => widget.onMostrarDetallesEmpleado(context, empleado),
-                  icon: Icon(
-                    Icons.visibility,
-                    color: Colors.blue,
-                    size: 22,
-                  ),
-                  tooltip: 'Ver detalles',
-                  constraints: BoxConstraints(),
-                  padding: EdgeInsets.all(4),
-                ),
-                SizedBox(width: 4),
                 if (enCuadrilla)
                   Icon(
                     Icons.remove_circle,
@@ -1065,41 +1015,3 @@ class _NominaArmarCuadrillaWidgetState extends State<NominaArmarCuadrillaWidget>
     );
   }
 }
-
-/// EJEMPLO DE USO:
-/// ```dart
-/// // En el widget padre que muestra el diálogo "Armar Cuadrilla":
-/// void _mostrarArmarCuadrillaDialog() {
-///   showDialog(
-///     context: context,
-///     builder: (context) => NominaArmarCuadrillaWidget(
-///       optionsCuadrilla: cuadrillas,
-///       selectedCuadrilla: cuadrillaSeleccionada,
-///       todosLosEmpleados: todosLosEmpleados,
-///       empleadosEnCuadrilla: empleadosEnCuadrilla,
-///       onCuadrillaSaved: (cuadrilla, empleados) {
-///         // Actualizar los datos locales con la información guardada
-///         setState(() {
-///           cuadrillaSeleccionada = cuadrilla;
-///           empleadosEnCuadrilla = empleados;
-///         });
-///       },
-///       onClose: () => Navigator.of(context).pop(),
-///       onMostrarDetallesEmpleado: (context, empleado) {
-///         // Mostrar detalles del empleado
-///         _mostrarDetallesEmpleado(context, empleado);
-///       },
-///       onActualizarTablas: () {
-///         // Código para actualizar la tabla principal
-///         _actualizarTablaPrincipal();
-///         
-///         // Código para actualizar la tabla expandida
-///         _actualizarTablaExpandida();
-///         
-///         // También puedes refrescar datos desde la BD si es necesario
-///         _cargarDatosActualizados();
-///       },
-///     ),
-///   );
-/// }
-/// ```

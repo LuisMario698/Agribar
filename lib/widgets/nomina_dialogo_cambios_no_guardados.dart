@@ -258,16 +258,20 @@ mixin CambiosNoGuardadosMixin<T extends StatefulWidget> on State<T> {
   
   /// Marca que hay cambios no guardados
   void marcarCambiosNoGuardados() {
-    setState(() {
-      _tieneCambiosNoGuardados = true;
-    });
+    if (mounted) {
+      setState(() {
+        _tieneCambiosNoGuardados = true;
+      });
+    }
   }
   
   /// Marca que los cambios han sido guardados
   void marcarCambiosGuardados() {
-    setState(() {
-      _tieneCambiosNoGuardados = false;
-    });
+    if (mounted) {
+      setState(() {
+        _tieneCambiosNoGuardados = false;
+      });
+    }
   }
   
   /// Maneja la salida con verificación de cambios no guardados
