@@ -78,11 +78,22 @@ class _NominaArmarCuadrillaWidgetState extends State<NominaArmarCuadrillaWidget>
     if (_isDisposed || !mounted) return;
     
     setState(() {
-      // Inicializar la cuadrilla seleccionada
-      selectedCuadrillaLocal = Map<String, dynamic>.from(widget.selectedCuadrilla);
-      
-      // Inicializar empleados en la cuadrilla
-      empleadosEnCuadrillaLocal = List<Map<String, dynamic>>.from(widget.empleadosEnCuadrilla);
+      // 🎯 Si no hay cuadrilla seleccionada, seleccionar automáticamente la primera
+      if ((widget.selectedCuadrilla['nombre'] == null || 
+           widget.selectedCuadrilla['nombre'] == '') && 
+          widget.optionsCuadrilla.isNotEmpty) {
+        // Seleccionar la primera cuadrilla automáticamente
+        selectedCuadrillaLocal = Map<String, dynamic>.from(widget.optionsCuadrilla.first);
+        // Cargar empleados de la primera cuadrilla
+        empleadosEnCuadrillaLocal = List<Map<String, dynamic>>.from(
+          widget.optionsCuadrilla.first['empleados'] ?? []
+        );
+      } else {
+        // Inicializar la cuadrilla seleccionada
+        selectedCuadrillaLocal = Map<String, dynamic>.from(widget.selectedCuadrilla);
+        // Inicializar empleados en la cuadrilla
+        empleadosEnCuadrillaLocal = List<Map<String, dynamic>>.from(widget.empleadosEnCuadrilla);
+      }
       
       // Inicializar empleados disponibles (todos los empleados)
       empleadosDisponiblesFiltrados = List.from(widget.todosLosEmpleados);
