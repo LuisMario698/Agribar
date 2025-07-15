@@ -24,11 +24,17 @@ class EmpleadosGeneralTab extends StatefulWidget {
 class _EmpleadosGeneralTabState extends State<EmpleadosGeneralTab> {
   final TextEditingController _searchController = TextEditingController();
   List<Map<String, dynamic>> _filteredData = [];
+  
+  // Variables para paginación visual
+  int _paginaActual = 1;
+  int _elementosPorPagina = 100;
+  List<Map<String, dynamic>> _datosVisibles = [];
 
   @override
   void initState() {
     super.initState();
     _filteredData = widget.empleadosData;
+    _actualizarDatosVisibles();
     _searchController.addListener(_filterData);
   }
 
@@ -45,8 +51,16 @@ class _EmpleadosGeneralTabState extends State<EmpleadosGeneralTab> {
     if (widget.empleadosData != oldWidget.empleadosData) {
       setState(() {
         _filteredData = widget.empleadosData;
+        _paginaActual = 1; // Resetear a primera página
+        _actualizarDatosVisibles();
       });
     }
+  }
+
+  void _actualizarDatosVisibles() {
+    final inicio = (_paginaActual - 1) * _elementosPorPagina;
+    final fin = inicio + _elementosPorPagina;
+    _datosVisibles = _filteredData.take(fin).skip(inicio).toList();
   }
 
   void _filterData() {
@@ -55,6 +69,8 @@ class _EmpleadosGeneralTabState extends State<EmpleadosGeneralTab> {
     if (query.isEmpty) {
       setState(() {
         _filteredData = widget.empleadosData;
+        _paginaActual = 1; // Resetear paginación al filtrar
+        _actualizarDatosVisibles();
       });
       return;
     }
@@ -77,6 +93,15 @@ class _EmpleadosGeneralTabState extends State<EmpleadosGeneralTab> {
                 cuadrilla.contains(query) ||
                 '$nombre $apellidoPaterno $apellidoMaterno'.contains(query);
           }).toList();
+      _paginaActual = 1; // Resetear paginación al filtrar
+      _actualizarDatosVisibles();
+    });
+  }
+
+  void _cambiarPagina(int nuevaPagina) {
+    setState(() {
+      _paginaActual = nuevaPagina;
+      _actualizarDatosVisibles();
     });
   }
 
@@ -87,12 +112,51 @@ class _EmpleadosGeneralTabState extends State<EmpleadosGeneralTab> {
     });
   }
 
+  Widget _buildPaginationControls(int totalPaginas) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          onPressed: _paginaActual > 1 ? () => _cambiarPagina(_paginaActual - 1) : null,
+          icon: Icon(Icons.chevron_left),
+          tooltip: 'Página anterior',
+        ),
+        Container(
+          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: Color(0xFF0B7A2F),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Text(
+            '$_paginaActual de $totalPaginas',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
+          ),
+        ),
+        IconButton(
+          onPressed: _paginaActual < totalPaginas ? () => _cambiarPagina(_paginaActual + 1) : null,
+          icon: Icon(Icons.chevron_right),
+          tooltip: 'Página siguiente',
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Calcular métricas basadas en datos filtrados
     int empleadosActivos =
         _filteredData.where((emp) => emp['habilitado'] == true).length;
     int empleadosInactivos =
         _filteredData.where((emp) => emp['habilitado'] == false).length;
+    
+    // Calcular información de paginación
+    final totalPaginas = (_filteredData.length / _elementosPorPagina).ceil();
+    final inicio = (_paginaActual - 1) * _elementosPorPagina + 1;
+    final fin = (_paginaActual * _elementosPorPagina).clamp(0, _filteredData.length);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -121,14 +185,30 @@ class _EmpleadosGeneralTabState extends State<EmpleadosGeneralTab> {
             ),
           ],
         ),
-        SizedBox(height: 32),
+        SizedBox(height: 16),
+        // Información de paginación
+        Container(
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Mostrando $inicio-$fin de ${_filteredData.length} empleados',
+                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+              ),
+              if (totalPaginas > 1) _buildPaginationControls(totalPaginas),
+            ],
+          ),
+        ),
+        SizedBox(height: 16),
         Expanded(
           child: GenericDataTable<Map<String, dynamic>>(
-            data: _filteredData,
+            data: _datosVisibles, // Usar datos visibles en lugar de _filteredData
             headers: widget.empleadosHeaders,
             buildCells: (row, rowIdx) {
+              // Calcular el índice real considerando la paginación
               final originalIndex = widget.empleadosData.indexWhere(
-                (emp) => emp['clave'] == row['clave'],
+                (emp) => emp['id_empleado'] == row['id_empleado'],
               );
 
               return [

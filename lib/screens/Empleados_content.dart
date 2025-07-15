@@ -23,19 +23,21 @@ class EmpleadosContent extends StatefulWidget {
 /// - Datos de empleados
 /// - Scroll de la interfaz
 class _EmpleadosContentState extends State<EmpleadosContent> {
-  int _selectedTabIndex = 0; // Índice de la pestaña seleccionada
+  int _selectedTabIndex = 0;
   final ScrollController _tabScrollController = ScrollController();
 
   // Controladores para el diálogo de autenticación
   final TextEditingController userController = TextEditingController();
   final TextEditingController passController = TextEditingController();
 
-  // Servicio de autenticación con base de datos
+  // Servicios
   final AuthValidationService _authService = AuthValidationService();
   final ControlUsuarioService _controlUsuario = ControlUsuarioService();
 
-  /// Datos de los empleados en formato tabular
+  // Estado de carga
   List<Map<String, dynamic>> empleadosData = [];
+  bool _isLoading = false;
+  bool _hasLoadedOnce = false;
 
   final List<String> empleadosHeaders = [
     'Clave',
@@ -56,35 +58,49 @@ class _EmpleadosContentState extends State<EmpleadosContent> {
   @override
   void initState() {
     super.initState();
-    print('🚀 Inicializando EmpleadosContent...');
-    // Cargar empleados inmediatamente
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      cargarEmpleadosDesdeBD();
+      _cargarEmpleadosOptimizado();
       _setIndicator();
     });
   }
 
-  Future<void> cargarEmpleadosDesdeBD() async {
+  /// Método optimizado para cargar empleados
+  Future<void> _cargarEmpleadosOptimizado({bool forzarRecarga = false}) async {
+    if (_isLoading) return; // Evitar múltiples cargas simultáneas
+    
+    setState(() {
+      _isLoading = true;
+    });
+
     try {
-      print('🔄 Iniciando carga de empleados...');
-      final empleados = await obtenerEmpleadosDesdeBD();
-      print('✅ Empleados cargados: ${empleados.length}');
-      setState(() {
-        empleadosData = empleados;
-      });
-      print('📊 Estado actualizado con ${empleadosData.length} empleados');
+      final empleados = await obtenerEmpleadosDesdeBD(forzarRecarga: forzarRecarga);
+      if (mounted) {
+        setState(() {
+          empleadosData = empleados;
+          _hasLoadedOnce = true;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       print('❌ Error al cargar empleados: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
+  }
+
+  Future<void> cargarEmpleadosDesdeBD({bool forzarRecarga = false}) async {
+    return _cargarEmpleadosOptimizado(forzarRecarga: forzarRecarga);
   }
 
   void _onTabSelected(int index) {
     setState(() => _selectedTabIndex = index);
     
-    // Si se selecciona la pestaña General (índice 0), recargar empleados
-    if (index == 0) {
-      print('📂 Recargando empleados para pestaña General...');
-      cargarEmpleadosDesdeBD();
+    // Solo cargar si no se ha cargado antes y es la pestaña General
+    if (index == 0 && !_hasLoadedOnce) {
+      _cargarEmpleadosOptimizado();
     }
     
     WidgetsBinding.instance.addPostFrameCallback((_) => _setIndicator());
@@ -114,11 +130,9 @@ class _EmpleadosContentState extends State<EmpleadosContent> {
   }
 
   void agregarEmpleado(List<String> nuevoEmpleado) async {
-    // Recargar datos desde la base de datos para mantener sincronización
-    await cargarEmpleadosDesdeBD();
-
+    await _cargarEmpleadosOptimizado(forzarRecarga: true);
     setState(() {
-      _selectedTabIndex = 0; // Regresa a la pestaña General
+      _selectedTabIndex = 0;
     });
   }
 
@@ -237,8 +251,11 @@ class _EmpleadosContentState extends State<EmpleadosContent> {
       
       if (success) {
         print('✅ Estado actualizado exitosamente en BD');
-        // Recargar datos desde la base de datos para mantener consistencia
-        await cargarEmpleadosDesdeBD();
+        
+        // Actualizar el estado local directamente sin recargar toda la tabla
+        setState(() {
+          empleadosData[index]['habilitado'] = nuevoEstado;
+        });
 
         // Mostrar mensaje de confirmación
         ScaffoldMessenger.of(context).showSnackBar(
@@ -331,11 +348,30 @@ class _EmpleadosContentState extends State<EmpleadosContent> {
   }
 
   Widget _buildGeneralTab() {
-    print('🏗️ Construyendo pestaña General con ${empleadosData.length} empleados');
-    return EmpleadosGeneralTab(
-      empleadosData: empleadosData,
-      empleadosHeaders: empleadosHeaders,
-      toggleHabilitado: _toggleHabilitado,
+    if (_isLoading) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(color: Color(0xFF0B7A2F)),
+            SizedBox(height: 16),
+            Text('Cargando empleados...', style: TextStyle(fontSize: 16)),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        // Tabla de empleados
+        Expanded(
+          child: EmpleadosGeneralTab(
+            empleadosData: empleadosData,
+            empleadosHeaders: empleadosHeaders,
+            toggleHabilitado: _toggleHabilitado,
+          ),
+        ),
+      ],
     );
   }
 

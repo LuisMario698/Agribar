@@ -1,5 +1,6 @@
 // lib/services/auth_validation_service.dart
 import 'package:agribar/services/database_service.dart';
+import 'cargarEmpleadosDesdeBD.dart';
 
 class AuthValidationService {
   final DatabaseService _db = DatabaseService();
@@ -90,25 +91,32 @@ class AuthValidationService {
   }
 
   /// Actualiza el estado de un empleado en la base de datos
-  /// Solo actualiza el campo 'deshabilitado', 'inactivo' es otra funcionalidad
+  /// Actualiza directamente el campo 'habilitado' en la tabla empleados
   Future<bool> actualizarEstadoEmpleado(int idEmpleado, bool activo) async {
     try {
       await _db.connect();
       
-      // Si activo = true, entonces deshabilitado = false
-      // Si activo = false, entonces deshabilitado = true
-      // NO tocamos el campo 'inactivo' ya que es otra funcionalidad
       final result = await _db.connection.query('''
-        UPDATE datos_laborales 
-        SET deshabilitado = @deshabilitado 
+        UPDATE empleados 
+        SET habilitado = @habilitado 
         WHERE id_empleado = @id_empleado
         RETURNING id_empleado;
       ''', substitutionValues: {
-        'deshabilitado': !activo, // deshabilitado es lo contrario de activo
+        'habilitado': activo,
         'id_empleado': idEmpleado,
       });
 
       await _db.close();
+      
+      // Actualizar cache si la operación fue exitosa
+      if (result.isNotEmpty) {
+        try {
+          actualizarEmpleadoEnCache(idEmpleado, {'habilitado': activo});
+        } catch (e) {
+          print('⚠️ No se pudo actualizar cache: $e');
+        }
+      }
+      
       return result.isNotEmpty;
     } catch (e) {
       await _db.close();
