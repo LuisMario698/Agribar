@@ -4,12 +4,14 @@ class GenericDataTable<T> extends StatelessWidget {
   final List<T> data;
   final List<String> headers;
   final List<DataCell> Function(T row, int rowIdx) buildCells;
+  final Color? Function(T row, int rowIdx)? getRowColor;
   final int minRows;
 
   const GenericDataTable({
     required this.data,
     required this.headers,
     required this.buildCells,
+    this.getRowColor,
     this.minRows = 20,
     Key? key,
   }) : super(key: key);
@@ -61,7 +63,13 @@ class GenericDataTable<T> extends StatelessWidget {
                         }).toList(),
                     rows: [
                       ...List.generate(data.length, (rowIdx) {
-                        return DataRow(cells: buildCells(data[rowIdx], rowIdx));
+                        final rowColor = getRowColor?.call(data[rowIdx], rowIdx);
+                        return DataRow(
+                          color: rowColor != null 
+                              ? MaterialStateProperty.all(rowColor)
+                              : null,
+                          cells: buildCells(data[rowIdx], rowIdx),
+                        );
                       }),
                       ...List.generate(extraRows, (i) {
                         return DataRow(

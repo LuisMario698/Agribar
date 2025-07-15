@@ -39,6 +39,16 @@ class _EmpleadosGeneralTabState extends State<EmpleadosGeneralTab> {
     super.dispose();
   }
 
+  @override
+  void didUpdateWidget(EmpleadosGeneralTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.empleadosData != oldWidget.empleadosData) {
+      setState(() {
+        _filteredData = widget.empleadosData;
+      });
+    }
+  }
+
   void _filterData() {
     final query = _searchController.text.toLowerCase().trim();
 
@@ -79,7 +89,6 @@ class _EmpleadosGeneralTabState extends State<EmpleadosGeneralTab> {
 
   @override
   Widget build(BuildContext context) {
-    // Calcular empleados activos e inactivos basado en los datos filtrados
     int empleadosActivos =
         _filteredData.where((emp) => emp['habilitado'] == true).length;
     int empleadosInactivos =
@@ -88,12 +97,10 @@ class _EmpleadosGeneralTabState extends State<EmpleadosGeneralTab> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Fila con búsqueda y métricas
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Barra de búsqueda
             Expanded(
               flex: 50,
               child: GenericSearchBar(
@@ -105,7 +112,6 @@ class _EmpleadosGeneralTabState extends State<EmpleadosGeneralTab> {
               ),
             ),
             const SizedBox(width: 16),
-            // Métricas
             Expanded(
               flex: 50,
               child: EmpleadosMetricsRow(
@@ -116,47 +122,79 @@ class _EmpleadosGeneralTabState extends State<EmpleadosGeneralTab> {
           ],
         ),
         SizedBox(height: 32),
-        // Tabla modular genérica
         Expanded(
           child: GenericDataTable<Map<String, dynamic>>(
             data: _filteredData,
             headers: widget.empleadosHeaders,
             buildCells: (row, rowIdx) {
-              // Buscar el índice real en los datos originales para el toggle
               final originalIndex = widget.empleadosData.indexWhere(
                 (emp) => emp['clave'] == row['clave'],
               );
 
               return [
-                DataCell(Text(row['clave'] ?? '')),
-                DataCell(Text(row['nombre'] ?? '')),
-                DataCell(Text(row['apellidoPaterno'] ?? '')),
-                DataCell(Text(row['apellidoMaterno'] ?? '')),
-                DataCell(Text(row['curp'] ?? '')),
-                DataCell(Text(row['rfc'] ?? '')),
-                DataCell(Text(row['estadoorigen'] ?? '')),
+                DataCell(Text(
+                  row['clave'] ?? '',
+                  style: TextStyle(
+                    color: !(row['habilitado'] as bool? ?? true) ? Colors.grey[600] : null,
+                  ),
+                )),
+                DataCell(Text(
+                  row['nombre'] ?? '',
+                  style: TextStyle(
+                    color: !(row['habilitado'] as bool? ?? true) ? Colors.grey[600] : null,
+                  ),
+                )),
+                DataCell(Text(
+                  row['apellidoPaterno'] ?? '',
+                  style: TextStyle(
+                    color: !(row['habilitado'] as bool? ?? true) ? Colors.grey[600] : null,
+                  ),
+                )),
+                DataCell(Text(
+                  row['apellidoMaterno'] ?? '',
+                  style: TextStyle(
+                    color: !(row['habilitado'] as bool? ?? true) ? Colors.grey[600] : null,
+                  ),
+                )),
+                DataCell(Text(
+                  row['curp'] ?? '',
+                  style: TextStyle(
+                    color: !(row['habilitado'] as bool? ?? true) ? Colors.grey[600] : null,
+                  ),
+                )),
+                DataCell(Text(
+                  row['rfc'] ?? '',
+                  style: TextStyle(
+                    color: !(row['habilitado'] as bool? ?? true) ? Colors.grey[600] : null,
+                  ),
+                )),
+                DataCell(Text(
+                  row['estadoorigen'] ?? '',
+                  style: TextStyle(
+                    color: !(row['habilitado'] as bool? ?? true) ? Colors.grey[600] : null,
+                  ),
+                )),
                 DataCell(
                   Container(
                     width: 120,
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            row['habilitado']
-                                ? Color(0xFFE53935)
-                                : Color(0xFF0B7A2F),
-                        foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
+                        backgroundColor: row['habilitado']
+                            ? Color(0xFF0B7A2F)
+                            : Color(0xFFE53935),
+                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
                       onPressed: () => widget.toggleHabilitado(originalIndex),
                       child: Text(
-                        row['habilitado'] ? 'Deshabilitar' : 'Habilitar',
-                        style: TextStyle(fontSize: 13),
+                        row['habilitado'] ? 'Sí' : 'No',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),

@@ -4,6 +4,8 @@
 import 'package:flutter/material.dart';
 import '../services/registrarCuadrillaEnBD.dart';
 import '../services/cargarCuadrillasDesdeBD.dart';
+import '../services/auth_validation_service.dart';
+import '../services/control_usuario_service.dart';
 // Widget principal de la pantalla de cuadrillas
 class CuadrillaContent extends StatefulWidget {
   const CuadrillaContent({Key? key}) : super(key: key);
@@ -26,6 +28,10 @@ class _CuadrillaContentState extends State<CuadrillaContent> {
   // Controladores para el diálogo de autenticación
   final TextEditingController userController = TextEditingController();
   final TextEditingController passController = TextEditingController();
+
+  // Servicio de autenticación con base de datos
+  final AuthValidationService _authService = AuthValidationService();
+  final ControlUsuarioService _controlUsuario = ControlUsuarioService();
 
   // Lista de cuadrillas (mock data) ahora con estado habilitado/deshabilitado
   
@@ -92,29 +98,46 @@ Future<void> cargarCuadrillas() async {
     actividadSeleccionada = null;
   });
 }
-  // Validar credenciales de supervisor
-  bool _validarCredencialesSupervisor(String usuario, String password) {
-    return usuario == "supervisor" && password == "1234";
-  }
-
   // Función para cambiar el estado de habilitado/deshabilitado
   Future<void> _toggleHabilitado(int index) async {
-    // Mostrar diálogo de autenticación
-    bool? result = await showDialog<bool>(
+    // Mostrar diálogo de autenticación con validación por base de datos
+    Map<String, dynamic>? userData = await showDialog<Map<String, dynamic>?>(
       context: context,
+      barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Autenticación de Supervisor'),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Icon(Icons.security, color: Color(0xFF0B7A2F)),
+              SizedBox(width: 12),
+              Text('Autenticación Requerida'),
+            ],
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              Text(
+                'Solo administradores y supervisores pueden cambiar el estado de las cuadrillas.',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+              SizedBox(height: 20),
               TextField(
                 controller: userController,
-                decoration: InputDecoration(labelText: 'Usuario'),
+                decoration: InputDecoration(
+                  labelText: 'Usuario',
+                  prefixIcon: Icon(Icons.person),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                ),
               ),
+              SizedBox(height: 16),
               TextField(
                 controller: passController,
-                decoration: InputDecoration(labelText: 'Contraseña'),
+                decoration: InputDecoration(
+                  labelText: 'Contraseña',
+                  prefixIcon: Icon(Icons.lock),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                ),
                 obscureText: true,
               ),
             ],
@@ -122,24 +145,52 @@ Future<void> cargarCuadrillas() async {
           actions: [
             TextButton(
               child: Text('Cancelar'),
-              onPressed: () => Navigator.of(context).pop(false),
+              onPressed: () => Navigator.of(context).pop(null),
             ),
-            TextButton(
-              child: Text('Aceptar'),
-              onPressed: () {
-                if (_validarCredencialesSupervisor(
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xFF0B7A2F),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: Text('Validar'),
+              onPressed: () async {
+                // Primero intentar con el nuevo sistema de base de datos
+                var userData = await _authService.validarCredencialesConPermisos(
                   userController.text,
                   passController.text,
-                )) {
-                  Navigator.of(context).pop(true);
+                );
+
+                // Si falla, intentar con el sistema anterior como respaldo
+                if (userData == null) {
+                  try {
+                    final resultado = await _controlUsuario.validarCredencialesConTipo(
+                      userController.text,
+                      passController.text,
+                    );
+                    
+                    if (resultado != null && (resultado['tipo'] == 'Administrador' || resultado['tipo'] == 'Supervisor')) {
+                      userData = {
+                        'nombre_usuario': userController.text,
+                        'rol_descripcion': resultado['tipo'],
+                        'puede_gestionar': true,
+                      };
+                    }
+                  } catch (e) {
+                    // Error silencioso
+                  }
+                }
+
+                if (userData != null) {
+                  Navigator.of(context).pop(userData);
                 } else {
+                  // Mostrar error sin cerrar el diálogo
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Credenciales inválidas'),
+                      content: Text('Credenciales inválidas o sin permisos suficientes\nRevisa la consola para más detalles'),
                       backgroundColor: Colors.red,
+                      duration: Duration(seconds: 4),
                     ),
                   );
-                  Navigator.of(context).pop(false);
                 }
               },
             ),
@@ -149,32 +200,37 @@ Future<void> cargarCuadrillas() async {
     );
 
     // Si la autenticación fue exitosa, cambiar el estado
-    if (result == true) {
-      setState(() {
-        // Encuentra la cuadrilla en la lista original usando la clave
-        String clave = cuadrillasFiltradas[index]['clave'];
-        int originalIndex = cuadrillas.indexWhere((c) => c['clave'] == clave);
+    if (userData != null) {
+      final cuadrilla = cuadrillasFiltradas[index];
+      final clave = cuadrilla['clave'];
+      final estadoActual = cuadrilla['habilitado'] ?? true;
+      final nuevoEstado = !estadoActual;
 
-        if (originalIndex != -1) {
-          cuadrillas[originalIndex]['habilitado'] =
-              !cuadrillas[originalIndex]['habilitado'];
+      // Actualizar en la base de datos
+      final actualizado = await _authService.actualizarEstadoCuadrilla(clave, nuevoEstado);
 
-          // Mostrar mensaje de confirmación
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Cuadrilla ${cuadrillas[originalIndex]['habilitado'] ? "habilitada" : "deshabilitada"} correctamente',
-              ),
-              backgroundColor:
-                  cuadrillas[originalIndex]['habilitado']
-                      ? Colors.green
-                      : Colors.orange,
+      if (actualizado) {
+        // Recargar datos desde la base de datos para asegurar consistencia
+        await cargarCuadrillas();
+        
+        // Mostrar mensaje de confirmación con información del usuario
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Cuadrilla ${nuevoEstado ? "habilitada" : "deshabilitada"} por ${userData['nombre_usuario']} (${userData['rol_descripcion']})',
             ),
-          );
-
-          _buscarCuadrilla(); // Actualiza la lista filtrada
-        }
-      });
+            backgroundColor: nuevoEstado ? Colors.green : Colors.orange,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al actualizar el estado en la base de datos'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
 
     // Limpiar los controladores
@@ -499,8 +555,8 @@ Future<void> cargarCuadrillas() async {
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: habilitado
-                    ? Color(0xFFE53935) // rojo para deshabilitar
-                    : Color(0xFF0B7A2F), // verde para habilitar
+                    ? Color(0xFF0B7A2F) // verde para habilitado
+                    : Color(0xFFE53935), // rojo para deshabilitado
                 foregroundColor: Colors.white,
                 padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 shape: RoundedRectangleBorder(
@@ -509,7 +565,7 @@ Future<void> cargarCuadrillas() async {
               ),
               onPressed: () => _toggleHabilitado(index),
               child: Text(
-                habilitado ? 'Deshabilitar' : 'Habilitar',
+                habilitado ? 'Sí' : 'No',
                 style: TextStyle(fontSize: 13),
               ),
             ),
@@ -535,3 +591,38 @@ Future<void> cargarCuadrillas() async {
     );
   }
 }
+
+/* 
+🔧 CONFIGURACIÓN DE PERMISOS PARA HABILITAR/DESHABILITAR CUADRILLAS
+
+CONFIGURACIÓN ACTUAL:
+- ✅ Administradores (ID: 2) pueden gestionar cuadrillas
+- ✅ Supervisores (ID: 1) pueden gestionar cuadrillas
+- ❌ Capturistas (ID: 3) NO pueden gestionar cuadrillas
+
+CARACTERÍSTICAS DEL SISTEMA:
+- ✅ Validación contra base de datos real
+- ✅ Verificación de roles y permisos
+- ✅ Actualización del estado en PostgreSQL
+- ✅ Mensajes informativos con usuario que realizó el cambio
+- ✅ Manejo de errores y validaciones
+- ✅ Interfaz mejorada para autenticación
+- ✅ Recarga automática desde base de datos
+
+ROLES EN BASE DE DATOS:
+- Administrador: ID = 2, acceso_cuadrillas = true
+- Supervisor: ID = 1, acceso_cuadrillas = true  
+- Capturista: ID = 3, acceso_cuadrillas = false
+
+TABLA DE PERMISOS:
+┌─────────────────┬─────────────┬─────────────┬─────────────┐
+│ ROL             │ CUADRILLAS  │ EMPLEADOS   │ NÓMINA      │
+├─────────────────┼─────────────┼─────────────┼─────────────┤
+│ Administrador   │ ✅ Sí        │ ✅ Sí        │ ✅ Sí        │
+│ Supervisor      │ ✅ Sí        │ ✅ Sí        │ ✅ Sí        │
+│ Capturista      │ ❌ No        │ ❌ No        │ ✅ Sí        │
+└─────────────────┴─────────────┴─────────────┴─────────────┘
+
+NOTA: Este mismo sistema se puede aplicar a la gestión de empleados
+      modificando la función actualizarEstadoEmpleado() del servicio.
+*/

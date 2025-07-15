@@ -5,6 +5,9 @@
 import 'package:flutter/material.dart';
 import '../services/database_service.dart';
 import '../services/registro_empleado_service.dart';
+import '../services/cargarEmpleadosDesdeBD.dart';
+import '../services/auth_validation_service.dart';
+import '../services/control_usuario_service.dart';
 import 'EmpleadosGeneralTab.dart';
 
 /// Widget principal de la sección de empleados.
@@ -23,15 +26,15 @@ class _EmpleadosContentState extends State<EmpleadosContent> {
   int _selectedTabIndex = 0; // Índice de la pestaña seleccionada
   final ScrollController _tabScrollController = ScrollController();
 
+  // Controladores para el diálogo de autenticación
+  final TextEditingController userController = TextEditingController();
+  final TextEditingController passController = TextEditingController();
+
+  // Servicio de autenticación con base de datos
+  final AuthValidationService _authService = AuthValidationService();
+  final ControlUsuarioService _controlUsuario = ControlUsuarioService();
+
   /// Datos de los empleados en formato tabular
-  /// Cada lista representa una fila con los siguientes campos:
-  /// 1. Clave (ID único)
-  /// 2. Nombre
-  /// 3. Apellido paterno
-  /// 4. Apellido materno
-  /// 5. Supervisor/Área
-  /// 6. Salario
-  /// 7. Tipo de pago
   List<Map<String, dynamic>> empleadosData = [];
 
   final List<String> empleadosHeaders = [
@@ -53,47 +56,37 @@ class _EmpleadosContentState extends State<EmpleadosContent> {
   @override
   void initState() {
     super.initState();
-    cargarEmpleadosDesdeBD();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _setIndicator());
+    print('🚀 Inicializando EmpleadosContent...');
+    // Cargar empleados inmediatamente
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      cargarEmpleadosDesdeBD();
+      _setIndicator();
+    });
   }
 
   Future<void> cargarEmpleadosDesdeBD() async {
     try {
-      final db = DatabaseService();
-      await db.connect();
-
-      final results = await db.connection.query('''
-       
-   SELECT codigo,nombre,apellido_paterno,apellido_materno, curp,rfc,estado_origen, habilitado FROM public.empleados
-ORDER BY id_empleado ASC LIMIT 100 OFFSET 0;
-    ''');
-
+      print('🔄 Iniciando carga de empleados...');
+      final empleados = await obtenerEmpleadosDesdeBD();
+      print('✅ Empleados cargados: ${empleados.length}');
       setState(() {
-        empleadosData =
-            results
-                .map(
-                  (row) => {
-                    'clave': row[0],
-                    'nombre': row[1],
-                    'apellidoPaterno': row[2],
-                    'apellidoMaterno': row[3],
-                    'cuadrilla': row[4],
-                    'sueldo':  row[5],
-                    'tipo': row[6],
-                    'habilitado': row[7],
-                  },
-                )
-                .toList();
+        empleadosData = empleados;
       });
-
-      await db.close();
+      print('📊 Estado actualizado con ${empleadosData.length} empleados');
     } catch (e) {
-      print('Error al cargar empleados: $e' );
+      print('❌ Error al cargar empleados: $e');
     }
   }
 
   void _onTabSelected(int index) {
     setState(() => _selectedTabIndex = index);
+    
+    // Si se selecciona la pestaña General (índice 0), recargar empleados
+    if (index == 0) {
+      print('📂 Recargando empleados para pestaña General...');
+      cargarEmpleadosDesdeBD();
+    }
+    
     WidgetsBinding.instance.addPostFrameCallback((_) => _setIndicator());
     // Desplazamiento animado para centrar la pestaña
     RenderBox? box =
@@ -129,33 +122,46 @@ ORDER BY id_empleado ASC LIMIT 100 OFFSET 0;
     });
   }
 
-  // Controladores para el diálogo de autenticación
-  final TextEditingController userController = TextEditingController();
-  final TextEditingController passController = TextEditingController();
-
-  // Validar credenciales de supervisor
-  bool _validarCredencialesSupervisor(String usuario, String password) {
-    return usuario == "supervisor" && password == "1234";
-  }
-
-  // Método para cambiar el estado de habilitado/deshabilitado
+  // Método para cambiar el estado de habilitado/deshabilitado con autenticación
   Future<void> _toggleHabilitado(int index) async {
-    // Mostrar diálogo de autenticación
-    bool? result = await showDialog<bool>(
+    // Mostrar diálogo de autenticación con validación por base de datos
+    Map<String, dynamic>? userData = await showDialog<Map<String, dynamic>?>(
       context: context,
+      barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Autenticación de Supervisor'),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Icon(Icons.security, color: Color(0xFF0B7A2F)),
+              SizedBox(width: 12),
+              Text('Autenticación Requerida'),
+            ],
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              Text(
+                'Solo administradores y supervisores pueden cambiar el estado de los empleados.',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+              SizedBox(height: 20),
               TextField(
                 controller: userController,
-                decoration: InputDecoration(labelText: 'Usuario'),
+                decoration: InputDecoration(
+                  labelText: 'Usuario',
+                  prefixIcon: Icon(Icons.person),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                ),
               ),
+              SizedBox(height: 16),
               TextField(
                 controller: passController,
-                decoration: InputDecoration(labelText: 'Contraseña'),
+                decoration: InputDecoration(
+                  labelText: 'Contraseña',
+                  prefixIcon: Icon(Icons.lock),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                ),
                 obscureText: true,
               ),
             ],
@@ -163,24 +169,52 @@ ORDER BY id_empleado ASC LIMIT 100 OFFSET 0;
           actions: [
             TextButton(
               child: Text('Cancelar'),
-              onPressed: () => Navigator.of(context).pop(false),
+              onPressed: () => Navigator.of(context).pop(null),
             ),
-            TextButton(
-              child: Text('Aceptar'),
-              onPressed: () {
-                if (_validarCredencialesSupervisor(
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xFF0B7A2F),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: Text('Validar'),
+              onPressed: () async {
+                // Primero intentar con el nuevo sistema de base de datos
+                var userData = await _authService.validarCredencialesConPermisos(
                   userController.text,
                   passController.text,
-                )) {
-                  Navigator.of(context).pop(true);
+                );
+
+                // Si falla, intentar con el sistema anterior como respaldo
+                if (userData == null) {
+                  try {
+                    final resultado = await _controlUsuario.validarCredencialesConTipo(
+                      userController.text,
+                      passController.text,
+                    );
+                    
+                    if (resultado != null && (resultado['tipo'] == 'Administrador' || resultado['tipo'] == 'Supervisor')) {
+                      userData = {
+                        'nombre_usuario': userController.text,
+                        'rol_descripcion': resultado['tipo'],
+                        'puede_gestionar': true,
+                      };
+                    }
+                  } catch (e) {
+                    // Error silencioso
+                  }
+                }
+
+                if (userData != null) {
+                  Navigator.of(context).pop(userData);
                 } else {
+                  // Mostrar error sin cerrar el diálogo
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Credenciales inválidas'),
+                      content: Text('Credenciales incorrectas o sin permisos suficientes'),
                       backgroundColor: Colors.red,
+                      duration: Duration(seconds: 2),
                     ),
                   );
-                  Navigator.of(context).pop(false);
                 }
               },
             ),
@@ -190,22 +224,40 @@ ORDER BY id_empleado ASC LIMIT 100 OFFSET 0;
     );
 
     // Si la autenticación fue exitosa, cambiar el estado
-    if (result == true) {
-      setState(() {
-        empleadosData[index]['habilitado'] =
-            !empleadosData[index]['habilitado'];
-      });
+    if (userData != null) {
+      final empleado = empleadosData[index];
+      final idEmpleado = empleado['id_empleado'] as int;
+      final estadoActual = empleado['habilitado'] as bool;
+      final nuevoEstado = !estadoActual;
 
-      // Mostrar mensaje de confirmación
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Empleado ${empleadosData[index]['habilitado'] ? "habilitado" : "deshabilitado"} correctamente',
+      print('🔄 Cambiando estado del empleado ${empleado['clave']}: $estadoActual → $nuevoEstado');
+
+      // Actualizar en la base de datos
+      final success = await _authService.actualizarEstadoEmpleado(idEmpleado, nuevoEstado);
+      
+      if (success) {
+        print('✅ Estado actualizado exitosamente en BD');
+        // Recargar datos desde la base de datos para mantener consistencia
+        await cargarEmpleadosDesdeBD();
+
+        // Mostrar mensaje de confirmación
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Empleado ${nuevoEstado ? "habilitado" : "deshabilitado"} correctamente',
+            ),
+            backgroundColor: nuevoEstado ? Color(0xFF0B7A2F) : Colors.orange,
           ),
-          backgroundColor:
-              empleadosData[index]['habilitado'] ? Colors.green : Colors.orange,
-        ),
-      );
+        );
+      } else {
+        print('❌ Error al actualizar estado en BD');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al actualizar el estado del empleado'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
 
     // Limpiar los controladores
@@ -279,6 +331,7 @@ ORDER BY id_empleado ASC LIMIT 100 OFFSET 0;
   }
 
   Widget _buildGeneralTab() {
+    print('🏗️ Construyendo pestaña General con ${empleadosData.length} empleados');
     return EmpleadosGeneralTab(
       empleadosData: empleadosData,
       empleadosHeaders: empleadosHeaders,
