@@ -315,10 +315,15 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     if (debeRecalcular) {
       // Calcular directamente si no está disposed
       if (mounted && !_isDisposed) {
+        print('🔄 [${widget.isExpanded ? 'EXPANDIDA' : 'PRINCIPAL'}] Ejecutando recálculo de totales...');
         _calcularTodosLosTotales();
       }
     } else {
-      print('  ✅ No necesita recalcular');
+      // 🔧 FORZAR RECÁLCULO: Siempre recalcular para asegurar sincronización entre tablas
+      print('🔄 [${widget.isExpanded ? 'EXPANDIDA' : 'PRINCIPAL'}] Forzando recálculo para sincronización...');
+      if (mounted && !_isDisposed) {
+        _calcularTodosLosTotales();
+      }
     }
   }
 
@@ -337,29 +342,34 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
       final empleado = widget.empleados[i];
       final nombre = empleado['nombre'] ?? 'Sin nombre';
       
-      print('📋 Procesando empleado $i: $nombre');
+      print('📋 Procesando empleado $i: $nombre (isExpanded: ${widget.isExpanded})');
       
       // Calcular totales
       final totales = _calcularTotalesEmpleado(empleado);
       
-      // Verificar si hubo cambios en los totales
-      if (empleado['total'] != totales['total'] ||
-          empleado['subtotal'] != totales['subtotal'] ||
-          empleado['totalNeto'] != totales['totalNeto']) {
+      // 🔧 CRÍTICO: Siempre actualizar los totales en el empleado original
+      // Esto asegura que ambas vistas (principal y expandida) muestren los mismos valores
+      final totalAnterior = empleado['total'];
+      final subtotalAnterior = empleado['subtotal'];
+      final totalNetoAnterior = empleado['totalNeto'];
+      
+      empleado['total'] = totales['total'];
+      empleado['subtotal'] = totales['subtotal'];
+      empleado['totalNeto'] = totales['totalNeto'];
+      
+      // Verificar si hubo cambios
+      if (totalAnterior != totales['total'] ||
+          subtotalAnterior != totales['subtotal'] ||
+          totalNetoAnterior != totales['totalNeto']) {
         
-        print('  📈 Actualizando totales de $nombre:');
-        print('    total: ${empleado['total']} -> ${totales['total']}');
-        print('    subtotal: ${empleado['subtotal']} -> ${totales['subtotal']}');
-        print('    totalNeto: ${empleado['totalNeto']} -> ${totales['totalNeto']}');
+        print('  📈 [${widget.isExpanded ? 'EXPANDIDA' : 'PRINCIPAL'}] Totales actualizados de $nombre:');
+        print('    total: $totalAnterior -> ${totales['total']}');
+        print('    subtotal: $subtotalAnterior -> ${totales['subtotal']}');
+        print('    totalNeto: $totalNetoAnterior -> ${totales['totalNeto']}');
         
         huboCambios = true;
-        
-        // Actualizar el empleado original con los totales calculados
-        empleado['total'] = totales['total'];
-        empleado['subtotal'] = totales['subtotal'];
-        empleado['totalNeto'] = totales['totalNeto'];
       } else {
-        print('  ✅ Totales de $nombre ya están correctos');
+        print('  ✅ [${widget.isExpanded ? 'EXPANDIDA' : 'PRINCIPAL'}] Totales de $nombre ya están correctos');
       }
       
       // Guardar en cache para referencia rápida
@@ -563,6 +573,10 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
   /// Formatea un valor como moneda
   String _formatearMoneda(dynamic valor) {
     final entero = _convertirAEntero(valor);
+    // 🔧 DEBUG: Mostrar conversión de valores para debug
+    if (entero != 0) {
+      print('💰 [${widget.isExpanded ? 'EXPANDIDA' : 'PRINCIPAL'}] _formatearMoneda: $valor (${valor.runtimeType}) -> \$${NumberFormat('#,##0', 'es_ES').format(entero)}');
+    }
     // Formatear como entero sin decimales
     return '\$${NumberFormat('#,##0', 'es_ES').format(entero)}';
   }
@@ -897,10 +911,17 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
           DataCell(
             SizedBox(
               width: widget.isExpanded ? 100 : 85,
-              child: Text(
-                _formatearMoneda(empleado['total']),
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontWeight: FontWeight.w600),
+              child: Builder(
+                builder: (context) {
+                  final totalFormateado = _formatearMoneda(empleado['total']);
+                  // 🔧 DEBUG: Mostrar valores en construcción de celda
+                  print('📊 [${widget.isExpanded ? 'EXPANDIDA' : 'PRINCIPAL'}] Celda Total ${empleado['nombre']}: ${empleado['total']} -> $totalFormateado');
+                  return Text(
+                    totalFormateado,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  );
+                }
               ),
             ),
           ),
@@ -939,15 +960,22 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
           DataCell(
             SizedBox(
               width: widget.isExpanded ? 100 : 85,
-              child: Text(
-                _formatearMoneda(empleado['totalNeto']),
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: _convertirAEntero(empleado['totalNeto']) < 0 
-                    ? Colors.red 
-                    : null,
-                ),
+              child: Builder(
+                builder: (context) {
+                  final totalNetoFormateado = _formatearMoneda(empleado['totalNeto']);
+                  // 🔧 DEBUG: Mostrar valores en construcción de celda
+                  print('💎 [${widget.isExpanded ? 'EXPANDIDA' : 'PRINCIPAL'}] Celda TotalNeto ${empleado['nombre']}: ${empleado['totalNeto']} -> $totalNetoFormateado');
+                  return Text(
+                    totalNetoFormateado,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: _convertirAEntero(empleado['totalNeto']) < 0 
+                        ? Colors.red 
+                        : null,
+                    ),
+                  );
+                }
               ),
             ),
           ),

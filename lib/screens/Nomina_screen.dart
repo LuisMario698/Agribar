@@ -229,6 +229,9 @@ class _NominaScreenState extends State<NominaScreen>
         if (!tieneCambiosNoGuardados) {
           _saveOriginalData();
         }
+        
+        // 📊 LLAMADA CALCULO TOTAL SEMANAL: Después de cargar datos de nómina
+        _actualizarTotalSemana();
       }
     }
   }
@@ -258,6 +261,9 @@ class _NominaScreenState extends State<NominaScreen>
         await _cargarCuadrillasSemana(semana['id']);
         // ✅ Cargar empleados de todas las cuadrillas desde la BD
         await _cargarEmpleadosDeCuadrillas();
+        
+        // 📊 LLAMADA CALCULO TOTAL SEMANAL: Después de verificar y cargar semana activa
+        _actualizarTotalSemana();
       }
     } else {
       if (mounted) {
@@ -707,6 +713,9 @@ class _NominaScreenState extends State<NominaScreen>
           
           // 🎯 Actualizar validaciones después del cambio
           _actualizarEstadosValidacion();
+          
+          // 📊 LLAMADA CALCULO TOTAL SEMANAL: Después de crear nueva semana
+          _actualizarTotalSemana();
 
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -888,106 +897,127 @@ class _NominaScreenState extends State<NominaScreen>
     final db = DatabaseService();
     await db.connect();
 
-    final result = await db.connection.query(
-      '''
-      SELECT 
-        e.codigo,
-        CONCAT(e.nombre, ' ', e.apellido_paterno, ' ', e.apellido_materno) AS nombre,  
-        e.id_empleado,      
-        n.dia_1, n.act_1,
-        n.dia_2, n.act_2,
-        n.dia_3, n.act_3,
-        n.dia_4, n.act_4,
-        n.dia_5, n.act_5,
-        n.dia_6, n.act_6,
-        n.dia_7, n.act_7,
-        n.total,
-        n.debe,
-        n.subtotal,
-        n.comedor, 
-        n.total_neto
-      FROM nomina_empleados_semanal n
-      JOIN empleados e ON e.id_empleado = n.id_empleado
-      WHERE n.id_semana = @semanaId AND n.id_cuadrilla = @cuadrillaId;
-    ''',
-      substitutionValues: {'semanaId': semanaId, 'cuadrillaId': cuadrillaId},
-    );
+    try {
+      // 🔧 PASO 1: Obtener TODOS los empleados asignados a la cuadrilla (desde guardarEmpleadosCuadrillaSemana)
+      final empleadosAsignadosResult = await db.connection.query('''
+        SELECT DISTINCT ecs.id_empleado
+        FROM nomina_empleados_semanal ecs
+        WHERE ecs.id_semana = @semanaId AND ecs.id_cuadrilla = @cuadrillaId;
+      ''', substitutionValues: {'semanaId': semanaId, 'cuadrillaId': cuadrillaId});
 
-    await db.close();
+      if (empleadosAsignadosResult.isEmpty) {
+        print('⚠️ No hay empleados asignados a la cuadrilla $cuadrillaId en la semana $semanaId');
+        await db.close();
+        return [];
+      }
 
-    // 🔧 DEBUG CRÍTICO: Resultados de la consulta
-    print('� [CARGAR CRÍTICO] Registros encontrados en BD: ${result.length}');
-    if (result.isNotEmpty) {
-      print('� [CARGAR CRÍTICO] Primer empleado BD: ${result.first}');
+      // 🔧 PASO 2: Para cada empleado asignado, obtener sus datos básicos + datos de nómina si existen
+      List<Map<String, dynamic>> empleadosCompletos = [];
+
+      for (final row in empleadosAsignadosResult) {
+        final empleadoId = row[0] as int;
+
+        // Obtener datos básicos del empleado
+        final empleadoBasicoResult = await db.connection.query('''
+          SELECT 
+            e.id_empleado,
+            e.codigo,
+            CONCAT(e.nombre, ' ', e.apellido_paterno, ' ', e.apellido_materno) AS nombre
+          FROM empleados e
+          WHERE e.id_empleado = @empleadoId;
+        ''', substitutionValues: {'empleadoId': empleadoId});
+
+        if (empleadoBasicoResult.isEmpty) continue;
+
+        final empleadoBasico = empleadoBasicoResult.first;
+
+        // Obtener datos de nómina si existen
+        final nominaResult = await db.connection.query('''
+          SELECT 
+            n.dia_1, n.act_1,
+            n.dia_2, n.act_2,
+            n.dia_3, n.act_3,
+            n.dia_4, n.act_4,
+            n.dia_5, n.act_5,
+            n.dia_6, n.act_6,
+            n.dia_7, n.act_7,
+            n.total,
+            n.debe,
+            n.subtotal,
+            n.comedor, 
+            n.total_neto
+          FROM nomina_empleados_semanal n
+          WHERE n.id_empleado = @empleadoId AND n.id_semana = @semanaId AND n.id_cuadrilla = @cuadrillaId;
+        ''', substitutionValues: {
+          'empleadoId': empleadoId,
+          'semanaId': semanaId,
+          'cuadrillaId': cuadrillaId
+        });
+
+        // 🔧 COMBINAR datos básicos + datos de nómina (o valores por defecto si no hay datos)
+        Map<String, dynamic> empleadoCompleto;
+        
+        if (nominaResult.isNotEmpty) {
+          // El empleado tiene datos de nómina guardados
+          final nominaData = nominaResult.first;
+          empleadoCompleto = {
+            'codigo': empleadoBasico[1]?.toString() ?? '',
+            'nombre': empleadoBasico[2]?.toString() ?? '',
+            'id': empleadoBasico[0]?.toString() ?? '',
+            // Mapear de BD a formato de tabla
+            'dia_0_s': nominaData[0]?.toString() ?? '0', // dia_1 BD → dia_0_s tabla
+            'dia_0_id': nominaData[1]?.toString() ?? '0', // act_1 BD → dia_0_id tabla
+            'dia_1_s': nominaData[2]?.toString() ?? '0', // dia_2 BD → dia_1_s tabla
+            'dia_1_id': nominaData[3]?.toString() ?? '0', // act_2 BD → dia_1_id tabla
+            'dia_2_s': nominaData[4]?.toString() ?? '0', // dia_3 BD → dia_2_s tabla
+            'dia_2_id': nominaData[5]?.toString() ?? '0', // act_3 BD → dia_2_id tabla
+            'dia_3_s': nominaData[6]?.toString() ?? '0', // dia_4 BD → dia_3_s tabla
+            'dia_3_id': nominaData[7]?.toString() ?? '0', // act_4 BD → dia_3_id tabla
+            'dia_4_s': nominaData[8]?.toString() ?? '0', // dia_5 BD → dia_4_s tabla
+            'dia_4_id': nominaData[9]?.toString() ?? '0', // act_5 BD → dia_4_id tabla
+            'dia_5_s': nominaData[10]?.toString() ?? '0', // dia_6 BD → dia_5_s tabla
+            'dia_5_id': nominaData[11]?.toString() ?? '0', // act_6 BD → dia_5_id tabla
+            'dia_6_s': nominaData[12]?.toString() ?? '0', // dia_7 BD → dia_6_s tabla
+            'dia_6_id': nominaData[13]?.toString() ?? '0', // act_7 BD → dia_6_id tabla
+            'total': nominaData[14]?.toString() ?? '0',
+            'debe': nominaData[15]?.toString() ?? '0',
+            'subtotal': nominaData[16]?.toString() ?? '0',
+            'comedor': nominaData[17]?.toString() ?? '0',
+            'totalNeto': nominaData[18]?.toString() ?? '0',
+          };
+          print('✅ Empleado ${empleadoCompleto['nombre']} con datos de nómina cargados');
+        } else {
+          // El empleado no tiene datos de nómina, usar valores por defecto
+          empleadoCompleto = {
+            'codigo': empleadoBasico[1]?.toString() ?? '',
+            'nombre': empleadoBasico[2]?.toString() ?? '',
+            'id': empleadoBasico[0]?.toString() ?? '',
+            // Valores por defecto para empleado nuevo
+            'dia_0_s': '0', 'dia_0_id': '0',
+            'dia_1_s': '0', 'dia_1_id': '0',
+            'dia_2_s': '0', 'dia_2_id': '0',
+            'dia_3_s': '0', 'dia_3_id': '0',
+            'dia_4_s': '0', 'dia_4_id': '0',
+            'dia_5_s': '0', 'dia_5_id': '0',
+            'dia_6_s': '0', 'dia_6_id': '0',
+            'total': '0',
+            'debe': '0',
+            'subtotal': '0',
+            'comedor': '0',
+            'totalNeto': '0',
+          };
+          print('📝 Empleado ${empleadoCompleto['nombre']} nuevo sin datos previos');
+        }
+
+        empleadosCompletos.add(empleadoCompleto);
+      }
+
+      print('📊 [CARGAR COMPLETO] ${empleadosCompletos.length} empleados cargados (incluyendo nuevos)');
+      return empleadosCompletos;
+
+    } finally {
+      await db.close();
     }
-
-    // 🔧 Debug: imprimir los datos que vienen de la BD
-    print('🔍 Debug BD - Registros encontrados: ${result.length}');
-    for (var row in result) {
-      print('🔍 Debug BD - Empleado: ${row[1]}, dia_1: ${row[3]}, dia_2: ${row[5]}, total: ${row[17]}');
-    }
-
-    return result
-        .map(
-          (row) {
-            // 🔧 Función auxiliar para convertir valores de la BD a string seguro
-            String _safeParseString(dynamic value) {
-              if (value == null) return '0';
-              if (value is String) return value;
-              if (value is num) return value.toString();
-              return value.toString();
-            }
-
-            // 🔧 Función auxiliar para convertir valores de la BD a números
-            num _safeParseNum(dynamic value) {
-              if (value == null) return 0;
-              if (value is num) return value;
-              if (value is String) {
-                return num.tryParse(value) ?? 0;
-              }
-              return 0;
-            }
-
-            final empleadoData = {
-              'codigo': row[0]?.toString() ?? '',
-              'clave': row[0]?.toString() ?? '', // ✅ Agregar clave que es lo mismo que código
-              'nombre': row[1]?.toString() ?? '',
-              'id': row[2]?.toString() ?? '',
-              
-              // ✅ MAPEO CORRECTO: BD → Tabla
-              // BD: dia_1, act_1 → Tabla: dia_0_s, dia_0_id
-              // BD: dia_2, act_2 → Tabla: dia_1_s, dia_1_id
-              // etc...
-              'dia_0_s': _safeParseString(row[3]), // dia_1 de BD → dia_0_s de tabla
-              'dia_0_id': _safeParseString(row[4]), // act_1 de BD → dia_0_id de tabla
-              'dia_1_s': _safeParseString(row[5]), // dia_2 de BD → dia_1_s de tabla
-              'dia_1_id': _safeParseString(row[6]), // act_2 de BD → dia_1_id de tabla
-              'dia_2_s': _safeParseString(row[7]), // dia_3 de BD → dia_2_s de tabla
-              'dia_2_id': _safeParseString(row[8]), // act_3 de BD → dia_2_id de tabla
-              'dia_3_s': _safeParseString(row[9]), // dia_4 de BD → dia_3_s de tabla
-              'dia_3_id': _safeParseString(row[10]), // act_4 de BD → dia_3_id de tabla
-              'dia_4_s': _safeParseString(row[11]), // dia_5 de BD → dia_4_s de tabla
-              'dia_4_id': _safeParseString(row[12]), // act_5 de BD → dia_4_id de tabla
-              'dia_5_s': _safeParseString(row[13]), // dia_6 de BD → dia_5_s de tabla
-              'dia_5_id': _safeParseString(row[14]), // act_6 de BD → dia_5_id de tabla
-              'dia_6_s': _safeParseString(row[15]), // dia_7 de BD → dia_6_s de tabla
-              'dia_6_id': _safeParseString(row[16]), // act_7 de BD → dia_6_id de tabla
-              
-              // ✅ Campos de totales con conversión segura
-              'total': _safeParseNum(row[17]),
-              'debe': _safeParseString(row[18]),
-              'subtotal': _safeParseNum(row[19]),
-              'comedor': _safeParseString(row[20]),
-              'totalNeto': _safeParseNum(row[21]),
-            };
-
-            // 🔧 Debug: imprimir los datos mapeados
-            print('🔍 Debug Mapeo - ${empleadoData['nombre']}: dia_0_s=${empleadoData['dia_0_s']}, dia_1_s=${empleadoData['dia_1_s']}, total=${empleadoData['total']}');
-            
-            return empleadoData;
-          },
-        )
-        .toList();
   }
 
   Future<void> _cerrarSemanaActual() async {
@@ -2092,14 +2122,22 @@ class _NominaScreenState extends State<NominaScreen>
     empleado['total'] = total;
     empleado['subtotal'] = subtotal;
     empleado['totalNeto'] = totalNeto;
+    
+    // 📊 LLAMADA CALCULO TOTAL SEMANAL: Después de recalcular totales de empleado
+    // Esto actualiza el total semanal en tiempo real cuando el usuario cambia valores
+    _actualizarTotalSemana();
   }
 
   /// 🔄 Método para forzar la actualización del indicador Total semana
+  /// 📊 CALCULO TOTAL SEMANAL: Se llama después de guardar datos para recalcular el total de la semana
   void _actualizarTotalSemana() {
     // Forzar reconstrucción del widget de indicadores incrementando la key
+    // Esto causará que el NominaIndicatorsRow se reconstruya y recalcule automáticamente el total
     setState(() {
       _indicatorsUpdateKey++;
     });
+    
+    print('🔄 [CALCULO TOTAL SEMANAL] Forzando recálculo del total semanal - Key: $_indicatorsUpdateKey');
   }
 
   @override
