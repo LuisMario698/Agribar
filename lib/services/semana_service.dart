@@ -167,30 +167,77 @@ Future<void> guardarEmpleadosCuadrillaSemana({
   await db.connect();
 
   try {
-    // Primero eliminar los registros existentes para evitar duplicados
-    await db.connection.execute('''
-      DELETE FROM nomina_empleados_semanal 
+    // 🔧 OBTENER empleados actuales en la BD para esta cuadrilla
+    final empleadosActualesResult = await db.connection.query('''
+      SELECT id_empleado
+      FROM nomina_empleados_semanal
       WHERE id_semana = @semanaId AND id_cuadrilla = @cuadrillaId;
     ''', substitutionValues: {
       'semanaId': semanaId,
       'cuadrillaId': cuadrillaId,
     });
     
-    // Insertar nuevos empleados
-    if (empleados.isNotEmpty) {
-      for (final empleado in empleados) {
+    // Convertir a Set para facilitar comparaciones
+    final empleadosEnBD = empleadosActualesResult.map((row) => row[0] as int).toSet();
+    final empleadosNuevos = empleados.map((emp) {
+      // Manejar tanto String como int para el ID del empleado
+      final id = emp['id'];
+      if (id is String) {
+        return int.parse(id);
+      } else if (id is int) {
+        return id;
+      } else {
+        throw Exception('ID de empleado debe ser String o int, pero es: ${id.runtimeType}');
+      }
+    }).toSet();
+    
+    // 🔧 IDENTIFICAR empleados a agregar (están en la lista nueva pero no en BD)
+    final empleadosAAgregar = empleadosNuevos.difference(empleadosEnBD);
+    
+    // 🔧 IDENTIFICAR empleados a eliminar (están en BD pero no en la lista nueva)
+    final empleadosAEliminar = empleadosEnBD.difference(empleadosNuevos);
+    
+    print('📊 Cuadrilla $cuadrillaId - En BD: ${empleadosEnBD.length}, Nuevos: ${empleadosNuevos.length}');
+    print('   ➕ A agregar: ${empleadosAAgregar.length} empleados');
+    print('   ➖ A eliminar: ${empleadosAEliminar.length} empleados');
+    
+    // 🔧 ELIMINAR solo los empleados que fueron removidos de la cuadrilla
+    if (empleadosAEliminar.isNotEmpty) {
+      for (final empleadoId in empleadosAEliminar) {
+        await db.connection.execute('''
+          DELETE FROM nomina_empleados_semanal 
+          WHERE id_semana = @semanaId AND id_cuadrilla = @cuadrillaId AND id_empleado = @empleadoId;
+        ''', substitutionValues: {
+          'semanaId': semanaId,
+          'cuadrillaId': cuadrillaId,
+          'empleadoId': empleadoId,
+        });
+      }
+      print('   🗑️ Eliminados ${empleadosAEliminar.length} empleados de la BD');
+    }
+    
+    // 🔧 AGREGAR solo los empleados nuevos
+    if (empleadosAAgregar.isNotEmpty) {
+      for (final empleadoId in empleadosAAgregar) {
         await db.connection.execute('''
           INSERT INTO nomina_empleados_semanal (id_semana, id_cuadrilla, id_empleado)
           VALUES (@semanaId, @cuadrillaId, @empleadoId);
         ''', substitutionValues: {
           'semanaId': semanaId,
           'cuadrillaId': cuadrillaId,
-          'empleadoId': empleado['id'],
+          'empleadoId': empleadoId,
         });
       }
+      print('   ➕ Agregados ${empleadosAAgregar.length} empleados nuevos a la BD');
     }
     
-    print('✅ Guardada cuadrilla $cuadrillaId con ${empleados.length} empleados para semana $semanaId');
+    // Los empleados que ya estaban en la BD mantienen todos sus datos de nómina
+    final empleadosConservados = empleadosEnBD.intersection(empleadosNuevos);
+    if (empleadosConservados.isNotEmpty) {
+      print('   💾 Conservados ${empleadosConservados.length} empleados con sus datos de nómina');
+    }
+    
+    print('✅ Cuadrilla $cuadrillaId actualizada correctamente sin perder datos de nómina');
   } catch (e) {
     print('❌ Error al guardar cuadrilla: $e');
     rethrow; // Relanzar la excepción para que el llamador pueda manejarla

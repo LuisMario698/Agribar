@@ -1092,56 +1092,64 @@ class _ResumenCuadrillasDialogState extends State<ResumenCuadrillasDialog> {
 
       final excel = ExcelLib.Excel.createExcel();
       
-      // ✨ HOJA 1: Lista completa de empleados de esta cuadrilla
-      final sheetCompleta = excel['Lista Completa'];
+      // ✨ HOJA ÚNICA: Cuadrilla específica con formato del diálogo
+      final sheet = excel['$nombreCuadrilla'];
       
       // ✅ Eliminar la hoja por defecto de manera segura
       try {
         excel.delete('Sheet1');
       } catch (e) {
-        // Si no se puede eliminar, continuar sin problemas
         print('No se pudo eliminar Sheet1: $e');
       }
 
-      int row = 1;
+      int currentRow = 1;
+      double totalCuadrilla = 0.0;
+
+      // 📋 ENCABEZADO
+      sheet.cell(ExcelLib.CellIndex.indexByString('A$currentRow')).value = 'NÓMINA - $nombreCuadrilla';
+      sheet.cell(ExcelLib.CellIndex.indexByString('A${currentRow + 1}')).value = 'Del ${DateFormat('dd/MM/yyyy').format(widget.fechaInicio)} al ${DateFormat('dd/MM/yyyy').format(widget.fechaFin)}';
+      currentRow += 3;
+      
+      // 🏷️ TÍTULO DE LA CUADRILLA
+      sheet.cell(ExcelLib.CellIndex.indexByString('A$currentRow')).value = nombreCuadrilla.toUpperCase();
+      sheet.cell(ExcelLib.CellIndex.indexByString('D$currentRow')).value = '${empleadosParaExportar.length} empleado${empleadosParaExportar.length != 1 ? 's' : ''}';
+      currentRow++;
+      
+      // 📝 ENCABEZADOS DE COLUMNAS
+      sheet.cell(ExcelLib.CellIndex.indexByString('A$currentRow')).value = 'CÓDIGO';
+      sheet.cell(ExcelLib.CellIndex.indexByString('B$currentRow')).value = 'EMPLEADO';
+      sheet.cell(ExcelLib.CellIndex.indexByString('C$currentRow')).value = 'TOTAL NETO';
+      currentRow++;
+      
+      // 👥 EMPLEADOS DE LA CUADRILLA
       for (var empleado in empleadosParaExportar) {
-        double neto = 0.0;
+        // Obtener datos del empleado
+        final codigo = empleado['codigo']?.toString() ?? '';
+        final nombre = empleado['nombre']?.toString() ?? '';
         
+        // Calcular total neto
+        double neto = 0.0;
         if (empleado.containsKey('totalNeto')) {
           neto = _parseToDouble(empleado['totalNeto']);
         } else if (empleado['tabla_principal'] != null) {
           final tablaData = empleado['tabla_principal'];
           neto = _parseToDouble(tablaData['neto']);
         }
-
-        sheetCompleta.cell(ExcelLib.CellIndex.indexByString('A$row')).value = empleado['nombre']?.toString() ?? '';
-        sheetCompleta.cell(ExcelLib.CellIndex.indexByString('B$row')).value = neto;
-        row++;
-      }
-
-      // ✨ HOJA 2: Lista por cuadrilla (en este caso solo una cuadrilla por archivo)
-      final sheetPorCuadrilla = excel['Por Cuadrilla'];
-      
-      row = 1;
-      // Título de la cuadrilla
-      sheetPorCuadrilla.cell(ExcelLib.CellIndex.indexByString('A$row')).value = nombreCuadrilla.toUpperCase();
-      row++;
-      
-      // Empleados de la cuadrilla
-      for (var empleado in empleadosParaExportar) {
-        double neto = 0.0;
         
-        if (empleado.containsKey('totalNeto')) {
-          neto = _parseToDouble(empleado['totalNeto']);
-        } else if (empleado['tabla_principal'] != null) {
-          final tablaData = empleado['tabla_principal'];
-          neto = _parseToDouble(tablaData['neto']);
-        }
-
-        sheetPorCuadrilla.cell(ExcelLib.CellIndex.indexByString('A$row')).value = empleado['nombre']?.toString() ?? '';
-        sheetPorCuadrilla.cell(ExcelLib.CellIndex.indexByString('B$row')).value = neto;
-        row++;
+        // Escribir datos del empleado
+        sheet.cell(ExcelLib.CellIndex.indexByString('A$currentRow')).value = codigo;
+        sheet.cell(ExcelLib.CellIndex.indexByString('B$currentRow')).value = nombre;
+        sheet.cell(ExcelLib.CellIndex.indexByString('C$currentRow')).value = neto;
+        
+        totalCuadrilla += neto;
+        currentRow++;
       }
+      
+      // 💰 SUBTOTAL DE LA CUADRILLA
+      currentRow++;
+      sheet.cell(ExcelLib.CellIndex.indexByString('A$currentRow')).value = '';
+      sheet.cell(ExcelLib.CellIndex.indexByString('B$currentRow')).value = 'Subtotal $nombreCuadrilla:';
+      sheet.cell(ExcelLib.CellIndex.indexByString('C$currentRow')).value = totalCuadrilla;
 
       await _guardarExcel(excel, 'Nomina_${nombreCuadrilla}_$fechaStr.xlsx');
     }
@@ -1168,23 +1176,29 @@ class _ResumenCuadrillasDialogState extends State<ResumenCuadrillasDialog> {
     
     final excel = ExcelLib.Excel.createExcel();
     
-    // ✨ HOJA 1: Lista completa de todos los empleados
-    final sheetCompleta = excel['Lista Completa'];
+    // ✨ HOJA ÚNICA: Resumen por Cuadrillas (como se muestra en el diálogo)
+    final sheet = excel['Resumen Nómina por Cuadrillas'];
     
     // ✅ Eliminar la hoja por defecto de manera segura
     try {
       excel.delete('Sheet1');
     } catch (e) {
-      // Si no se puede eliminar, continuar sin problemas
       print('No se pudo eliminar Sheet1: $e');
     }
 
-    int rowCompleta = 1;
+    int currentRow = 1;
+    double totalGeneral = 0.0;
 
-    // Recopilar todos los empleados de todas las cuadrillas
+    // 📋 ENCABEZADO PRINCIPAL
+    sheet.cell(ExcelLib.CellIndex.indexByString('A$currentRow')).value = 'RESUMEN DE NÓMINA POR CUADRILLAS';
+    sheet.cell(ExcelLib.CellIndex.indexByString('A${currentRow + 1}')).value = 'Del ${DateFormat('dd/MM/yyyy').format(widget.fechaInicio)} al ${DateFormat('dd/MM/yyyy').format(widget.fechaFin)}';
+    currentRow += 3; // Espacio después del encabezado
+
+    // 📊 PROCESAR CADA CUADRILLA
     for (var cuadrilla in widget.cuadrillasInfo) {
       final nombreCuadrilla = cuadrilla['nombre'];
       
+      // Obtener empleados (temporales si están disponibles, sino originales)
       List<Map<String, dynamic>> empleadosParaExportar;
       if (widget.empleadosNominaTemp != null && 
           widget.empleadosNominaTemp!.containsKey(nombreCuadrilla)) {
@@ -1193,61 +1207,57 @@ class _ResumenCuadrillasDialogState extends State<ResumenCuadrillasDialog> {
         empleadosParaExportar = List<Map<String, dynamic>>.from(cuadrilla['empleados']);
       }
       
+      // 🏷️ TÍTULO DE LA CUADRILLA
+      sheet.cell(ExcelLib.CellIndex.indexByString('A$currentRow')).value = nombreCuadrilla.toUpperCase();
+      sheet.cell(ExcelLib.CellIndex.indexByString('D$currentRow')).value = '${empleadosParaExportar.length} empleado${empleadosParaExportar.length != 1 ? 's' : ''}';
+      currentRow++;
+      
+      // 📝 ENCABEZADOS DE COLUMNAS
+      sheet.cell(ExcelLib.CellIndex.indexByString('A$currentRow')).value = 'CÓDIGO';
+      sheet.cell(ExcelLib.CellIndex.indexByString('B$currentRow')).value = 'EMPLEADO';
+      sheet.cell(ExcelLib.CellIndex.indexByString('C$currentRow')).value = 'TOTAL NETO';
+      currentRow++;
+      
+      double totalCuadrilla = 0.0;
+      
+      // 👥 EMPLEADOS DE LA CUADRILLA
       for (var empleado in empleadosParaExportar) {
-        double neto = 0.0;
+        // Obtener datos del empleado
+        final codigo = empleado['codigo']?.toString() ?? '';
+        final nombre = empleado['nombre']?.toString() ?? '';
         
+        // Calcular total neto
+        double neto = 0.0;
         if (empleado.containsKey('totalNeto')) {
           neto = _parseToDouble(empleado['totalNeto']);
         } else if (empleado['tabla_principal'] != null) {
           final tablaData = empleado['tabla_principal'];
           neto = _parseToDouble(tablaData['neto']);
         }
-
-        sheetCompleta.cell(ExcelLib.CellIndex.indexByString('A$rowCompleta')).value = empleado['nombre']?.toString() ?? '';
-        sheetCompleta.cell(ExcelLib.CellIndex.indexByString('B$rowCompleta')).value = neto;
-        rowCompleta++;
-      }
-    }
-
-    // ✨ HOJA 2: Lista separada por cuadrillas
-    final sheetPorCuadrilla = excel['Por Cuadrillas'];
-    
-    int rowPorCuadrilla = 1;
-
-    for (var cuadrilla in widget.cuadrillasInfo) {
-      final nombreCuadrilla = cuadrilla['nombre'];
-      
-      List<Map<String, dynamic>> empleadosParaExportar;
-      if (widget.empleadosNominaTemp != null && 
-          widget.empleadosNominaTemp!.containsKey(nombreCuadrilla)) {
-        empleadosParaExportar = widget.empleadosNominaTemp![nombreCuadrilla]!;
-      } else {
-        empleadosParaExportar = List<Map<String, dynamic>>.from(cuadrilla['empleados']);
-      }
-      
-      // Título de la cuadrilla
-      sheetPorCuadrilla.cell(ExcelLib.CellIndex.indexByString('A$rowPorCuadrilla')).value = nombreCuadrilla.toUpperCase();
-      rowPorCuadrilla++;
-      
-      // Empleados de la cuadrilla
-      for (var empleado in empleadosParaExportar) {
-        double neto = 0.0;
         
-        if (empleado.containsKey('totalNeto')) {
-          neto = _parseToDouble(empleado['totalNeto']);
-        } else if (empleado['tabla_principal'] != null) {
-          final tablaData = empleado['tabla_principal'];
-          neto = _parseToDouble(tablaData['neto']);
-        }
-
-        sheetPorCuadrilla.cell(ExcelLib.CellIndex.indexByString('A$rowPorCuadrilla')).value = empleado['nombre']?.toString() ?? '';
-        sheetPorCuadrilla.cell(ExcelLib.CellIndex.indexByString('B$rowPorCuadrilla')).value = neto;
-        rowPorCuadrilla++;
+        // Escribir datos del empleado
+        sheet.cell(ExcelLib.CellIndex.indexByString('A$currentRow')).value = codigo;
+        sheet.cell(ExcelLib.CellIndex.indexByString('B$currentRow')).value = nombre;
+        sheet.cell(ExcelLib.CellIndex.indexByString('C$currentRow')).value = neto;
+        
+        totalCuadrilla += neto;
+        currentRow++;
       }
       
-      // Agregar espacio entre cuadrillas
-      rowPorCuadrilla++;
+      // 💰 SUBTOTAL DE LA CUADRILLA
+      sheet.cell(ExcelLib.CellIndex.indexByString('A$currentRow')).value = '';
+      sheet.cell(ExcelLib.CellIndex.indexByString('B$currentRow')).value = 'Subtotal ${nombreCuadrilla}:';
+      sheet.cell(ExcelLib.CellIndex.indexByString('C$currentRow')).value = totalCuadrilla;
+      currentRow += 2; // Espacio entre cuadrillas
+      
+      totalGeneral += totalCuadrilla;
     }
+
+    // 🎯 TOTAL GENERAL
+    currentRow++; // Espacio adicional antes del total general
+    sheet.cell(ExcelLib.CellIndex.indexByString('A$currentRow')).value = '';
+    sheet.cell(ExcelLib.CellIndex.indexByString('B$currentRow')).value = 'TOTAL GENERAL NÓMINA:';
+    sheet.cell(ExcelLib.CellIndex.indexByString('C$currentRow')).value = totalGeneral;
 
     await _guardarExcel(excel, 'Nomina_General_$fechaStr.xlsx');
 
