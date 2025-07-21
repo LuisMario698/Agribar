@@ -1092,9 +1092,6 @@ class _ResumenCuadrillasDialogState extends State<ResumenCuadrillasDialog> {
 
       final excel = ExcelLib.Excel.createExcel();
       
-      // ✨ HOJA ÚNICA: Cuadrilla específica con formato del diálogo
-      final sheet = excel['$nombreCuadrilla'];
-      
       // ✅ Eliminar la hoja por defecto de manera segura
       try {
         excel.delete('Sheet1');
@@ -1102,54 +1099,181 @@ class _ResumenCuadrillasDialogState extends State<ResumenCuadrillasDialog> {
         print('No se pudo eliminar Sheet1: $e');
       }
 
-      int currentRow = 1;
-      double totalCuadrilla = 0.0;
-
-      // 📋 ENCABEZADO
-      sheet.cell(ExcelLib.CellIndex.indexByString('A$currentRow')).value = 'NÓMINA - $nombreCuadrilla';
-      sheet.cell(ExcelLib.CellIndex.indexByString('A${currentRow + 1}')).value = 'Del ${DateFormat('dd/MM/yyyy').format(widget.fechaInicio)} al ${DateFormat('dd/MM/yyyy').format(widget.fechaFin)}';
-      currentRow += 3;
+      // 📊 ESTRUCTURA EXACTA DE LA TABLA PRINCIPAL
+      final sheet = excel[nombreCuadrilla];
       
-      // 🏷️ TÍTULO DE LA CUADRILLA
-      sheet.cell(ExcelLib.CellIndex.indexByString('A$currentRow')).value = nombreCuadrilla.toUpperCase();
-      sheet.cell(ExcelLib.CellIndex.indexByString('D$currentRow')).value = '${empleadosParaExportar.length} empleado${empleadosParaExportar.length != 1 ? 's' : ''}';
-      currentRow++;
+      // 🎯 TÍTULOS DEL ARCHIVO
+      sheet.cell(ExcelLib.CellIndex.indexByString('A1')).value = 'NÓMINA - ${nombreCuadrilla.toUpperCase()}';
+      sheet.cell(ExcelLib.CellIndex.indexByString('A2')).value = 'Período: ${DateFormat('dd/MM/yyyy').format(widget.fechaInicio)} - ${DateFormat('dd/MM/yyyy').format(widget.fechaFin)}';
       
-      // 📝 ENCABEZADOS DE COLUMNAS
-      sheet.cell(ExcelLib.CellIndex.indexByString('A$currentRow')).value = 'CÓDIGO';
-      sheet.cell(ExcelLib.CellIndex.indexByString('B$currentRow')).value = 'EMPLEADO';
-      sheet.cell(ExcelLib.CellIndex.indexByString('C$currentRow')).value = 'TOTAL NETO';
-      currentRow++;
+      // 🏷️ ENCABEZADOS (fila 4) - RÉPLICA EXACTA DE LA TABLA PRINCIPAL
+      int row = 4;
+      int col = 1;
       
-      // 👥 EMPLEADOS DE LA CUADRILLA
-      for (var empleado in empleadosParaExportar) {
-        // Obtener datos del empleado
-        final codigo = empleado['codigo']?.toString() ?? '';
-        final nombre = empleado['nombre']?.toString() ?? '';
+      // Columna 1: Clave
+      sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: row - 1)).value = 'Clave';
+      col++;
+      
+      // Columna 2: Empleado
+      sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: row - 1)).value = 'Empleado';
+      col++;
+      
+      // Columnas 3-9: Días de la semana (réplica exacta)
+      final diasSemana = ['Jue', 'Vie', 'Sáb', 'Dom', 'Lun', 'Mar', 'Mié'];
+      final fechasDias = ['3/7', '4/7', '5/7', '6/7', '7/7', '8/7', '2/7'];
+      
+      // Si tenemos fechas reales de la semana, usarlas
+      if (widget.fechaInicio != null && widget.fechaFin != null) {
+        final diasReales = <String>[];
+        final fechasReales = <String>[];
         
-        // Calcular total neto
+        for (int i = 0; i < 7; i++) {
+          final fecha = widget.fechaInicio.add(Duration(days: i));
+          diasReales.add(DateFormat('EEE', 'es').format(fecha).toLowerCase());
+          fechasReales.add(DateFormat('d/M').format(fecha));
+        }
+        
+        for (int i = 0; i < 7; i++) {
+          sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: row - 1)).value = '${diasReales[i]}\n${fechasReales[i]}';
+          col++;
+        }
+      } else {
+        // Usar días por defecto
+        for (int i = 0; i < 7; i++) {
+          sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: row - 1)).value = '${diasSemana[i]}\n${fechasDias[i]}';
+          col++;
+        }
+      }
+      
+      // Columnas finales: Total, Debe, Subtotal, Comedor, Total Neto
+      sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: row - 1)).value = 'Total';
+      col++;
+      sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: row - 1)).value = 'Debe';
+      col++;
+      sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: row - 1)).value = 'Subtotal';
+      col++;
+      sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: row - 1)).value = 'Comedor';
+      col++;
+      sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: row - 1)).value = 'Total Neto';
+      
+      // 📊 DATOS DE EMPLEADOS (comenzando en fila 5)
+      row = 5;
+      for (var empleado in empleadosParaExportar) {
+        col = 1;
+        
+        // Columna 1: Clave (código)
+        sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: row - 1)).value = empleado['codigo']?.toString() ?? '';
+        col++;
+        
+        // Columna 2: Nombre completo
+        sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: row - 1)).value = empleado['nombre']?.toString() ?? '';
+        col++;
+        
+        // Columnas 3-9: Días trabajados (dia_0_s, dia_1_s, ..., dia_6_s)
+        for (int i = 0; i < 7; i++) {
+          final diasTrabajados = _parseToDouble(empleado['dia_${i}_s']);
+          sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: row - 1)).value = diasTrabajados;
+          col++;
+        }
+        
+        // Columna 10: Total
+        final total = _parseToDouble(empleado['total']);
+        sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: row - 1)).value = total;
+        col++;
+        
+        // Columna 11: Debe
+        final debe = _parseToDouble(empleado['debe']);
+        sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: row - 1)).value = debe;
+        col++;
+        
+        // Columna 12: Subtotal
+        final subtotal = _parseToDouble(empleado['subtotal']);
+        sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: row - 1)).value = subtotal;
+        col++;
+        
+        // Columna 13: Comedor
+        final comedor = _parseToDouble(empleado['comedor']);
+        sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: row - 1)).value = comedor;
+        col++;
+        
+        // Columna 14: Total Neto
+        double totalNeto = 0.0;
+        if (empleado.containsKey('totalNeto')) {
+          totalNeto = _parseToDouble(empleado['totalNeto']);
+        } else if (empleado['tabla_principal'] != null) {
+          final tablaData = empleado['tabla_principal'];
+          totalNeto = _parseToDouble(tablaData['neto']);
+        } else {
+          // Calcular manualmente: Subtotal - Comedor
+          totalNeto = subtotal - comedor;
+        }
+        sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: row - 1)).value = totalNeto;
+        
+        row++;
+      }
+      
+      // 🎯 FILA DE TOTALES (separada por una fila en blanco)
+      row += 2;
+      sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row - 1)).value = 'TOTALES:';
+      
+      // Calcular totales por columna
+      col = 3; // Empezar en los días
+      for (int i = 0; i < 7; i++) {
+        double totalDia = 0.0;
+        for (var empleado in empleadosParaExportar) {
+          totalDia += _parseToDouble(empleado['dia_${i}_s']);
+        }
+        sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: row - 1)).value = totalDia;
+        col++;
+      }
+      
+      // Total general
+      double totalGeneral = 0.0;
+      for (var empleado in empleadosParaExportar) {
+        totalGeneral += _parseToDouble(empleado['total']);
+      }
+      sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: row - 1)).value = totalGeneral;
+      col++;
+      
+      // Total Debe
+      double totalDebe = 0.0;
+      for (var empleado in empleadosParaExportar) {
+        totalDebe += _parseToDouble(empleado['debe']);
+      }
+      sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: row - 1)).value = totalDebe;
+      col++;
+      
+      // Total Subtotal
+      double totalSubtotal = 0.0;
+      for (var empleado in empleadosParaExportar) {
+        totalSubtotal += _parseToDouble(empleado['subtotal']);
+      }
+      sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: row - 1)).value = totalSubtotal;
+      col++;
+      
+      // Total Comedor
+      double totalComedor = 0.0;
+      for (var empleado in empleadosParaExportar) {
+        totalComedor += _parseToDouble(empleado['comedor']);
+      }
+      sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: row - 1)).value = totalComedor;
+      col++;
+      
+      // Total Neto Final
+      double totalNetoFinal = 0.0;
+      for (var empleado in empleadosParaExportar) {
         double neto = 0.0;
         if (empleado.containsKey('totalNeto')) {
           neto = _parseToDouble(empleado['totalNeto']);
         } else if (empleado['tabla_principal'] != null) {
           final tablaData = empleado['tabla_principal'];
           neto = _parseToDouble(tablaData['neto']);
+        } else {
+          neto = _parseToDouble(empleado['subtotal']) - _parseToDouble(empleado['comedor']);
         }
-        
-        // Escribir datos del empleado
-        sheet.cell(ExcelLib.CellIndex.indexByString('A$currentRow')).value = codigo;
-        sheet.cell(ExcelLib.CellIndex.indexByString('B$currentRow')).value = nombre;
-        sheet.cell(ExcelLib.CellIndex.indexByString('C$currentRow')).value = neto;
-        
-        totalCuadrilla += neto;
-        currentRow++;
+        totalNetoFinal += neto;
       }
-      
-      // 💰 SUBTOTAL DE LA CUADRILLA
-      currentRow++;
-      sheet.cell(ExcelLib.CellIndex.indexByString('A$currentRow')).value = '';
-      sheet.cell(ExcelLib.CellIndex.indexByString('B$currentRow')).value = 'Subtotal $nombreCuadrilla:';
-      sheet.cell(ExcelLib.CellIndex.indexByString('C$currentRow')).value = totalCuadrilla;
+      sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: row - 1)).value = totalNetoFinal;
 
       await _guardarExcel(excel, 'Nomina_${nombreCuadrilla}_$fechaStr.xlsx');
     }
@@ -1160,7 +1284,7 @@ class _ResumenCuadrillasDialogState extends State<ResumenCuadrillasDialog> {
           children: [
             const Icon(Icons.check_circle, color: Colors.white),
             const SizedBox(width: 8),
-            Text('${widget.cuadrillasInfo.length} archivo(s) Excel generado(s) exitosamente'),
+            Text('${widget.cuadrillasInfo.length} archivo(s) Excel generado(s) con estructura de tabla principal'),
           ],
         ),
         backgroundColor: Colors.green,
@@ -1176,9 +1300,6 @@ class _ResumenCuadrillasDialogState extends State<ResumenCuadrillasDialog> {
     
     final excel = ExcelLib.Excel.createExcel();
     
-    // ✨ HOJA ÚNICA: Resumen por Cuadrillas (como se muestra en el diálogo)
-    final sheet = excel['Resumen Nómina por Cuadrillas'];
-    
     // ✅ Eliminar la hoja por defecto de manera segura
     try {
       excel.delete('Sheet1');
@@ -1186,19 +1307,20 @@ class _ResumenCuadrillasDialogState extends State<ResumenCuadrillasDialog> {
       print('No se pudo eliminar Sheet1: $e');
     }
 
-    int currentRow = 1;
-    double totalGeneral = 0.0;
-
-    // 📋 ENCABEZADO PRINCIPAL
-    sheet.cell(ExcelLib.CellIndex.indexByString('A$currentRow')).value = 'RESUMEN DE NÓMINA POR CUADRILLAS';
-    sheet.cell(ExcelLib.CellIndex.indexByString('A${currentRow + 1}')).value = 'Del ${DateFormat('dd/MM/yyyy').format(widget.fechaInicio)} al ${DateFormat('dd/MM/yyyy').format(widget.fechaFin)}';
-    currentRow += 3; // Espacio después del encabezado
-
-    // 📊 PROCESAR CADA CUADRILLA
+    // 📊 HOJA GENERAL CON ESTRUCTURA DE TABLA PRINCIPAL PARA TODAS LAS CUADRILLAS
+    final sheet = excel['Nómina General'];
+    
+    // 🎯 TÍTULOS DEL ARCHIVO
+    sheet.cell(ExcelLib.CellIndex.indexByString('A1')).value = 'NÓMINA GENERAL - TODAS LAS CUADRILLAS';
+    sheet.cell(ExcelLib.CellIndex.indexByString('A2')).value = 'Período: ${DateFormat('dd/MM/yyyy').format(widget.fechaInicio)} - ${DateFormat('dd/MM/yyyy').format(widget.fechaFin)}';
+    
+    int currentRow = 4;
+    
+    // 🏷️ PROCESAMIENTO POR CADA CUADRILLA
     for (var cuadrilla in widget.cuadrillasInfo) {
       final nombreCuadrilla = cuadrilla['nombre'];
       
-      // Obtener empleados (temporales si están disponibles, sino originales)
+      // Usar datos temporales si están disponibles
       List<Map<String, dynamic>> empleadosParaExportar;
       if (widget.empleadosNominaTemp != null && 
           widget.empleadosNominaTemp!.containsKey(nombreCuadrilla)) {
@@ -1207,57 +1329,227 @@ class _ResumenCuadrillasDialogState extends State<ResumenCuadrillasDialog> {
         empleadosParaExportar = List<Map<String, dynamic>>.from(cuadrilla['empleados']);
       }
       
-      // 🏷️ TÍTULO DE LA CUADRILLA
-      sheet.cell(ExcelLib.CellIndex.indexByString('A$currentRow')).value = nombreCuadrilla.toUpperCase();
-      sheet.cell(ExcelLib.CellIndex.indexByString('D$currentRow')).value = '${empleadosParaExportar.length} empleado${empleadosParaExportar.length != 1 ? 's' : ''}';
+      if (empleadosParaExportar.isEmpty) continue;
+      
+      // 📋 TÍTULO DE LA CUADRILLA
+      sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow - 1)).value = 'CUADRILLA: ${nombreCuadrilla.toUpperCase()}';
+      currentRow += 2;
+      
+      // 🏷️ ENCABEZADOS - RÉPLICA EXACTA DE LA TABLA PRINCIPAL
+      int col = 1;
+      
+      // Columnas básicas
+      sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: currentRow - 1)).value = 'Clave';
+      col++;
+      sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: currentRow - 1)).value = 'Empleado';
+      col++;
+      
+      // Días de la semana
+      final diasSemana = ['Jue', 'Vie', 'Sáb', 'Dom', 'Lun', 'Mar', 'Mié'];
+      final fechasDias = ['3/7', '4/7', '5/7', '6/7', '7/7', '8/7', '2/7'];
+      
+      if (widget.fechaInicio != null && widget.fechaFin != null) {
+        for (int i = 0; i < 7; i++) {
+          final fecha = widget.fechaInicio.add(Duration(days: i));
+          final diaReal = DateFormat('EEE', 'es').format(fecha).toLowerCase();
+          final fechaReal = DateFormat('d/M').format(fecha);
+          sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: currentRow - 1)).value = '$diaReal\n$fechaReal';
+          col++;
+        }
+      } else {
+        for (int i = 0; i < 7; i++) {
+          sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: currentRow - 1)).value = '${diasSemana[i]}\n${fechasDias[i]}';
+          col++;
+        }
+      }
+      
+      // Columnas de totales
+      sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: currentRow - 1)).value = 'Total';
+      col++;
+      sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: currentRow - 1)).value = 'Debe';
+      col++;
+      sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: currentRow - 1)).value = 'Subtotal';
+      col++;
+      sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: currentRow - 1)).value = 'Comedor';
+      col++;
+      sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: currentRow - 1)).value = 'Total Neto';
+      
       currentRow++;
       
-      // 📝 ENCABEZADOS DE COLUMNAS
-      sheet.cell(ExcelLib.CellIndex.indexByString('A$currentRow')).value = 'CÓDIGO';
-      sheet.cell(ExcelLib.CellIndex.indexByString('B$currentRow')).value = 'EMPLEADO';
-      sheet.cell(ExcelLib.CellIndex.indexByString('C$currentRow')).value = 'TOTAL NETO';
-      currentRow++;
-      
-      double totalCuadrilla = 0.0;
-      
-      // 👥 EMPLEADOS DE LA CUADRILLA
+      // 📊 DATOS DE EMPLEADOS DE ESTA CUADRILLA
       for (var empleado in empleadosParaExportar) {
-        // Obtener datos del empleado
-        final codigo = empleado['codigo']?.toString() ?? '';
-        final nombre = empleado['nombre']?.toString() ?? '';
+        col = 1;
         
-        // Calcular total neto
+        // Clave y nombre
+        sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: currentRow - 1)).value = empleado['codigo']?.toString() ?? '';
+        col++;
+        sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: currentRow - 1)).value = empleado['nombre']?.toString() ?? '';
+        col++;
+        
+        // Días trabajados
+        for (int i = 0; i < 7; i++) {
+          final diasTrabajados = _parseToDouble(empleado['dia_${i}_s']);
+          sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: currentRow - 1)).value = diasTrabajados;
+          col++;
+        }
+        
+        // Totales
+        final total = _parseToDouble(empleado['total']);
+        sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: currentRow - 1)).value = total;
+        col++;
+        
+        final debe = _parseToDouble(empleado['debe']);
+        sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: currentRow - 1)).value = debe;
+        col++;
+        
+        final subtotal = _parseToDouble(empleado['subtotal']);
+        sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: currentRow - 1)).value = subtotal;
+        col++;
+        
+        final comedor = _parseToDouble(empleado['comedor']);
+        sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: currentRow - 1)).value = comedor;
+        col++;
+        
+        // Total Neto
+        double totalNeto = 0.0;
+        if (empleado.containsKey('totalNeto')) {
+          totalNeto = _parseToDouble(empleado['totalNeto']);
+        } else if (empleado['tabla_principal'] != null) {
+          final tablaData = empleado['tabla_principal'];
+          totalNeto = _parseToDouble(tablaData['neto']);
+        } else {
+          totalNeto = subtotal - comedor;
+        }
+        sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: currentRow - 1)).value = totalNeto;
+        
+        currentRow++;
+      }
+      
+      // 🎯 SUBTOTALES POR CUADRILLA
+      currentRow++;
+      sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: currentRow - 1)).value = 'SUBTOTAL ${nombreCuadrilla}:';
+      
+      col = 3; // Empezar en los días
+      for (int i = 0; i < 7; i++) {
+        double totalDia = 0.0;
+        for (var empleado in empleadosParaExportar) {
+          totalDia += _parseToDouble(empleado['dia_${i}_s']);
+        }
+        sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: currentRow - 1)).value = totalDia;
+        col++;
+      }
+      
+      // Subtotales de la cuadrilla
+      double subtotalCuadrilla = 0.0;
+      double subtotalDebe = 0.0;
+      double subtotalSubtotal = 0.0;
+      double subtotalComedor = 0.0;
+      double subtotalNeto = 0.0;
+      
+      for (var empleado in empleadosParaExportar) {
+        subtotalCuadrilla += _parseToDouble(empleado['total']);
+        subtotalDebe += _parseToDouble(empleado['debe']);
+        subtotalSubtotal += _parseToDouble(empleado['subtotal']);
+        subtotalComedor += _parseToDouble(empleado['comedor']);
+        
         double neto = 0.0;
         if (empleado.containsKey('totalNeto')) {
           neto = _parseToDouble(empleado['totalNeto']);
         } else if (empleado['tabla_principal'] != null) {
-          final tablaData = empleado['tabla_principal'];
-          neto = _parseToDouble(tablaData['neto']);
+          neto = _parseToDouble(empleado['tabla_principal']['neto']);
+        } else {
+          neto = _parseToDouble(empleado['subtotal']) - _parseToDouble(empleado['comedor']);
         }
-        
-        // Escribir datos del empleado
-        sheet.cell(ExcelLib.CellIndex.indexByString('A$currentRow')).value = codigo;
-        sheet.cell(ExcelLib.CellIndex.indexByString('B$currentRow')).value = nombre;
-        sheet.cell(ExcelLib.CellIndex.indexByString('C$currentRow')).value = neto;
-        
-        totalCuadrilla += neto;
-        currentRow++;
+        subtotalNeto += neto;
       }
       
-      // 💰 SUBTOTAL DE LA CUADRILLA
-      sheet.cell(ExcelLib.CellIndex.indexByString('A$currentRow')).value = '';
-      sheet.cell(ExcelLib.CellIndex.indexByString('B$currentRow')).value = 'Subtotal ${nombreCuadrilla}:';
-      sheet.cell(ExcelLib.CellIndex.indexByString('C$currentRow')).value = totalCuadrilla;
-      currentRow += 2; // Espacio entre cuadrillas
+      sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: currentRow - 1)).value = subtotalCuadrilla;
+      col++;
+      sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: currentRow - 1)).value = subtotalDebe;
+      col++;
+      sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: currentRow - 1)).value = subtotalSubtotal;
+      col++;
+      sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: currentRow - 1)).value = subtotalComedor;
+      col++;
+      sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: currentRow - 1)).value = subtotalNeto;
       
-      totalGeneral += totalCuadrilla;
+      currentRow += 3; // Espacio entre cuadrillas
     }
-
-    // 🎯 TOTAL GENERAL
-    currentRow++; // Espacio adicional antes del total general
-    sheet.cell(ExcelLib.CellIndex.indexByString('A$currentRow')).value = '';
-    sheet.cell(ExcelLib.CellIndex.indexByString('B$currentRow')).value = 'TOTAL GENERAL NÓMINA:';
-    sheet.cell(ExcelLib.CellIndex.indexByString('C$currentRow')).value = totalGeneral;
+    
+    // 🎯 GRAN TOTAL FINAL
+    currentRow++;
+    sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow - 1)).value = '=== GRAN TOTAL FINAL ===';
+    currentRow++;
+    
+    sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: currentRow - 1)).value = 'TOTALES GENERALES:';
+    
+    // Calcular totales generales de todas las cuadrillas
+    int col = 3;
+    for (int i = 0; i < 7; i++) {
+      double totalGeneralDia = 0.0;
+      for (var cuadrilla in widget.cuadrillasInfo) {
+        final nombreCuadrilla = cuadrilla['nombre'];
+        List<Map<String, dynamic>> empleados;
+        if (widget.empleadosNominaTemp != null && 
+            widget.empleadosNominaTemp!.containsKey(nombreCuadrilla)) {
+          empleados = widget.empleadosNominaTemp![nombreCuadrilla]!;
+        } else {
+          empleados = List<Map<String, dynamic>>.from(cuadrilla['empleados']);
+        }
+        
+        for (var empleado in empleados) {
+          totalGeneralDia += _parseToDouble(empleado['dia_${i}_s']);
+        }
+      }
+      sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: currentRow - 1)).value = totalGeneralDia;
+      col++;
+    }
+    
+    // Totales generales finales
+    double granTotal = 0.0;
+    double granDebe = 0.0;
+    double granSubtotal = 0.0;
+    double granComedor = 0.0;
+    double granNeto = 0.0;
+    
+    for (var cuadrilla in widget.cuadrillasInfo) {
+      final nombreCuadrilla = cuadrilla['nombre'];
+      List<Map<String, dynamic>> empleados;
+      if (widget.empleadosNominaTemp != null && 
+          widget.empleadosNominaTemp!.containsKey(nombreCuadrilla)) {
+        empleados = widget.empleadosNominaTemp![nombreCuadrilla]!;
+      } else {
+        empleados = List<Map<String, dynamic>>.from(cuadrilla['empleados']);
+      }
+      
+      for (var empleado in empleados) {
+        granTotal += _parseToDouble(empleado['total']);
+        granDebe += _parseToDouble(empleado['debe']);
+        granSubtotal += _parseToDouble(empleado['subtotal']);
+        granComedor += _parseToDouble(empleado['comedor']);
+        
+        double neto = 0.0;
+        if (empleado.containsKey('totalNeto')) {
+          neto = _parseToDouble(empleado['totalNeto']);
+        } else if (empleado['tabla_principal'] != null) {
+          neto = _parseToDouble(empleado['tabla_principal']['neto']);
+        } else {
+          neto = _parseToDouble(empleado['subtotal']) - _parseToDouble(empleado['comedor']);
+        }
+        granNeto += neto;
+      }
+    }
+    
+    col = 10; // Reset col to the Total column position
+    sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: currentRow - 1)).value = granTotal;
+    col++;
+    sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: currentRow - 1)).value = granDebe;
+    col++;
+    sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: currentRow - 1)).value = granSubtotal;
+    col++;
+    sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: currentRow - 1)).value = granComedor;
+    col++;
+    sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: currentRow - 1)).value = granNeto;
 
     await _guardarExcel(excel, 'Nomina_General_$fechaStr.xlsx');
 
@@ -1267,7 +1559,7 @@ class _ResumenCuadrillasDialogState extends State<ResumenCuadrillasDialog> {
           children: [
             const Icon(Icons.check_circle, color: Colors.white),
             const SizedBox(width: 8),
-            const Text('Archivo Excel general generado exitosamente'),
+            const Text('Archivo Excel general generado con estructura de tabla principal'),
           ],
         ),
         backgroundColor: Colors.green,
