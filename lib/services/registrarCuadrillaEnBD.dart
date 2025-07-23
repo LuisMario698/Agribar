@@ -31,16 +31,16 @@ Future<String> generarSiguienteClaveCuadrilla() async {
   await db.connect();
 
   final result = await db.connection.query(
-    "SELECT clave FROM cuadrillas WHERE clave LIKE 'CU%' ORDER BY CAST(SUBSTRING(clave FROM 3) AS INTEGER) DESC LIMIT 1;"
+    "SELECT clave FROM cuadrillas ORDER BY CAST(clave AS INTEGER) DESC LIMIT 1;"
   );
 
   await db.close();
 
-  if (result.isEmpty) return 'CU001';
+  if (result.isEmpty) return '1';
 
   final ultimaClave = result.first[0] as String;
-  final numero = int.tryParse(ultimaClave.substring(2)) ?? 0;
+  final numero = int.tryParse(ultimaClave) ?? 0;
   final siguiente = numero + 1;
 
-  return 'CU${siguiente.toString().padLeft(3, '0')}';
+  return siguiente.toString();
 }

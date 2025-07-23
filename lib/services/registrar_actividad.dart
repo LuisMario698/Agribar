@@ -22,21 +22,21 @@ Future<String> generarSiguienteClaveActividad() async {
   await db.connect();
 
   final result = await db.connection.query('''
-    SELECT clave FROM actividades 
-    WHERE clave LIKE 'ATC%' 
-    ORDER BY CAST(SUBSTRING(clave FROM 4) AS INTEGER) DESC 
+    SELECT clave FROM actividades
+    ORDER BY CAST(clave AS INTEGER) DESC
     LIMIT 1
   ''');
 
   await db.close();
 
-  if (result.isEmpty) return 'ATC001';
+  // Si no hay actividades, comienza en '1'
+  if (result.isEmpty) return '1';
 
   final ultimaClave = result.first[0] as String;
-  final numero = int.tryParse(ultimaClave.substring(3)) ?? 0;
+  final numero = int.tryParse(ultimaClave) ?? 0;
   final siguiente = numero + 1;
 
-  return 'ATC${siguiente.toString().padLeft(3, '0')}';
+  return siguiente.toString();
 }
 
 Future<List<Map<String, dynamic>>> obtenerActividadesDesdeBD() async {
