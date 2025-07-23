@@ -723,7 +723,7 @@ class _NominaArmarCuadrillaWidgetState extends State<NominaArmarCuadrillaWidget>
             child: TextField(
               controller: _buscarDisponiblesController,
               decoration: InputDecoration(
-                hintText: 'Buscar empleado...',
+                hintText: 'Buscar empleado.....',
                 prefixIcon: Icon(Icons.search, color: Colors.grey.shade500),
                 border: InputBorder.none,
                 contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -843,7 +843,7 @@ class _NominaArmarCuadrillaWidgetState extends State<NominaArmarCuadrillaWidget>
             child: TextField(
               controller: _buscarEnCuadrillaController,
               decoration: InputDecoration(
-                hintText: 'Buscar en cuadrilla...',
+                hintText: 'Buscar en cuadrillas...',
                 prefixIcon: Icon(Icons.search, color: Colors.grey.shade500),
                 border: InputBorder.none,
                 contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -978,12 +978,33 @@ class _NominaArmarCuadrillaWidgetState extends State<NominaArmarCuadrillaWidget>
                               : Colors.grey.shade600,
                         ),
                       ),
-                      Text(
-                        empleado['puesto'] ?? 'Jornalero',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            empleado['puesto'] ?? 'Jornalero',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                          if (empleado['codigo'] != null && empleado['codigo'].toString().isNotEmpty) ...[
+                            Text(
+                              ' • ',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade400,
+                              ),
+                            ),
+                            Text(
+                              'Código: ${empleado['codigo']}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade600,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ],
                   ),
@@ -1076,41 +1097,3 @@ class _NominaArmarCuadrillaWidgetState extends State<NominaArmarCuadrillaWidget>
     );
   }
 }
-
-/// EJEMPLO DE USO:
-/// ```dart
-/// // En el widget padre que muestra el diálogo "Armar Cuadrilla":
-/// void _mostrarArmarCuadrillaDialog() {
-///   showDialog(
-///     context: context,
-///     builder: (context) => NominaArmarCuadrillaWidget(
-///       optionsCuadrilla: cuadrillas,
-///       selectedCuadrilla: cuadrillaSeleccionada,
-///       todosLosEmpleados: todosLosEmpleados,
-///       empleadosEnCuadrilla: empleadosEnCuadrilla,
-///       onCuadrillaSaved: (cuadrilla, empleados) {
-///         // Actualizar los datos locales con la información guardada
-///         setState(() {
-///           cuadrillaSeleccionada = cuadrilla;
-///           empleadosEnCuadrilla = empleados;
-///         });
-///       },
-///       onClose: () => Navigator.of(context).pop(),
-///       onMostrarDetallesEmpleado: (context, empleado) {
-///         // Mostrar detalles del empleado
-///         _mostrarDetallesEmpleado(context, empleado);
-///       },
-///       onActualizarTablas: () {
-///         // Código para actualizar la tabla principal
-///         _actualizarTablaPrincipal();
-///         
-///         // Código para actualizar la tabla expandida
-///         _actualizarTablaExpandida();
-///         
-///         // También puedes refrescar datos desde la BD si es necesario
-///         _cargarDatosActualizados();
-///       },
-///     ),
-///   );
-/// }
-/// ```

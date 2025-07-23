@@ -82,7 +82,7 @@ Future<List<Map<String, dynamic>>> obtenerEmpleadosHabilitados() async {
             'rfc': row[3],
             'nss': row[4],
             'lugarProcedencia': row[5],
-            'numeroEmpleado': row[6],
+            'codigo': row[6], 
             'seleccionado': false,
           },
         )
