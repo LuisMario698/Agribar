@@ -585,17 +585,18 @@ class _RegistroEmpleadoWizardState extends State<RegistroEmpleadoWizard> {
     await db.connect();
 
     final result = await db.connection.query(
-      "SELECT codigo FROM empleados WHERE codigo ~ '^EMP[0-9]+\$' ORDER BY CAST(SUBSTRING(codigo FROM 4) AS INTEGER) DESC LIMIT 1;",
+      "SELECT codigo FROM empleados ORDER BY CAST(codigo AS INTEGER) DESC LIMIT 1;",
     );
 
     await db.close();
 
-    if (result.isEmpty) return 'EMP001';
+     // Si no hay empleados, regresa '1'
+  if (result.isEmpty) return '1';
 
-    final ultimoCodigo = result.first[0] as String;
-    final numero = int.parse(ultimoCodigo.substring(3));
-    final siguienteNumero = numero + 1;
-    return 'EMP${siguienteNumero.toString().padLeft(3, '0')}';
+  final ultimoCodigo = result.first[0] as String;
+  final numero = int.parse(ultimoCodigo);
+  final siguienteNumero = numero + 1;
+  return siguienteNumero.toString();
   }
 
   void _prevStep() {
