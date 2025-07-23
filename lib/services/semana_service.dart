@@ -179,7 +179,13 @@ Future<void> guardarEmpleadosCuadrillaSemana({
     
     // Convertir a Set para facilitar comparaciones
     final empleadosEnBD = empleadosActualesResult.map((row) => row[0] as int).toSet();
-    final empleadosNuevos = empleados.map((emp) => emp['id'] as int).toSet();
+    final empleadosNuevos = empleados.map((emp) {
+      // Manejar tanto int como string
+      final id = emp['id'];
+      if (id is int) return id;
+      if (id is String) return int.parse(id);
+      return -1; // Valor por defecto si no es int ni string
+    }).toSet();
     
     // 🔧 IDENTIFICAR empleados a agregar (están en la lista nueva pero no en BD)
     final empleadosAAgregar = empleadosNuevos.difference(empleadosEnBD);
