@@ -1,4 +1,5 @@
 import 'package:agribar/services/database_service.dart';
+import 'package:agribar/services/auth_validation_service.dart';
 import 'package:flutter/material.dart';
 import '../theme/app_styles.dart';
 
@@ -24,7 +25,9 @@ class NominaSupervisorAuthWidget extends StatefulWidget {
 class _NominaSupervisorAuthWidgetState extends State<NominaSupervisorAuthWidget> {
   final TextEditingController _userController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final AuthValidationService _authService = AuthValidationService();
   String? _errorMessage;
+  bool _isAuthenticating = false;
 
   @override
   void dispose() {
@@ -34,13 +37,47 @@ class _NominaSupervisorAuthWidgetState extends State<NominaSupervisorAuthWidget>
   }
 
   Future<void> _handleAuth() async {
-    if (_userController.text == 'supervisor' && _passwordController.text == '1234') {
-      widget.onAuthSuccess();
-      await respaldarYLimpiarNominaUltimaSemana(_userController.text);
-    } else {
+    final usuario = _userController.text.trim();
+    final password = _passwordController.text.trim();
+    
+    if (usuario.isEmpty || password.isEmpty) {
       setState(() {
-        _errorMessage = 'Usuario o contraseña incorrectos';
+        _errorMessage = 'Debe ingresar usuario y contraseña';
       });
+      return;
+    }
+    
+    setState(() {
+      _isAuthenticating = true;
+      _errorMessage = null;
+    });
+    
+    try {
+      // Validar credenciales usando el servicio de autenticación
+      final userData = await _authService.validarCredencialesConPermisos(
+        usuario, 
+        password
+      );
+      
+      if (userData != null && userData['puede_gestionar'] == true) {
+        // Autenticación exitosa y usuario con permisos
+        widget.onAuthSuccess();
+        await respaldarYLimpiarNominaUltimaSemana(userData['nombre_usuario']);
+      } else {
+        setState(() {
+          _errorMessage = 'Usuario sin permisos para cerrar semanas o credenciales incorrectas';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Error de conexión: $e';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isAuthenticating = false;
+        });
+      }
     }
   }
 Future<void> respaldarYLimpiarNominaUltimaSemana(String usuario) async {
@@ -160,10 +197,40 @@ Future<void> respaldarYLimpiarNominaUltimaSemana(String usuario) async {
               ],
             ),
             const SizedBox(height: 24),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(AppDimens.cardRadius),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    color: Colors.blue.shade600,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Solo usuarios con rol de Supervisor o Administrador pueden cerrar semanas.',
+                      style: TextStyle(
+                        color: Colors.blue.shade800,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
             TextField(
               controller: _userController,
+              enabled: !_isAuthenticating,
               decoration: InputDecoration(
-                labelText: 'Usuario',
+                labelText: 'Usuario Supervisor/Administrador',
+                hintText: 'Ingrese su nombre de usuario',
                 labelStyle: TextStyle(color: AppColors.greenDark),
                 prefixIcon: Icon(
                   Icons.person_outline,
@@ -190,9 +257,12 @@ Future<void> respaldarYLimpiarNominaUltimaSemana(String usuario) async {
             const SizedBox(height: 16),
             TextField(
               controller: _passwordController,
+              enabled: !_isAuthenticating,
               obscureText: true,
+              onSubmitted: (_) => _isAuthenticating ? null : _handleAuth(),
               decoration: InputDecoration(
                 labelText: 'Contraseña',
+                hintText: 'Ingrese su contraseña',
                 labelStyle: TextStyle(color: AppColors.greenDark),
                 prefixIcon: Icon(
                   Icons.lock_outline,
@@ -248,16 +318,29 @@ Future<void> respaldarYLimpiarNominaUltimaSemana(String usuario) async {
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 TextButton(
-                  onPressed: widget.onClose,
+                  onPressed: _isAuthenticating ? null : widget.onClose,
                   child: Text(
                     'Cancelar',
-                    style: TextStyle(color: AppColors.greenDark),
+                    style: TextStyle(
+                      color: _isAuthenticating 
+                          ? Colors.grey.shade400 
+                          : AppColors.greenDark
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
                 FilledButton.icon(
-                  icon: const Icon(Icons.verified_user),
-                  onPressed: _handleAuth,
+                  icon: _isAuthenticating 
+                      ? SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Icon(Icons.verified_user),
+                  onPressed: _isAuthenticating ? null : _handleAuth,
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.greenDark,
                     padding: const EdgeInsets.symmetric(
@@ -265,7 +348,7 @@ Future<void> respaldarYLimpiarNominaUltimaSemana(String usuario) async {
                       vertical: 12,
                     ),
                   ),
-                  label: const Text('Autorizar'),
+                  label: Text(_isAuthenticating ? 'Verificando...' : 'Autorizar'),
                 ),
               ],
             ),

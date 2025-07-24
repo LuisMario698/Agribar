@@ -43,8 +43,8 @@ class AuthValidationService {
       final accesoCuadrillas = userData[5] as bool? ?? false;
 
       // Verificar si el usuario tiene permisos para gestionar empleados o cuadrillas
-      // Roles permitidos: Administrador (2) y Supervisor (1)
-      if (rolId == 2 || rolId == 1) { // Administrador o Supervisor
+      // Roles permitidos: Supervisor (1), Administrador (2) y Capturista (3)
+      if (rolId == 2 || rolId == 3) {
         if (accesoCuadrillas || accesoEmpleados) {
           return {
             'id_usuario': userData[0],
@@ -129,8 +129,8 @@ class AuthValidationService {
 🔧 CONFIGURACIÓN DE AUTENTICACIÓN Y PERMISOS:
 
 1. PERMISOS ACTUALES:
-   - Administradores (ID: 2) y Supervisores (ID: 1) pueden gestionar cuadrillas y empleados
-   - Capturistas (ID: 3) solo pueden acceder a nómina
+   - Supervisores (ID: 1), Administradores (ID: 2) y Administradores (ID: 3) pueden gestionar cuadrillas y empleados
+   - Otros roles requieren permisos específicos de acceso
 
 2. FUNCIONALIDADES:
    - Validación de credenciales contra PostgreSQL
