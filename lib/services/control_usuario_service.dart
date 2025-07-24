@@ -13,14 +13,14 @@ class ControlUsuarioService {
   final RolesService _rolesService = RolesService();
 
   // Constantes para los tipos de usuario
-  static const int ROLE_CAPTURISTA = 1;
-  static const int ROLE_SUPERVISOR = 2; 
-  static const int ROLE_ADMINISTRADOR = 3;
+  static const int ROLE_SUPERVISOR = 1;
+  static const int ROLE_ADMINISTRADOR = 2; 
+  static const int ROLE_CAPTURISTA = 3;
 
   static const Map<String, int> USER_TYPES = {
-    'capturista': ROLE_CAPTURISTA,
     'supervisor': ROLE_SUPERVISOR,
     'administrador': ROLE_ADMINISTRADOR,
+    'capturista': ROLE_CAPTURISTA,
   };
 
   /// Obtiene todos los usuarios con información detallada de roles
@@ -91,19 +91,21 @@ class ControlUsuarioService {
         final permisos = await obtenerPermisosUsuario(usuarioId);
         final seccionesPermitidas = await obtenerSeccionesPermitidas(usuarioId);
         
-        if (permisos != null) {
-          final tipoUsuario = _getTipoUsuarioFromRolId(usuario['rol']);
-          return {
-            ...usuario,
-            'tipo_usuario': tipoUsuario,
-            'permisos': permisos,
-            'secciones_permitidas': seccionesPermitidas,
-            'puede_acceder_configuracion': permisos['acceso_configurar_usuarios'] ?? false,
-            'puede_modificar_empleados': permisos['acceso_modificar_empleados'] ?? false,
-            'puede_gestionar_nomina': permisos['acceso_nomina'] ?? false,
-            'color_ui': _getColorForRol(usuario['rol']),
-          };
-        }
+      if (permisos != null) {
+        final tipoUsuario = _getTipoUsuarioFromRolId(usuario['rol']);
+        return {
+          ...usuario,
+          'rol_id': usuario['rol'], // Añadir el rol_id para validaciones
+          'tipo': tipoUsuario, // Tipo con primera letra mayúscula
+          'tipo_usuario': tipoUsuario,
+          'permisos': permisos,
+          'secciones_permitidas': seccionesPermitidas,
+          'puede_acceder_configuracion': permisos['acceso_configurar_usuarios'] ?? false,
+          'puede_modificar_empleados': permisos['acceso_modificar_empleados'] ?? false,
+          'puede_gestionar_nomina': permisos['acceso_nomina'] ?? false,
+          'color_ui': _getColorForRol(usuario['rol']),
+        };
+      }
       }
       
       return null;
@@ -260,13 +262,13 @@ class ControlUsuarioService {
   String _getTipoUsuarioFromRolId(int rolId) {
     switch (rolId) {
       case ROLE_CAPTURISTA:
-        return 'capturista';
+        return 'Capturista';
       case ROLE_SUPERVISOR:
-        return 'supervisor';
+        return 'Supervisor';
       case ROLE_ADMINISTRADOR:
-        return 'administrador';
+        return 'Administrador';
       default:
-        return 'desconocido';
+        return 'Desconocido';
     }
   }
 

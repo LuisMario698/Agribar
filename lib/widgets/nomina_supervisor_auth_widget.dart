@@ -59,8 +59,8 @@ class _NominaSupervisorAuthWidgetState extends State<NominaSupervisorAuthWidget>
         password
       );
       
-      if (userData != null && userData['puede_gestionar'] == true) {
-        // Autenticación exitosa y usuario con permisos
+      if (userData != null && userData['puede_gestionar'] == true && userData['puede_cerrar_semana'] == true) {
+        // Autenticación exitosa y usuario con permisos para cerrar semanas
         widget.onAuthSuccess();
         await respaldarYLimpiarNominaUltimaSemana(userData['nombre_usuario']);
       } else {
@@ -214,7 +214,7 @@ Future<void> respaldarYLimpiarNominaUltimaSemana(String usuario) async {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Solo usuarios con rol de Supervisor o Administrador pueden cerrar semanas.',
+                      'Solo usuarios con rol de Supervisor (ID:1) o Administrador (ID:2) pueden cerrar semanas.',
                       style: TextStyle(
                         color: Colors.blue.shade800,
                         fontSize: 12,

@@ -43,8 +43,9 @@ class AuthValidationService {
       final accesoCuadrillas = userData[5] as bool? ?? false;
 
       // Verificar si el usuario tiene permisos para gestionar empleados o cuadrillas
-      // Roles permitidos: Supervisor (1), Administrador (2) y Capturista (3)
-      if (rolId == 2 || rolId == 3) {
+      // Roles permitidos para gestión general: Supervisor (1), Administrador (2) y Capturista (3)
+      // Para cierre de semanas: Solo Supervisor (1) y Administrador (2)
+      if (rolId == 1 || rolId == 2 || rolId == 3) {
         if (accesoCuadrillas || accesoEmpleados) {
           return {
             'id_usuario': userData[0],
@@ -54,6 +55,7 @@ class AuthValidationService {
             'acceso_empleados': accesoEmpleados,
             'acceso_cuadrillas': accesoCuadrillas,
             'puede_gestionar': true,
+            'puede_cerrar_semana': rolId == 1 || rolId == 2, // Solo Supervisor y Administrador
           };
         }
       }

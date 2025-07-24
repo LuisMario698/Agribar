@@ -6,6 +6,7 @@ import '../services/registrarCuadrillaEnBD.dart';
 import '../services/cargarCuadrillasDesdeBD.dart';
 import '../services/auth_validation_service.dart';
 import '../services/control_usuario_service.dart';
+import 'widgets_general/seleccionar_actividad_screen.dart';
 // Widget principal de la pantalla de cuadrillas
 class CuadrillaContent extends StatefulWidget {
   const CuadrillaContent({Key? key}) : super(key: key);
@@ -16,11 +17,9 @@ class CuadrillaContent extends StatefulWidget {
 
 class _CuadrillaContentState extends State<CuadrillaContent> {
   // Controladores para los campos de texto
-  final TextEditingController claveController = TextEditingController();
   final TextEditingController nombreController = TextEditingController();
   final TextEditingController grupoController = TextEditingController();
   String? actividadSeleccionada;
-  final List<String> actividades = ['Destajo', 'Otra'];
 
   final TextEditingController searchController = TextEditingController();
   final ScrollController _tableScrollController = ScrollController();
@@ -77,10 +76,7 @@ Future<void> cargarCuadrillas() async {
     return;
   }
 
-  final nuevaClave = await generarSiguienteClaveCuadrilla();
-
   final nuevaCuadrilla = {
-    'clave': nuevaClave,
     'nombre': nombreController.text,
     'grupo': grupoController.text,
     'actividad': actividadSeleccionada!,
@@ -89,14 +85,21 @@ Future<void> cargarCuadrillas() async {
 
   await registrarCuadrillaEnBD(nuevaCuadrilla);
 
+  // Recargar cuadrillas desde la base de datos para obtener el ID generado
+  await cargarCuadrillas();
+
   setState(() {
-    claveController.text = nuevaClave;
-    cuadrillas.add(nuevaCuadrilla);
-    _buscarCuadrilla();
     nombreController.clear();
     grupoController.clear();
     actividadSeleccionada = null;
   });
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+      content: Text('Cuadrilla creada correctamente'),
+      backgroundColor: Colors.green,
+    ),
+  );
 }
   // Función para cambiar el estado de habilitado/deshabilitado
   Future<void> _toggleHabilitado(int index) async {
@@ -168,7 +171,8 @@ Future<void> cargarCuadrillas() async {
                       passController.text,
                     );
                     
-                    if (resultado != null && (resultado['tipo'] == 'Administrador' || resultado['tipo'] == 'Supervisor')) {
+                    // Verificar si es Supervisor (1) o Administrador (2)
+                    if (resultado != null && (resultado['rol_id'] == 1 || resultado['rol_id'] == 2)) {
                       userData = {
                         'nombre_usuario': userController.text,
                         'rol_descripcion': resultado['tipo'],
@@ -202,7 +206,7 @@ Future<void> cargarCuadrillas() async {
     // Si la autenticación fue exitosa, cambiar el estado
     if (userData != null) {
       final cuadrilla = cuadrillasFiltradas[index];
-      final clave = cuadrilla['clave'];
+      final clave = cuadrilla['clave']; // Usar la clave en lugar del ID
       final estadoActual = cuadrilla['habilitado'] ?? true;
       final nuevoEstado = !estadoActual;
 
@@ -291,30 +295,6 @@ Future<void> cargarCuadrillas() async {
                         children: [
                           Row(
                             children: [
-                              // Campo Clave
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text('Clave'),
-                                    const SizedBox(height: 8),
-                                    TextField(
-                                      controller: claveController,
-                                      decoration: InputDecoration(
-                                        filled: true,
-                                        fillColor: Colors.grey[200],
-                                        border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                          borderSide: BorderSide.none,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 16),
                               // Campo Nombre
                               Expanded(
                                 child: Column(
@@ -370,33 +350,56 @@ Future<void> cargarCuadrillas() async {
                                   children: [
                                     const Text('Actividad'),
                                     const SizedBox(height: 8),
-                                    DropdownButtonFormField<String>(
-                                      value: actividadSeleccionada,
-                                      items:
-                                          actividades
-                                              .map(
-                                                (a) => DropdownMenuItem(
-                                                  value: a,
-                                                  child: Text(a),
-                                                ),
-                                              )
-                                              .toList(),
-                                      onChanged: (value) {
-                                        setState(() {
-                                          actividadSeleccionada = value;
-                                        });
-                                      },
-                                      decoration: InputDecoration(
-                                        filled: true,
-                                        fillColor: Colors.grey[200],
-                                        border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
+                                    GestureDetector(
+                                      onTap: () async {
+                                        final resultado = await showDialog<String>(
+                                          context: context,
+                                          builder: (context) => SeleccionarActividadModal(
+                                            actividadSeleccionada: actividadSeleccionada,
                                           ),
-                                          borderSide: BorderSide.none,
+                                        );
+                                        
+                                        if (resultado != null) {
+                                          setState(() {
+                                            actividadSeleccionada = resultado;
+                                          });
+                                        }
+                                      },
+                                      child: Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 16,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.grey[200],
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(
+                                            color: Colors.grey[300]!,
+                                            width: 1,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                actividadSeleccionada ?? 'Seleccionar actividad',
+                                                style: TextStyle(
+                                                  fontSize: 16,
+                                                  color: actividadSeleccionada != null
+                                                      ? Colors.black87
+                                                      : Colors.grey[600],
+                                                ),
+                                              ),
+                                            ),
+                                            Icon(
+                                              Icons.search,
+                                              color: Colors.grey[600],
+                                              size: 20,
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                      hint: const Text('Nombre'),
                                     ),
                                   ],
                                 ),
@@ -512,8 +515,8 @@ Future<void> cargarCuadrillas() async {
     style: BorderStyle.solid,
   ),
   columns: const [
-    DataColumn(label: Text('Nombre', style: TextStyle(fontWeight: FontWeight.bold))),
     DataColumn(label: Text('Clave', style: TextStyle(fontWeight: FontWeight.bold))),
+    DataColumn(label: Text('Nombre', style: TextStyle(fontWeight: FontWeight.bold))),
     DataColumn(label: Text('Grupo', style: TextStyle(fontWeight: FontWeight.bold))),
     DataColumn(label: Text('Actividad', style: TextStyle(fontWeight: FontWeight.bold))),
     DataColumn(label: Text('Estado', style: TextStyle(fontWeight: FontWeight.bold))),
@@ -527,13 +530,13 @@ Future<void> cargarCuadrillas() async {
       cells: [
         DataCell(
           Text(
-            cuadrilla['nombre'],
+            cuadrilla['clave'], // Mostramos la clave auto-generada
             style: TextStyle(color: !habilitado ? Colors.grey[600] : null),
           ),
         ),
         DataCell(
           Text(
-            cuadrilla['clave'],
+            cuadrilla['nombre'],
             style: TextStyle(color: !habilitado ? Colors.grey[600] : null),
           ),
         ),
@@ -592,37 +595,3 @@ Future<void> cargarCuadrillas() async {
   }
 }
 
-/* 
-🔧 CONFIGURACIÓN DE PERMISOS PARA HABILITAR/DESHABILITAR CUADRILLAS
-
-CONFIGURACIÓN ACTUAL:
-- ✅ Administradores (ID: 2) pueden gestionar cuadrillas
-- ✅ Supervisores (ID: 1) pueden gestionar cuadrillas
-- ❌ Capturistas (ID: 3) NO pueden gestionar cuadrillas
-
-CARACTERÍSTICAS DEL SISTEMA:
-- ✅ Validación contra base de datos real
-- ✅ Verificación de roles y permisos
-- ✅ Actualización del estado en PostgreSQL
-- ✅ Mensajes informativos con usuario que realizó el cambio
-- ✅ Manejo de errores y validaciones
-- ✅ Interfaz mejorada para autenticación
-- ✅ Recarga automática desde base de datos
-
-ROLES EN BASE DE DATOS:
-- Administrador: ID = 2, acceso_cuadrillas = true
-- Supervisor: ID = 1, acceso_cuadrillas = true  
-- Capturista: ID = 3, acceso_cuadrillas = false
-
-TABLA DE PERMISOS:
-┌─────────────────┬─────────────┬─────────────┬─────────────┐
-│ ROL             │ CUADRILLAS  │ EMPLEADOS   │ NÓMINA      │
-├─────────────────┼─────────────┼─────────────┼─────────────┤
-│ Administrador   │ ✅ Sí        │ ✅ Sí        │ ✅ Sí        │
-│ Supervisor      │ ✅ Sí        │ ✅ Sí        │ ✅ Sí        │
-│ Capturista      │ ❌ No        │ ❌ No        │ ✅ Sí        │
-└─────────────────┴─────────────┴─────────────┴─────────────┘
-
-NOTA: Este mismo sistema se puede aplicar a la gestión de empleados
-      modificando la función actualizarEstadoEmpleado() del servicio.
-*/

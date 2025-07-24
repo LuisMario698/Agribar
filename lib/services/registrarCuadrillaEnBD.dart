@@ -7,18 +7,21 @@ Future<void> registrarCuadrillaEnBD(Map<String, dynamic> cuadrilla) async {
   try {
     await db.connect();
 
+    // Generar la siguiente clave automáticamente
+    final siguienteClave = await _generarSiguienteClave(db);
+
     await db.connection.query('''
       INSERT INTO cuadrillas (clave, nombre, grupo, actividad, estado)
       VALUES (@clave, @nombre, @grupo, @actividad, @estado)
     ''', substitutionValues: {
-      'clave': cuadrilla['clave'],
+      'clave': siguienteClave,
       'nombre': cuadrilla['nombre'],
       'grupo': cuadrilla['grupo'],
       'actividad': cuadrilla['actividad'],
       'estado': cuadrilla['estado'] ?? true, // true = habilitada por default
     });
 
-    print('✅ Cuadrilla registrada correctamente');
+    print('✅ Cuadrilla registrada correctamente con clave: $siguienteClave');
   } catch (e) {
     print('❌ Error al registrar cuadrilla: $e');
   } finally {
@@ -26,15 +29,11 @@ Future<void> registrarCuadrillaEnBD(Map<String, dynamic> cuadrilla) async {
   }
 }
 
-Future<String> generarSiguienteClaveCuadrilla() async {
-  final db = DatabaseService();
-  await db.connect();
-
+/// Genera la siguiente clave numérica secuencial
+Future<String> _generarSiguienteClave(DatabaseService db) async {
   final result = await db.connection.query(
-    "SELECT clave FROM cuadrillas ORDER BY CAST(clave AS INTEGER) DESC LIMIT 1;"
+    "SELECT clave FROM cuadrillas WHERE clave ~ '^[0-9]+\$' ORDER BY CAST(clave AS INTEGER) DESC LIMIT 1;"
   );
-
-  await db.close();
 
   if (result.isEmpty) return '1';
 

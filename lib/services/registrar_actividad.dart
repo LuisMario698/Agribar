@@ -60,3 +60,18 @@ Future<List<Map<String, dynamic>>> obtenerActividadesDesdeBD() async {
     };
   }).toList();
 }
+
+Future<List<String>> obtenerNombresActividadesDesdeBD() async {
+  final db = DatabaseService();
+  await db.connect();
+
+  final result = await db.connection.query('''
+    SELECT DISTINCT nombre 
+    FROM actividades 
+    ORDER BY nombre ASC;
+  ''');
+
+  await db.close();
+
+  return result.map((row) => row[0] as String).toList();
+}

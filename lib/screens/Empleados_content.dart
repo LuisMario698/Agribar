@@ -206,7 +206,8 @@ class _EmpleadosContentState extends State<EmpleadosContent> {
                       passController.text,
                     );
                     
-                    if (resultado != null && (resultado['tipo'] == 'Administrador' || resultado['tipo'] == 'Supervisor')) {
+                    // Verificar si es Supervisor (1) o Administrador (2)
+                    if (resultado != null && (resultado['rol_id'] == 1 || resultado['rol_id'] == 2)) {
                       userData = {
                         'nombre_usuario': userController.text,
                         'rol_descripcion': resultado['tipo'],

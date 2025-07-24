@@ -16,9 +16,13 @@ class _ActividadesContentState extends State<ActividadesContent> {
   final TextEditingController nombreController = TextEditingController();
   final TextEditingController claveController = TextEditingController();
   final TextEditingController importeController = TextEditingController();
+  final TextEditingController nombrePersonalizadoController = TextEditingController(); // Nuevo controlador
   DateTime? fecha;
   final TextEditingController fechaController = TextEditingController();
   final TextEditingController searchController = TextEditingController();
+  
+  // Variable para controlar si se muestra el campo personalizado
+  bool mostrarCampoPersonalizado = false;
 @override
 void initState() {
   super.initState();
@@ -30,10 +34,22 @@ Future<void> cargarActividadesDesdeBD() async {
   setState(() {
     actividades.clear();
     for (var fila in resultado) {
+      // Convertir fecha de yyyy-mm-dd a dd/mm/yyyy para mostrar
+      String fechaMostrar = fila['fecha'];
+      try {
+        final partes = fila['fecha'].toString().split('-');
+        if (partes.length == 3) {
+          fechaMostrar = "${partes[2]}/${partes[1]}/${partes[0]}";
+        }
+      } catch (e) {
+        // Si hay error, mantener formato original
+        fechaMostrar = fila['fecha'];
+      }
+      
       actividades.add([
         fila['clave'],
-        fila['fecha'],
-        fila['importe'],
+        fechaMostrar,
+        fila['importe'].toString(),
         fila['nombre'],
       ]);
     }
@@ -55,6 +71,17 @@ Future<void> cargarActividadesDesdeBD() async {
 
   /// Agrega una nueva actividad a la lista
 Future<void> agregarActividad() async {
+  // Validación adicional para el campo personalizado
+  if (mostrarCampoPersonalizado && nombrePersonalizadoController.text.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Por favor completa el nombre personalizado'),
+        backgroundColor: Colors.red,
+      ),
+    );
+    return;
+  }
+
   if (importeController.text.isEmpty ||
       fechaController.text.isEmpty ||
       nombreController.text.isEmpty) {
@@ -68,11 +95,17 @@ Future<void> agregarActividad() async {
   }
 
   final claveGenerada = await generarSiguienteClaveActividad();
+  
+  // Determinar el nombre a usar: personalizado si está habilitado, sino el del dropdown
+  final nombreActividad = mostrarCampoPersonalizado 
+      ? nombrePersonalizadoController.text 
+      : nombreController.text;
+  
   final nuevaActividad = {
     'clave': claveGenerada,
     'fecha': fechaController.text,
     'importe': double.tryParse(importeController.text) ?? 0.0,
-    'nombre': nombreController.text,
+    'nombre': nombreActividad,
   };
 
   try {
@@ -98,11 +131,12 @@ Future<void> agregarActividad() async {
 
   /// Limpia todos los campos del formulario
   void _limpiarCampos() {
-    claveController.clear();
     importeController.clear();
     fecha = null;
     fechaController.clear();
     nombreController.clear();
+    nombrePersonalizadoController.clear();
+    mostrarCampoPersonalizado = false; // Resetear el estado del campo personalizado
   }
 
   @override
@@ -172,10 +206,16 @@ Future<void> agregarActividad() async {
                                         runSpacing: 16,
                                         alignment: WrapAlignment.start,
                                         children: [
-                                          _formInputField(claveController, 'Clave', width: isSmall ? double.infinity : 250),
                                           _fechaPickerField(width: isSmall ? double.infinity : 250),
                                           _formInputField(importeController, 'Importe', width: isSmall ? double.infinity : 250),
                                           _actividadDropdown(width: isSmall ? double.infinity : 250),
+                                          // Campo personalizado que aparece a la derecha cuando se selecciona "Otro"
+                                          if (mostrarCampoPersonalizado)
+                                            _formInputField(
+                                              nombrePersonalizadoController, 
+                                              'Nombre personalizado', 
+                                              width: isSmall ? double.infinity : 250
+                                            ),
                                         ],
                                       ),
                                       SizedBox(height: 32),
@@ -380,7 +420,7 @@ Future<void> agregarActividad() async {
   // Widget para dropdown de actividad
   Widget _actividadDropdown({double width = 250}) {
     final List<String> actividades = [
-      'Nombre', 'Destajo', 'Tapadora', 'Limpieza', 'Cosecha', 'Riego', 'Fertilización', 'Poda', 'Transplante', 'Siembra', 'Aplicación de Plaguicida', 'Deshierbe', 'Empaque', 'Carga'
+      'Nombre', 'Destajo', 'Tapadora', 'Limpieza', 'Cosecha', 'Riego', 'Fertilización', 'Poda', 'Transplante', 'Siembra', 'Aplicación de Plaguicida', 'Deshierbe', 'Empaque', 'Carga', 'Otro'
     ];
     return SizedBox(
       width: width,
@@ -389,7 +429,15 @@ Future<void> agregarActividad() async {
         items: actividades.map((act) => DropdownMenuItem(value: act, child: Text(act))).toList(),
         onChanged: (value) {
           setState(() {
-            nombreController.text = value ?? '';
+            if (value == 'Otro') {
+              mostrarCampoPersonalizado = true;
+              nombreController.text = 'Otro';
+              nombrePersonalizadoController.clear(); // Limpiar el campo personalizado
+            } else {
+              mostrarCampoPersonalizado = false;
+              nombreController.text = value ?? '';
+              nombrePersonalizadoController.clear(); // Limpiar el campo personalizado al cambiar
+            }
           });
         },
         decoration: InputDecoration(
@@ -433,7 +481,8 @@ Future<void> agregarActividad() async {
           );
           setState(() {
             fecha = picked;
-            fechaController.text = "${picked?.day.toString().padLeft(2, '0')}/${picked?.month.toString().padLeft(2, '0')}/${picked?.year}";
+            // Formato correcto para la base de datos: yyyy-mm-dd
+            fechaController.text = "${picked?.year}-${picked?.month.toString().padLeft(2, '0')}-${picked?.day.toString().padLeft(2, '0')}";
           });
                 },
       ),
@@ -446,6 +495,7 @@ Future<void> agregarActividad() async {
     nombreController.dispose();
     claveController.dispose();
     importeController.dispose();
+    nombrePersonalizadoController.dispose();
     fechaController.dispose();
     searchController.dispose();
     super.dispose();

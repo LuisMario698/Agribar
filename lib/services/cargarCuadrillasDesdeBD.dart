@@ -12,11 +12,12 @@ Future<List<Map<String, dynamic>>> obtenerCuadrillasDesdeBD() async {
     final result = await db.connection.query('''
       SELECT id_cuadrilla, clave, nombre, grupo, actividad, estado AS habilitado
       FROM cuadrillas
+      ORDER BY CAST(clave AS INTEGER)
     ''');
 
     cuadrillas = result.map((row) => {
       'id': row[0],
-      'clave': row[1],
+      'clave': row[1], // Usar la clave real de la base de datos
       'nombre': row[2],
       'grupo': row[3],
       'actividad': row[4],
