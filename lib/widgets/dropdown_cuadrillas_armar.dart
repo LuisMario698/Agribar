@@ -119,7 +119,9 @@ class _DropdownCuadrillasArmarState extends State<DropdownCuadrillasArmar> {
       } else {
         _opcionesFiltradas = widget.opcionesCuadrillas.where((cuadrilla) {
           final nombreCuadrilla = cuadrilla['nombre']?.toString().toLowerCase() ?? '';
-          return nombreCuadrilla.contains(textoBusqueda.toLowerCase());
+          final idCuadrilla = cuadrilla['id']?.toString().toLowerCase() ?? '';
+          final busqueda = textoBusqueda.toLowerCase();
+          return nombreCuadrilla.contains(busqueda) || idCuadrilla.contains(busqueda);
         }).toList();
       }
     });
@@ -205,7 +207,7 @@ class _DropdownCuadrillasArmarState extends State<DropdownCuadrillasArmar> {
                                 controller: _controladorBusqueda,
                                 focusNode: _nodoEnfoqueBusqueda,
                                 decoration: InputDecoration(
-                                  hintText: widget.textoBusqueda,
+                                  hintText: 'Buscar por nombre o ID...',
                                   prefixIcon: const Icon(Icons.search, size: 20),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(8),

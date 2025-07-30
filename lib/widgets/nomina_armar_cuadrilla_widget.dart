@@ -146,16 +146,14 @@ class _NominaArmarCuadrillaWidgetState extends State<NominaArmarCuadrillaWidget>
     if (_isDisposed || !mounted) return;
     
     setState(() {
-      // Crear una copia del empleado para la cuadrilla
-      final empleadoCopia = Map<String, dynamic>.from(empleado);
-      empleadoCopia['seleccionado'] = false; // Resetear estado de selección
-
-      // Si el empleado ya está en la cuadrilla, quitarlo
+      // Si el empleado ya está en la cuadrilla, quitarlo manteniendo el orden del resto
       if (empleadosEnCuadrillaLocal.any((e) => e['id'] == empleado['id'])) {
         empleadosEnCuadrillaLocal.removeWhere((e) => e['id'] == empleado['id']);
       } else {
-        // Si no está en la cuadrilla, agregarlo
-        empleadosEnCuadrillaLocal.add(empleadoCopia);
+        // Si no está en la cuadrilla, agregar una copia al final de la lista
+        final empleadoCopia = Map<String, dynamic>.from(empleado);
+        empleadoCopia['seleccionado'] = false; // Resetear estado de selección
+        empleadosEnCuadrillaLocal.add(empleadoCopia); // Se agrega al final, preservando el orden
       }
       
       // Marcar la cuadrilla como modificada

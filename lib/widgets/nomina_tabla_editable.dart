@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import '../services/registrar_actividad.dart';
 
 /// Implementación de tabla editable para nóminas
 /// Versión unificada y robusta para manejar datos de empleados
@@ -37,8 +38,51 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
   // ignore: unused_field
   int _columnaActual = 0;
   
-  // Variable para controlar si el widget ha sido disposed
+  // Variable para controlar si el widget ha been disposed
   bool _isDisposed = false;
+
+  // Mapa para almacenar las actividades
+  Map<String, String> _actividadesMap = {};
+
+  // Método para cargar las actividades desde la base de datos
+  Future<void> _cargarActividades() async {
+    try {
+      print('🔄 Iniciando carga de actividades...');
+      var actividades = await obtenerActividadesDesdeBD();
+      if (!mounted) return;
+
+      print('📦 Procesando ${actividades.length} actividades...');
+      setState(() {
+        _actividadesMap.clear(); // Limpiar el mapa existente
+        for (var actividad in actividades) {
+          final id = (actividad['id'] ?? 0).toString();
+          final nombre = actividad['nombre']?.toString() ?? 'Sin nombre';
+          final clave = actividad['clave']?.toString() ?? '';
+          _actividadesMap[id] = '${clave} - ${nombre}';
+          print('  Mapeando - ID: $id -> Clave: $clave -> Nombre: $nombre');
+        }
+      });
+      
+      print('✅ Actividades cargadas exitosamente:');
+      print('  Total en mapa: ${_actividadesMap.length}');
+      print('  Contenido del mapa:');
+      _actividadesMap.forEach((id, nombre) {
+        print('    • ID: $id -> Nombre: $nombre');
+      });
+    } catch (e, stackTrace) {
+      print('❌ Error al cargar actividades: $e');
+      print('Stack trace: $stackTrace');
+    }
+  }
+
+  // Método para obtener el nombre de la actividad
+  String _obtenerNombreActividad(String? id) {
+    if (id == null || id.isEmpty) return '';
+    final nombre = _actividadesMap[id] ?? '';
+    print('🔍 Buscando actividad - ID: $id -> Nombre: $nombre');
+    print('  Actividades disponibles: ${_actividadesMap.keys.join(', ')}');
+    return nombre;
+  }
   
   @override
   void initState() {
@@ -47,6 +91,9 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     
     // Inicializar FocusNodes para navegación
     _inicializarFocusNodes();
+
+    // Cargar actividades
+    _cargarActividades();
     
     // Calcular totales de forma directa sin usar callbacks problemáticos
     if (mounted) {
@@ -517,10 +564,17 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
       final valorEntero = int.tryParse(valorLimpio) ?? 0;
       empleado[campo] = valorEntero; // Guardar como entero, no como string
       print('  Campo $campo actualizado: $valorLimpio -> $valorEntero');
+    } else if (campo.contains('dia_') && campo.endsWith('_id')) {
+      // Para campos de ID de actividad
+      empleado[campo] = valor.isEmpty ? null : valor;
+      final nombre = _obtenerNombreActividad(valor);
+      print('  Campo actividad actualizado:');
+      print('    ID: $valor');
+      print('    Nombre encontrado: $nombre');
     } else if (campo.contains('dia_') && campo.endsWith('_campo')) {
-      // 🆕 Para el nuevo campo "campo", guardar como string (no conectado a BD por ahora)
-      empleado[campo] = valor; // 🚧 TODO: Conectar a base de datos
-      print('  Campo campo actualizado: $valor (🚧 NO CONECTADO A BD)');
+      // Para el campo "campo", guardar como string
+      empleado[campo] = valor.isEmpty ? null : valor; // Guardamos null si está vacío
+      print('  Campo campo actualizado: $valor');
     } else if (campo == 'debe') {
       // Para debe, también guardar como entero
       final valorLimpio = valor.replaceAll(RegExp(r'[^\d]'), '');
@@ -587,15 +641,20 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
       final empleado = widget.empleados[empleadoIndex];
       final nombre = empleado['nombre'] ?? 'Sin nombre';
       
-      // Obtener valores del día anterior
-      final actividadAnterior = empleado['dia_${diaAnterior}_id'] ?? '';
-      final sueldoAnterior = empleado['dia_${diaAnterior}_s'] ?? 0;
-      final campoAnterior = empleado['dia_${diaAnterior}_campo'] ?? '';
+      // Obtener valores del día anterior y asegurar que sean del tipo correcto
+      final actividadAnterior = empleado['dia_${diaAnterior}_id']?.toString() ?? '';
+      final sueldoAnterior = _convertirAEntero(empleado['dia_${diaAnterior}_s']);
+      final campoAnterior = empleado['dia_${diaAnterior}_campo']?.toString() ?? '';
+      
+      print('  🔍 Valores originales del día $diaAnterior:');
+      print('    - actividad: ${empleado['dia_${diaAnterior}_id']} (${empleado['dia_${diaAnterior}_id']?.runtimeType})');
+      print('    - sueldo: ${empleado['dia_${diaAnterior}_s']} (${empleado['dia_${diaAnterior}_s']?.runtimeType})');
+      print('    - campo: ${empleado['dia_${diaAnterior}_campo']} (${empleado['dia_${diaAnterior}_campo']?.runtimeType})');
       
       // Solo duplicar si hay datos en el día anterior
-      bool hayDatosAnterior = (actividadAnterior.toString().isNotEmpty && actividadAnterior.toString() != '0') ||
-                             (_convertirAEntero(sueldoAnterior) > 0) ||
-                             (campoAnterior.toString().isNotEmpty);
+      bool hayDatosAnterior = actividadAnterior.isNotEmpty ||
+                             sueldoAnterior > 0 ||
+                             campoAnterior.isNotEmpty;
       
       if (hayDatosAnterior) {
         print('  📋 Duplicando datos de $nombre:');
@@ -603,27 +662,23 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
         print('    sueldo: $sueldoAnterior -> dia_${diaActual}_s');
         print('    campo: $campoAnterior -> dia_${diaActual}_campo');
         
-        // Copiar valores al día actual
-        empleado['dia_${diaActual}_id'] = actividadAnterior;
-        empleado['dia_${diaActual}_s'] = sueldoAnterior;
-        empleado['dia_${diaActual}_campo'] = campoAnterior;
+        // Usar _manejarCambio para asegurar el tipo correcto de datos
+        _manejarCambio(empleadoIndex, 'dia_${diaActual}_id', actividadAnterior);
+        _manejarCambio(empleadoIndex, 'dia_${diaActual}_s', sueldoAnterior.toString());
+        _manejarCambio(empleadoIndex, 'dia_${diaActual}_campo', campoAnterior);
         
-        // Recalcular totales para este empleado
+        print('  ✅ Valores copiados al día $diaActual:');
+        print('    - actividad: ${empleado['dia_${diaActual}_id']} (${empleado['dia_${diaActual}_id']?.runtimeType})');
+        print('    - sueldo: ${empleado['dia_${diaActual}_s']} (${empleado['dia_${diaActual}_s']?.runtimeType})');
+        print('    - campo: ${empleado['dia_${diaActual}_campo']} (${empleado['dia_${diaActual}_campo']?.runtimeType})');
+        
+        // Recalcular totales
         final totales = _calcularTotalesEmpleado(empleado);
         empleado['total'] = totales['total'];
         empleado['subtotal'] = totales['subtotal'];
         empleado['totalNeto'] = totales['totalNeto'];
         
-        // Actualizar cache
-        _empleadosCalculados[empleadoIndex] = {
-          ...empleado,
-          ...totales,
-        };
-        
-        // Notificar cambios
-        widget.onChanged?.call(empleadoIndex, 'dia_${diaActual}_id', empleado['dia_${diaActual}_id']);
-        widget.onChanged?.call(empleadoIndex, 'dia_${diaActual}_s', empleado['dia_${diaActual}_s']);
-        widget.onChanged?.call(empleadoIndex, 'dia_${diaActual}_campo', empleado['dia_${diaActual}_campo']);
+        // Notificar totales actualizados
         widget.onChanged?.call(empleadoIndex, 'total', totales['total']);
         widget.onChanged?.call(empleadoIndex, 'subtotal', totales['subtotal']);
         widget.onChanged?.call(empleadoIndex, 'totalNeto', totales['totalNeto']);
@@ -664,6 +719,23 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
   /// Obtiene el número de días a mostrar
   int get _numeroDias {
     return (widget.semanaSeleccionada?.duration.inDays ?? 6) + 1;
+  }
+
+  /// Verifica si hay datos en una columna específica
+  bool _hayDatosEnDia(int dia) {
+    if (dia < 0 || widget.empleados.isEmpty) return false;
+    
+    for (final empleado in widget.empleados) {
+      final actividadDia = empleado['dia_${dia}_id']?.toString() ?? '';
+      final sueldoDia = _convertirAEntero(empleado['dia_${dia}_s']);
+      final campoDia = empleado['dia_${dia}_campo']?.toString() ?? '';
+      
+      if (actividadDia.isNotEmpty || sueldoDia > 0 || campoDia.isNotEmpty) {
+        return true;
+      }
+    }
+    
+    return false;
   }
 
   /// Formatea un valor como moneda
@@ -746,170 +818,92 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
       
       // Columnas de días
       ...List.generate(_numeroDias, (i) {
+        String nombreDia;
+        String fechaCorta;
+        
         if (widget.semanaSeleccionada != null) {
           final fecha = widget.semanaSeleccionada!.start.add(Duration(days: i));
-          final nombreDia = DateFormat('EEE', 'es').format(fecha);
-          final fechaCorta = DateFormat('d/M', 'es').format(fecha);
-          
-          return DataColumn(
-            label: Container(
-              width: anchoExpandido ? 240 : 80, // 🔧 Aumentado de 180 a 240 para mejor acomodación de 3 campos
-              padding: EdgeInsets.symmetric(vertical: anchoExpandido ? 6 : 3),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Fila con botón duplicar (solo en modo expandido y si no es el primer día)
-                  if (anchoExpandido && i > 0) 
-                    Row(
-                      children: [
-                        // Botón duplicar anterior
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () => _duplicarDiaAnterior(i),
-                            child: Container(
-                              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: Colors.blue.shade50,
-                                borderRadius: BorderRadius.circular(4),
-                                border: Border.all(color: Colors.blue.shade300, width: 1),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.content_copy_rounded,
-                                    size: 10,
-                                    color: Colors.blue.shade600,
-                                  ),
-                                  SizedBox(width: 2),
-                                  Text(
-                                    'duplicar anterior',
-                                    style: TextStyle(
-                                      fontSize: 8,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.blue.shade700,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  if (anchoExpandido && i > 0) SizedBox(height: 4),
-                  
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: anchoExpandido ? 8 : 6, vertical: anchoExpandido ? 4 : 2),
-                    decoration: BoxDecoration(
-                      color: Color(0xFF7BAE2F).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(anchoExpandido ? 8 : 6),
-                    ),
-                    child: Text(
-                      nombreDia.toLowerCase(),
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: anchoExpandido ? 14 : 11, // Aumentado de 12 a 14 y de 9 a 11
-                        color: Color(0xFF4A7C14),
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: anchoExpandido ? 4 : 2),
-                  Text(
-                    fechaCorta,
-                    style: TextStyle(
-                      fontSize: anchoExpandido ? 12 : 9, // Aumentado de 11 a 12 y de 8 a 9
-                      color: Color(0xFF6B7280),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
+          nombreDia = DateFormat('EEE', 'es').format(fecha).toLowerCase();
+          fechaCorta = DateFormat('d/M', 'es').format(fecha);
         } else {
           final dias = ['jue', 'vie', 'sab', 'dom', 'lun', 'mar', 'mie'];
           final diasNumeros = ['3/7', '4/7', '5/7', '6/7', '7/7', '8/7', '2/7'];
-          
-          return DataColumn(
-            label: Container(
-              width: anchoExpandido ? 240 : 80, // 🔧 Aumentado de 120 a 240 para acomodar 3 campos
-              padding: EdgeInsets.symmetric(vertical: anchoExpandido ? 6 : 3),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Fila con botón duplicar (solo en modo expandido y si no es el primer día)
-                  if (anchoExpandido && i > 0) 
-                    Row(
-                      children: [
-                        // Botón duplicar anterior
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () => _duplicarDiaAnterior(i),
-                            child: Container(
-                              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: Colors.blue.shade50,
-                                borderRadius: BorderRadius.circular(4),
-                                border: Border.all(color: Colors.blue.shade300, width: 1),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.content_copy_rounded,
-                                    size: 10,
-                                    color: Colors.blue.shade600,
-                                  ),
-                                  SizedBox(width: 2),
-                                  Text(
-                                    'duplicar anterior',
-                                    style: TextStyle(
-                                      fontSize: 8,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.blue.shade700,
-                                    ),
-                                  ),
-                                ],
-                              ),
+          nombreDia = dias[i];
+          fechaCorta = diasNumeros[i];
+        }
+        
+        // Verificar si hay datos en el día anterior para activar el botón
+        final bool hayDatosAnterior = i > 0 ? _hayDatosEnDia(i - 1) : false;
+        
+        return DataColumn(
+          label: Container(
+            width: anchoExpandido ? 240 : 80,
+            padding: EdgeInsets.symmetric(vertical: anchoExpandido ? 6 : 3),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: anchoExpandido ? 8 : 6, 
+                    vertical: anchoExpandido ? 4 : 2
+                  ),
+                  decoration: BoxDecoration(
+                    color: Color(0xFF7BAE2F).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(anchoExpandido ? 8 : 6),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        nombreDia,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: anchoExpandido ? 14 : 11,
+                          color: Color(0xFF4A7C14),
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      if (i > 0) // Mostrar el botón siempre que no sea el primer día
+                        Container(
+                          margin: EdgeInsets.only(left: 6),
+                          child: IconButton(
+                            icon: Icon(
+                              Icons.content_copy,
+                              size: anchoExpandido ? 14 : 12,
+                              color: _hayDatosEnDia(i - 1)
+                                  ? Color(0xFF4A7C14)
+                                  : Colors.grey.shade300,
+                            ),
+                            onPressed: _hayDatosEnDia(i - 1)
+                                ? () => _duplicarDiaAnterior(i)
+                                : null,
+                            tooltip: _hayDatosEnDia(i - 1)
+                                ? 'Duplicar datos del día anterior'
+                                : 'No hay datos para duplicar en el día anterior',
+                            padding: EdgeInsets.zero,
+                            constraints: BoxConstraints(
+                              minWidth: anchoExpandido ? 20 : 16,
+                              minHeight: anchoExpandido ? 20 : 16,
                             ),
                           ),
                         ),
-                      ],
-                    ),
-                  if (anchoExpandido && i > 0) SizedBox(height: 4),
-                  
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: anchoExpandido ? 8 : 6, vertical: anchoExpandido ? 4 : 2),
-                    decoration: BoxDecoration(
-                      color: Color(0xFF7BAE2F).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(anchoExpandido ? 8 : 6),
-                    ),
-                    child: Text(
-                      dias[i],
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: anchoExpandido ? 14 : 11, // Aumentado de 12 a 14 y de 9 a 11
-                        color: Color(0xFF4A7C14),
-                        letterSpacing: 0.5,
-                      ),
-                    ),
+                    ],
                   ),
-                  SizedBox(height: anchoExpandido ? 4 : 2),
-                  Text(
-                    diasNumeros[i],
-                    style: TextStyle(
-                      fontSize: anchoExpandido ? 12 : 9, // Aumentado de 11 a 12 y de 8 a 9
-                      color: Color(0xFF6B7280),
-                      fontWeight: FontWeight.w600,
-                    ),
+                ),
+                SizedBox(height: anchoExpandido ? 4 : 2),
+                Text(
+                  fechaCorta,
+                  style: TextStyle(
+                    fontSize: anchoExpandido ? 12 : 9,
+                    color: Color(0xFF6B7280),
+                    fontWeight: FontWeight.w600,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          );
-        }
+          ),
+        );
       }),
       
       // Columnas de totales mejoradas
@@ -1166,125 +1160,7 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
   DataCell _construirCeldaDia(int empleadoIndex, int diaIndex) {
     final empleado = widget.empleados[empleadoIndex];
     
-    if (widget.isExpanded) {
-      // Modo expandido: ID y Salario con labels
-      return DataCell(
-        SizedBox(
-          width: 240, // 🔧 Aumentado de 150 a 240 para mejor acomodación
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Fila de labels
-              // Fila de labels de campos
-              Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: Colors.blue.shade200, width: 0.5),
-                      ),
-                      child: Text(
-                        'actividad',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.blue.shade700,
-                          letterSpacing: 0.3,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 6), // 🔧 Aumentado de 4 a 6 para mejor separación
-                  Expanded(
-                    child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.green.shade50,
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: Colors.green.shade200, width: 0.5),
-                      ),
-                      child: Text(
-                        'Sueldo',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.green.shade700,
-                          letterSpacing: 0.3,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 6), // 🔧 Aumentado de 4 a 6 para mejor separación
-                  // 🆕 Nueva columna "campo" con color naranjita
-                  Expanded(
-                    child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.shade50,
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: Colors.orange.shade200, width: 0.5),
-                      ),
-                      child: Text(
-                        'campo',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.orange.shade700,
-                          letterSpacing: 0.3,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6), // 🔧 Aumentado de 4 a 6 para mejor separación
-              // Fila de campos editables
-              Row(
-                children: [
-                  // Celda ID (actividad)
-                  Expanded(
-                    child: _construirWidgetEditable(
-                      empleadoIndex, 
-                      'dia_${diaIndex}_id', 
-                      empleado['dia_${diaIndex}_id'],
-                      esPequena: true,
-                    ),
-                  ),
-                  const SizedBox(width: 6), // 🔧 Aumentado de 4 a 6 para mejor separación
-                  // Celda Salario
-                  Expanded(
-                    child: _construirWidgetEditable(
-                      empleadoIndex, 
-                      'dia_${diaIndex}_s', 
-                      empleado['dia_${diaIndex}_s'],
-                      esPequena: true,
-                      mostrarMoneda: true,
-                    ),
-                  ),
-                  const SizedBox(width: 6), // 🔧 Aumentado de 4 a 6 para mejor separación
-                  // 🆕 Nueva celda "campo" (no conectada a BD por ahora)
-                  Expanded(
-                    child: _construirWidgetEditable(
-                      empleadoIndex, 
-                      'dia_${diaIndex}_campo', // 🚧 TODO: Conectar a base de datos
-                      empleado['dia_${diaIndex}_campo'] ?? '', // Valor por defecto vacío
-                      esPequena: true,
-                      mostrarMoneda: false, // Es un campo de texto, no monetario
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      );
-    } else {
+    if (!widget.isExpanded) {
       // Modo normal: solo Salario
       return _construirCeldaEditable(
         empleadoIndex, 
@@ -1293,6 +1169,128 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
         ancho: 80,
       );
     }
+
+    // Usar 'dia_X_id' para el ID de actividad y obtener solo el nombre
+    final actividadId = empleado['dia_${diaIndex}_id']?.toString();
+    final nombreActividad = _actividadesMap[actividadId] ?? '';
+    final actividadNombre = nombreActividad.isEmpty ? 'actividad' : 
+        (nombreActividad.split(' - ').length > 1 ? nombreActividad.split(' - ')[1] : nombreActividad);
+    print('📅 Día $diaIndex - Empleado $empleadoIndex:');
+    print('  ID Actividad: $actividadId');
+    print('  Nombre Actividad: $actividadNombre');
+
+    // Modo expandido: ID, Salario y campo adicional con labels
+    return DataCell(
+      SizedBox(
+        width: 240,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Fila de labels de campos
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: Colors.blue.shade200, width: 0.5),
+                    ),
+                    child: Text(
+                      actividadNombre,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.blue.shade700,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: Colors.green.shade200, width: 0.5),
+                    ),
+                    child: Text(
+                      'Sueldo',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.green.shade700,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: Colors.orange.shade200, width: 0.5),
+                    ),
+                    child: Text(
+                      'campo',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.orange.shade700,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            // Fila de campos editables
+            Row(
+              children: [
+                Expanded(
+                  child: _construirWidgetEditable(
+                    empleadoIndex, 
+                    'dia_${diaIndex}_id', 
+                    empleado['dia_${diaIndex}_id'],
+                    esPequena: true,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: _construirWidgetEditable(
+                    empleadoIndex, 
+                    'dia_${diaIndex}_s', 
+                    empleado['dia_${diaIndex}_s'],
+                    esPequena: true,
+                    mostrarMoneda: true,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: _construirWidgetEditable(
+                    empleadoIndex, 
+                    'dia_${diaIndex}_campo',
+                    empleado['dia_${diaIndex}_campo'] ?? '',
+                    esPequena: true,
+                    mostrarMoneda: false,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   /// Construye widget editable para usar dentro de Row/Column
@@ -1337,7 +1335,7 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
 
     // Preparar valor para mostrar según el tipo de campo
     final valorMostrar = esCampoTexto 
-      ? (valor?.toString() ?? '') 
+      ? (valor?.toString() == '0' ? '' : valor?.toString() ?? '') 
       : _convertirAEntero(valor).toString();
     
     // Crear clave única para el FocusNode
@@ -1403,7 +1401,10 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
       );
     }
 
-    // CORREGIDO: Convertir el valor a entero y luego a string para mostrar correctamente
+    // Determinar si es un campo de texto
+    final esCampoTexto = campo.contains('_campo');
+
+    // Convertir el valor según el tipo de campo
     final valorMostrar = _convertirAEntero(valor).toString();
     
     // Crear clave única para el FocusNode
@@ -1416,6 +1417,7 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
       esExpandida: widget.isExpanded,
       esPequena: esPequena,
       mostrarMoneda: mostrarMoneda,
+      esCampoTexto: esCampoTexto,  // Agregamos este parámetro
       focusNode: focusNode,
       onNavegacion: (event) => _manejarNavegacion(event, claveFocus),
     );
@@ -1572,16 +1574,17 @@ class _CeldaEditableConNavegacionState extends State<_CeldaEditableConNavegacion
     _focusNode = widget.focusNode ?? FocusNode();
     
     _focusNode.addListener(() {
-      // Para campos numéricos: limpiar cuando focus y valor es '0'
-      if (!widget.esCampoTexto && _focusNode.hasFocus && _controller.text == '0') {
-        _controller.clear();
-      } 
-      // Para campos numéricos: poner '0' si está vacío al perder focus
-      else if (!widget.esCampoTexto && !_focusNode.hasFocus && _controller.text.isEmpty) {
-        _controller.text = '0';
-        widget.alCambiar('0');
+      if (!widget.esCampoTexto) {
+        // Solo para campos numéricos: limpiar cuando focus y valor es '0'
+        if (_focusNode.hasFocus && _controller.text == '0') {
+          _controller.clear();
+        } 
+        // Solo para campos numéricos: poner '0' si está vacío al perder focus
+        else if (!_focusNode.hasFocus && _controller.text.isEmpty) {
+          _controller.text = '0';
+          widget.alCambiar('0');
+        }
       }
-      // Para campos de texto: no hacer nada especial al cambiar focus
     });
   }
 
@@ -1622,23 +1625,26 @@ class _CeldaEditableConNavegacionState extends State<_CeldaEditableConNavegacion
         controller: _controller,
         focusNode: _focusNode,
         textAlign: TextAlign.center,
-        keyboardType: widget.esCampoTexto ? TextInputType.text : TextInputType.number,
+        keyboardType: TextInputType.number,
         textInputAction: TextInputAction.next, // Esto permite manejar Enter
-        inputFormatters: widget.esCampoTexto 
-          ? [LengthLimitingTextInputFormatter(50)] // Para campos de texto: límite más amplio
-          : [
-              FilteringTextInputFormatter.digitsOnly,
+        inputFormatters: [
+          FilteringTextInputFormatter.digitsOnly,
               LengthLimitingTextInputFormatter(10),
             ],
         style: TextStyle(
           fontSize: widget.esPequena ? 13 : (widget.esExpandida ? 16 : 13),
           fontWeight: FontWeight.w600,
-          color: Color(0xFF374151),
+          color: Colors.grey.shade700,
         ),
         decoration: InputDecoration(
           contentPadding: EdgeInsets.symmetric(
             horizontal: widget.esExpandida ? 12 : 8,
             vertical: widget.esExpandida ? 14 : 10,
+          ),
+          hintText: '0',
+          hintStyle: TextStyle(
+            color: Colors.grey.shade400,
+            fontSize: widget.esPequena ? 13 : (widget.esExpandida ? 16 : 13),
           ),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(widget.esExpandida ? 10 : 8),
@@ -1660,12 +1666,6 @@ class _CeldaEditableConNavegacionState extends State<_CeldaEditableConNavegacion
           fillColor: _focusNode.hasFocus 
             ? Color(0xFF7BAE2F).withOpacity(0.08) // Más visible cuando está enfocado
             : Colors.grey.shade50,
-          hintText: '0',
-          hintStyle: TextStyle(
-            color: Colors.grey.shade400,
-            fontSize: widget.esPequena ? 12 : (widget.esExpandida ? 15 : 12),
-            fontWeight: FontWeight.w500,
-          ),
           prefix: widget.mostrarMoneda && _controller.text.isNotEmpty 
             ? Container(
                 margin: EdgeInsets.only(right: 4),

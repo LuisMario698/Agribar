@@ -43,22 +43,46 @@ Future<List<Map<String, dynamic>>> obtenerActividadesDesdeBD() async {
   final db = DatabaseService();
   await db.connect();
 
-  final result = await db.connection.query('''
-    SELECT clave, fecha, importe, nombre
-    FROM actividades
-    ORDER BY fecha DESC;
-  ''');
+  try {
+    print('🔍 Ejecutando consulta SQL para obtener actividades...');
+    final result = await db.connection.query('''
+      SELECT id_actividad, clave, nombre, importe, COUNT(*) OVER() as total_rows
+      FROM actividades
+      ORDER BY nombre ASC;
+    ''');
 
-  await db.close();
+    print('📊 Resultados obtenidos: ${result.length} filas');
+    
+    if (result.isEmpty) {
+      print('⚠️ No se encontraron actividades en la base de datos');
+      return [];
+    }
 
-  return result.map((row) {
-    return {
-      'clave': row[0],
-      'fecha': row[1].toString().split(' ')[0], // Solo fecha sin hora
-      'importe': row[2],
-      'nombre': row[3],
-    };
-  }).toList();
+    print('🔍 Primera fila de muestra:');
+    print('  Columnas disponibles: ${result.first.toColumnMap().keys.join(', ')}');
+    print('  Valores: ${result.first.toColumnMap()}');
+
+    final resultados = result.map((row) {
+      final map = {
+        'id': row[0], // id_actividad
+        'clave': row[1],
+        'nombre': row[2],
+        'importe': row[3],
+      };
+      print('  Procesando actividad: ${map.toString()}');
+      return map;
+    }).toList();
+
+    print('✅ Total actividades procesadas: ${resultados.length}');
+    return resultados;
+  } catch (e, stack) {
+    print('❌ Error al obtener actividades:');
+    print('  Error: $e');
+    print('  Stack: $stack');
+    rethrow;
+  } finally {
+    await db.close();
+  }
 }
 
 Future<List<String>> obtenerNombresActividadesDesdeBD() async {

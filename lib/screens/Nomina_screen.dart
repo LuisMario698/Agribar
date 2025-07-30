@@ -593,7 +593,8 @@ class _NominaScreenState extends State<NominaScreen>
           // Actualizar la cuadrilla con los empleados de la BD solo si está montado
           if (mounted) {
             setState(() {
-              _optionsCuadrilla[i]['empleados'] = empleadosCuadrilla;
+              // Mantener el orden original de los empleados
+              _optionsCuadrilla[i]['empleados'] = List<Map<String, dynamic>>.from(empleadosCuadrilla);
             });
           }
         }
