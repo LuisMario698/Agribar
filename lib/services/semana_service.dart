@@ -158,6 +158,78 @@ Future<Map<String, dynamic>?>   obtenerSemanaAbierta() async {
   };
 }
 
+/// Obtiene todas las semanas abiertas/activas
+Future<List<Map<String, dynamic>>> obtenerTodasSemanasAbiertas() async {
+  final db = DatabaseService();
+  await db.connect();
+
+  try {
+    final result = await db.connection.query('''
+      SELECT id_semana, fecha_inicio, fecha_fin, creado_en
+      FROM semanas_nomina
+      WHERE esta_cerrada = false
+      ORDER BY fecha_inicio DESC;
+    ''');
+
+    await db.close();
+
+    return result.map((row) => {
+      'id': row[0],
+      'fechaInicio': row[1],
+      'fechaFin': row[2],
+      'creadoEn': row[3],
+    }).toList();
+
+  } catch (e) {
+    print('Error al obtener todas las semanas abiertas: $e');
+    await db.close();
+    return [];
+  }
+}
+
+/// Elimina completamente una semana de la base de datos
+Future<bool> eliminarSemanaCompleta(int semanaId) async {
+  final db = DatabaseService();
+  await db.connect();
+
+  try {
+    // Iniciar transacción para asegurar que todo se elimine correctamente
+    await db.connection.query('BEGIN');
+
+    // 1. Eliminar todos los registros de nómina de empleados de esta semana
+    await db.connection.query('''
+      DELETE FROM nomina_empleados_semanal 
+      WHERE id_semana = @semanaId;
+    ''', substitutionValues: {'semanaId': semanaId});
+
+    // 2. Eliminar la semana de la tabla principal
+    final result = await db.connection.query('''
+      DELETE FROM semanas_nomina 
+      WHERE id_semana = @semanaId;
+    ''', substitutionValues: {'semanaId': semanaId});
+
+    // Confirmar transacción
+    await db.connection.query('COMMIT');
+
+    await db.close();
+
+    // Verificar si se eliminó alguna fila
+    return result.affectedRowCount > 0;
+
+  } catch (e) {
+    // Hacer rollback en caso de error
+    try {
+      await db.connection.query('ROLLBACK');
+    } catch (rollbackError) {
+      print('Error en rollback: $rollbackError');
+    }
+    
+    print('Error al eliminar semana completa: $e');
+    await db.close();
+    return false;
+  }
+}
+
 Future<void> guardarEmpleadosCuadrillaSemana({
   required int semanaId,
   required int cuadrillaId,

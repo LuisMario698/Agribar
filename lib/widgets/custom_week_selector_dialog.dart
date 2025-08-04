@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import '../services/semana_service.dart';
+import 'nomina_supervisor_auth_widget.dart';
 
 /// Diálogo personalizado y moderno para seleccionar rangos de fechas
 /// Permite selección libre de cualquier rango sin restricciones
@@ -76,6 +78,337 @@ class _CustomWeekSelectorDialogState extends State<CustomWeekSelectorDialog> {
     setState(() {
       _hoveredDate = date;
     });
+  }
+
+  /// 🎯 Muestra un diálogo con todas las semanas abiertas
+  void _mostrarSemanasAbiertas() async {
+    final semanasAbiertas = await obtenerTodasSemanasAbiertas();
+    
+    if (semanasAbiertas.isEmpty) {
+      // Mostrar mensaje si no hay semanas abiertas
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('Sin semanas abiertas'),
+          content: Text('No hay semanas abiertas disponibles en este momento.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('Entendido'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+    
+    // Mostrar diálogo con lista de semanas abiertas
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Container(
+          width: 450,
+          constraints: BoxConstraints(maxHeight: 600),
+          padding: EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Semanas Abiertas',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green.shade800,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: Icon(Icons.close, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+              
+              SizedBox(height: 16),
+              
+              Text(
+                'Selecciona una semana ya abierta:',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+              
+              SizedBox(height: 16),
+              
+              // Lista de semanas
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: semanasAbiertas.length,
+                  itemBuilder: (context, index) {
+                    final semana = semanasAbiertas[index];
+                    final fechaInicio = DateTime.parse(semana['fechaInicio'].toString());
+                    final fechaFin = DateTime.parse(semana['fechaFin'].toString());
+                    
+                    final formatoFecha = DateFormat('dd/MM/yyyy');
+                    final fechaInicioStr = formatoFecha.format(fechaInicio);
+                    final fechaFinStr = formatoFecha.format(fechaFin);
+                    
+                    return Card(
+                      margin: EdgeInsets.only(bottom: 8),
+                      elevation: 2,
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: Colors.green.shade100,
+                          child: Icon(
+                            Icons.calendar_today,
+                            color: Colors.green.shade600,
+                            size: 20,
+                          ),
+                        ),
+                        title: Text(
+                          'Semana ${semana['id']}',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        subtitle: Text('$fechaInicioStr - $fechaFinStr'),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Botón eliminar
+                            IconButton(
+                              onPressed: () => _confirmarEliminarSemana(semana),
+                              icon: Icon(Icons.delete_forever),
+                              color: Colors.red.shade600,
+                              tooltip: 'Eliminar semana',
+                              style: IconButton.styleFrom(
+                                backgroundColor: Colors.red.shade50,
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            // Botón seleccionar
+                            Icon(Icons.arrow_forward_ios, size: 16),
+                          ],
+                        ),
+                        onTap: () {
+                          // Cerrar diálogo de semanas abiertas
+                          Navigator.of(context).pop();
+                          // Cerrar diálogo principal y devolver la semana seleccionada
+                          Navigator.of(context).pop(
+                            DateTimeRange(start: fechaInicio, end: fechaFin),
+                          );
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 🗑️ Confirma la eliminación de una semana con autorización de supervisor
+  void _confirmarEliminarSemana(Map<String, dynamic> semana) async {
+    final fechaInicio = DateTime.parse(semana['fechaInicio'].toString());
+    final fechaFin = DateTime.parse(semana['fechaFin'].toString());
+    final formatoFecha = DateFormat('dd/MM/yyyy');
+    final fechaInicioStr = formatoFecha.format(fechaInicio);
+    final fechaFinStr = formatoFecha.format(fechaFin);
+
+    // Mostrar diálogo de confirmación inicial
+    final confirmarEliminacion = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.warning, color: Colors.red.shade600, size: 28),
+            SizedBox(width: 12),
+            Text(
+              '⚠️ Eliminar Semana',
+              style: TextStyle(
+                color: Colors.red.shade700,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        content: Container(
+          width: 400,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Esta acción eliminará COMPLETAMENTE:',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                ),
+              ),
+              SizedBox(height: 12),
+              Container(
+                padding: EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '📅 Semana ${semana['id']}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    Text('📆 Período: $fechaInicioStr - $fechaFinStr'),
+                    SizedBox(height: 8),
+                    Text(
+                      '🗃️ Todos los datos de nómina de empleados',
+                      style: TextStyle(color: Colors.red.shade700),
+                    ),
+                    Text(
+                      '🗃️ Todos los registros asociados a esta semana',
+                      style: TextStyle(color: Colors.red.shade700),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 16),
+              Container(
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info, color: Colors.orange.shade600),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Esta acción NO se puede deshacer. Los datos se eliminarán permanentemente de la base de datos.',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w500,
+                          color: Colors.orange.shade800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.shade600,
+              foregroundColor: Colors.white,
+            ),
+            child: Text('Continuar con eliminación'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmarEliminacion != true) return;
+
+    // Mostrar diálogo de autorización de supervisor
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => NominaSupervisorAuthWidget(
+        onAuthSuccess: () async {
+          Navigator.of(context).pop(); // Cerrar auth dialog
+          await _eliminarSemana(semana);
+        },
+        onClose: () => Navigator.of(context).pop(),
+      ),
+    );
+  }
+
+  /// 🗑️ Ejecuta la eliminación de la semana
+  Future<void> _eliminarSemana(Map<String, dynamic> semana) async {
+    final semanaId = semana['id'] as int;
+
+    // Mostrar loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Center(
+        child: Container(
+          padding: EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Eliminando semana...'),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    try {
+      final eliminado = await eliminarSemanaCompleta(semanaId);
+
+      Navigator.of(context).pop(); // Cerrar loading
+
+      if (eliminado) {
+        // Mostrar éxito
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ Semana ${semana['id']} eliminada correctamente'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        // Cerrar el diálogo de semanas abiertas para refrescar la lista
+        Navigator.of(context).pop();
+        
+        // Volver a mostrar semanas abiertas con datos actualizados
+        _mostrarSemanasAbiertas();
+      } else {
+        // Mostrar error
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ No se pudo eliminar la semana'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      Navigator.of(context).pop(); // Cerrar loading
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Error al eliminar: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   /// 🎯 Muestra un diálogo de error cuando la selección no tiene exactamente 7 días
@@ -609,74 +942,99 @@ class _CustomWeekSelectorDialogState extends State<CustomWeekSelectorDialog> {
             SizedBox(height: 24),
             
             // Botones de acción
-            Row(
+            Column(
               children: [
-                // Botón de entrada manual
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _showManualEntry,
-                    icon: Icon(Icons.edit_calendar),
-                    label: Text('Manual'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.green.shade600,
-                      side: BorderSide(color: Colors.green.shade300),
-                      padding: EdgeInsets.symmetric(vertical: 16),
+                // Primera fila: Semanas abiertas
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _mostrarSemanasAbiertas,
+                        icon: Icon(Icons.list_alt),
+                        label: Text('Semanas Abiertas'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.blue.shade600,
+                          side: BorderSide(color: Colors.blue.shade300),
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-                SizedBox(width: 12),
-                if (_startDate != null) ...[
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        setState(() {
-                          _startDate = null;
-                          _endDate = null;
-                          _isSelectingEnd = false;
-                        });
-                      },
-                      icon: Icon(Icons.clear),
-                      label: Text('Limpiar'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.red.shade600,
-                        side: BorderSide(color: Colors.red.shade300),
-                        padding: EdgeInsets.symmetric(vertical: 16),
+                
+                SizedBox(height: 12),
+                
+                // Segunda fila: Manual, Limpiar, Confirmar
+                Row(
+                  children: [
+                    // Botón de entrada manual
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _showManualEntry,
+                        icon: Icon(Icons.edit_calendar),
+                        label: Text('Manual'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.green.shade600,
+                          side: BorderSide(color: Colors.green.shade300),
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                        ),
                       ),
                     ),
-                  ),
-                  SizedBox(width: 12),
-                ],
-                Expanded(
-                  flex: 2,
-                  child: ElevatedButton.icon(
-                    onPressed: (_startDate != null && _endDate != null && _isValidRange())
-                        ? () {
-                            Navigator.of(context).pop(
-                              DateTimeRange(start: _startDate!, end: _endDate!),
-                            );
-                          }
-                        : (_startDate != null && _endDate != null)
+                    SizedBox(width: 12),
+                    if (_startDate != null) ...[
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              _startDate = null;
+                              _endDate = null;
+                              _isSelectingEnd = false;
+                            });
+                          },
+                          icon: Icon(Icons.clear),
+                          label: Text('Limpiar'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.red.shade600,
+                            side: BorderSide(color: Colors.red.shade300),
+                            padding: EdgeInsets.symmetric(vertical: 16),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 12),
+                    ],
+                    Expanded(
+                      flex: 2,
+                      child: ElevatedButton.icon(
+                        onPressed: (_startDate != null && _endDate != null && _isValidRange())
                             ? () {
-                                // Si hay fechas seleccionadas pero no son válidas, mostrar error
-                                final days = _endDate!.difference(_startDate!).inDays + 1;
-                                _showDayLimitError(days);
+                                Navigator.of(context).pop(
+                                  DateTimeRange(start: _startDate!, end: _endDate!),
+                                );
                               }
-                            : null,
-                    icon: Icon(Icons.check),
-                    label: Text('Confirmar Período'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: (_startDate != null && _endDate != null && _isValidRange())
-                          ? Colors.green.shade600
-                          : (_startDate != null && _endDate != null)
-                              ? Colors.orange.shade600  // Color de advertencia para fechas inválidas
-                              : null,
-                      foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                            : (_startDate != null && _endDate != null)
+                                ? () {
+                                    // Si hay fechas seleccionadas pero no son válidas, mostrar error
+                                    final days = _endDate!.difference(_startDate!).inDays + 1;
+                                    _showDayLimitError(days);
+                                  }
+                                : null,
+                        icon: Icon(Icons.check),
+                        label: Text('Confirmar Período'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: (_startDate != null && _endDate != null && _isValidRange())
+                              ? Colors.green.shade600
+                              : (_startDate != null && _endDate != null)
+                                  ? Colors.orange.shade600  // Color de advertencia para fechas inválidas
+                                  : null,
+                          foregroundColor: Colors.white,
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
               ],
             ),
