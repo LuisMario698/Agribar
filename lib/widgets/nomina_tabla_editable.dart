@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../services/registrar_actividad.dart';
+import '../services/registrar_campo.dart';
 
 /// Implementación de tabla editable para nóminas
 /// Versión unificada y robusta para manejar datos de empleados
@@ -44,6 +45,9 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
   // Mapa para almacenar las actividades
   Map<String, String> _actividadesMap = {};
 
+  // Mapa para almacenar los campos
+  Map<String, String> _camposMap = {};
+
   // Método para cargar las actividades desde la base de datos
   Future<void> _cargarActividades() async {
     try {
@@ -75,12 +79,52 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     }
   }
 
+  // Método para cargar los campos desde la base de datos
+  Future<void> _cargarCampos() async {
+    try {
+      print('🔄 Iniciando carga de campos...');
+      var campos = await obtenerCamposDesdeBD();
+      if (!mounted) return;
+
+      print('📦 Procesando ${campos.length} campos...');
+      setState(() {
+        _camposMap.clear(); // Limpiar el mapa existente
+        for (var campo in campos) {
+          final id = (campo['id'] ?? 0).toString();
+          final nombre = campo['nombre']?.toString() ?? 'Sin nombre';
+          final clave = campo['clave']?.toString() ?? '';
+          _camposMap[id] = '${clave} - ${nombre}';
+          print('  Mapeando - ID: $id -> Clave: $clave -> Nombre: $nombre');
+        }
+      });
+      
+      print('✅ Campos cargados exitosamente:');
+      print('  Total en mapa: ${_camposMap.length}');
+      print('  Contenido del mapa:');
+      _camposMap.forEach((id, nombre) {
+        print('    • ID: $id -> Nombre: $nombre');
+      });
+    } catch (e, stackTrace) {
+      print('❌ Error al cargar campos: $e');
+      print('Stack trace: $stackTrace');
+    }
+  }
+
   // Método para obtener el nombre de la actividad
   String _obtenerNombreActividad(String? id) {
     if (id == null || id.isEmpty) return '';
     final nombre = _actividadesMap[id] ?? '';
     print('🔍 Buscando actividad - ID: $id -> Nombre: $nombre');
     print('  Actividades disponibles: ${_actividadesMap.keys.join(', ')}');
+    return nombre;
+  }
+
+  // Método para obtener el nombre del campo
+  String _obtenerNombreCampo(String? id) {
+    if (id == null || id.isEmpty) return '';
+    final nombre = _camposMap[id] ?? '';
+    print('🔍 Buscando campo - ID: $id -> Nombre: $nombre');
+    print('  Campos disponibles: ${_camposMap.keys.join(', ')}');
     return nombre;
   }
   
@@ -92,8 +136,9 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     // Inicializar FocusNodes para navegación
     _inicializarFocusNodes();
 
-    // Cargar actividades
+    // Cargar actividades y campos
     _cargarActividades();
+    _cargarCampos();
     
     // Calcular totales de forma directa sin usar callbacks problemáticos
     if (mounted) {
@@ -1175,9 +1220,18 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     final nombreActividad = _actividadesMap[actividadId] ?? '';
     final actividadNombre = nombreActividad.isEmpty ? 'actividad' : 
         (nombreActividad.split(' - ').length > 1 ? nombreActividad.split(' - ')[1] : nombreActividad);
+    
+    // Usar 'dia_X_campo' para el ID de campo y obtener solo el nombre
+    final campoId = empleado['dia_${diaIndex}_campo']?.toString();
+    final nombreCampo = _camposMap[campoId] ?? '';
+    final campoNombre = nombreCampo.isEmpty ? 'campo' : 
+        (nombreCampo.split(' - ').length > 1 ? nombreCampo.split(' - ')[1] : nombreCampo);
+    
     print('📅 Día $diaIndex - Empleado $empleadoIndex:');
     print('  ID Actividad: $actividadId');
     print('  Nombre Actividad: $actividadNombre');
+    print('  ID Campo: $campoId');
+    print('  Nombre Campo: $campoNombre');
 
     // Modo expandido: ID, Salario y campo adicional con labels
     return DataCell(
@@ -1240,7 +1294,7 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
                       border: Border.all(color: Colors.orange.shade200, width: 0.5),
                     ),
                     child: Text(
-                      'campo',
+                      campoNombre,
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 9,

@@ -336,7 +336,7 @@ class _CuadrillaDropdownConEmpleadosState extends State<_CuadrillaDropdownConEmp
                                         controller: _searchController,
                                         focusNode: _searchFocusNode,
                                         decoration: InputDecoration(
-                                          hintText: 'Buscar cuadrilla...',
+                                          hintText: 'Buscar por código o nombre...',
                                           hintStyle: TextStyle(color: Colors.grey.shade500),
                                           prefixIcon: Icon(Icons.search, color: Colors.grey.shade600, size: 20),
                                           border: OutlineInputBorder(
@@ -420,6 +420,7 @@ class _CuadrillaDropdownConEmpleadosState extends State<_CuadrillaDropdownConEmp
                                                   crossAxisAlignment: CrossAxisAlignment.start,
                                                   mainAxisSize: MainAxisSize.min,
                                                   children: [
+                                                    // Mostrar solo el nombre
                                                     Text(
                                                       cuadrilla['nombre'] ?? '',
                                                       style: TextStyle(
@@ -562,7 +563,11 @@ class _CuadrillaDropdownConEmpleadosState extends State<_CuadrillaDropdownConEmp
       } else {
         _filteredOptions = widget.cuadrillas.where((cuadrilla) {
           final nombre = cuadrilla['nombre']?.toString().toLowerCase() ?? '';
-          return nombre.contains(query.toLowerCase());
+          final clave = cuadrilla['clave']?.toString().toLowerCase() ?? '';
+          final queryLower = query.toLowerCase();
+          
+          // Buscar en nombre o en clave (código)
+          return nombre.contains(queryLower) || clave.contains(queryLower);
         }).toList();
       }
     });

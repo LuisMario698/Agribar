@@ -39,7 +39,7 @@ Future<List<Map<String, dynamic>>> obtenerCuadrillasHabilitadas() async {
   await db.connect();
 
   final results = await db.connection.query('''
-    SELECT id_cuadrilla, nombre
+    SELECT id_cuadrilla, clave, nombre
     FROM cuadrillas
     WHERE estado = true
     ORDER BY nombre;
@@ -48,7 +48,12 @@ Future<List<Map<String, dynamic>>> obtenerCuadrillasHabilitadas() async {
   await db.close();
 
   return results
-      .map((row) => {'id': row[0], 'nombre': row[1], 'empleados': []})
+      .map((row) => {
+        'id': row[0], 
+        'clave': row[1], 
+        'nombre': row[2], 
+        'empleados': []
+      })
       .toList();
 }
 
@@ -165,10 +170,12 @@ Future<List<Map<String, String>>> obtenerReportePorEmpleado() async {
 Future<List<Map<String, dynamic>>> obtenerCuadrillas() async {
   final db = DatabaseService();
   await db.connect();
-  final result = await db.connection.query('SELECT id_cuadrilla, nombre FROM cuadrillas WHERE estado = true ORDER BY nombre;');
+  final result = await db.connection.query('SELECT id_cuadrilla, clave, nombre FROM cuadrillas WHERE estado = true ORDER BY nombre;');
   await db.close();
+  
   return result.map((row) => {
     'id': row[0],
-    'nombre': row[1],
+    'clave': row[1], 
+    'nombre': row[2]
   }).toList();
 }

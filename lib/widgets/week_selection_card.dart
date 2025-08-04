@@ -11,7 +11,6 @@ class WeekSelectionCard extends StatelessWidget {
   final bool semanaActiva;
   final VoidCallback? onSeleccionarSemana;
   final VoidCallback? onCerrarSemana;
-  final VoidCallback? onReiniciarSemana;
 
   const WeekSelectionCard({
     super.key,
@@ -22,7 +21,6 @@ class WeekSelectionCard extends StatelessWidget {
     this.semanaActiva = false,
     this.onSeleccionarSemana,
     this.onCerrarSemana,
-    this.onReiniciarSemana,
   });
 
   @override
@@ -108,15 +106,6 @@ class WeekSelectionCard extends StatelessWidget {
                 ],
               ),
             ),
-            if (startDate != null && endDate != null)
-              IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: onReiniciarSemana,
-                style: IconButton.styleFrom(
-                  foregroundColor: Colors.grey.shade600,
-                  backgroundColor: Colors.grey.shade100,
-                ),
-              ),
           ],
         ),
       ),

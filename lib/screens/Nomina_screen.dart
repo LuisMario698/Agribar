@@ -14,7 +14,6 @@ import '../widgets/custom_week_selector_dialog.dart';
 import '../theme/app_styles.dart';
 import '../widgets/nomina_supervisor_auth_widget.dart';
 import '../widgets/nomina_actualizar_cuadrilla_widget.dart';
-import '../widgets/nomina_reiniciar_semana_widget.dart';
 import '../widgets/nomina_detalles_empleado_widget.dart';
 import '../widgets/nomina_week_selection_card.dart';
 import '../widgets/nomina_cuadrilla_selection_card.dart';
@@ -138,6 +137,11 @@ class _NominaScreenState extends State<NominaScreen>
       _selectedCuadrilla = {'nombre': '', 'empleados': []};
     }
     
+    // 🎯 Permitir armar cuadrillas desde el inicio
+    _puedeArmarCuadrilla = true;
+    _puedeCapturarDatos = false;
+    _bloqueadoPorFaltaSemana = true; // Sin semana, pero se puede armar cuadrillas
+    
     // Registrar la función de guardado con el Dashboard
     widget.onGuardadoCallbackSet?.call(_guardarNomina);
     
@@ -157,22 +161,6 @@ class _NominaScreenState extends State<NominaScreen>
     _buscarDisponiblesController.dispose();
     _buscarEnCuadrillaController.dispose();
     super.dispose();
-  }
-
-  /// Restaura el estado anterior si existe (cuadrilla seleccionada)
-  Future<void> _restaurarEstadoAnterior() async {
-    // Si hay una cuadrilla previamente seleccionada, restaurarla
-    if (cuadrillaSeleccionada != null && idSemanaSeleccionada != null) {
-      // Encontrar la cuadrilla en _optionsCuadrilla y reseleccionarla
-      final cuadrillaEncontrada = _optionsCuadrilla.firstWhere(
-        (c) => c['id'] == cuadrillaSeleccionada!['id'],
-        orElse: () => {},
-      );
-      
-      if (cuadrillaEncontrada.isNotEmpty && mounted) {
-        await _handleCuadrillaChange(cuadrillaEncontrada);
-      }
-    }
   }
 
   Future<void> cargarDatosNomina() async {
@@ -251,7 +239,7 @@ class _NominaScreenState extends State<NominaScreen>
           
           // 🎯 Habilitar flujo después de seleccionar semana
           _bloqueadoPorFaltaSemana = false;
-          _puedeArmarCuadrilla = true;
+          _puedeArmarCuadrilla = true; // Siempre permitir armar cuadrillas
           _puedeCapturarDatos = false; // Solo después de armar cuadrilla
         });
       }
@@ -271,9 +259,9 @@ class _NominaScreenState extends State<NominaScreen>
           _haySemanaActiva = false;
           semanaSeleccionada = null;
           
-          // 🎯 Bloquear flujo sin semana
+          // 🎯 Permitir armar cuadrillas incluso sin semana
           _bloqueadoPorFaltaSemana = true;
-          _puedeArmarCuadrilla = false;
+          _puedeArmarCuadrilla = true; // Siempre permitir armar cuadrillas
           _puedeCapturarDatos = false;
         });
       }
@@ -282,9 +270,9 @@ class _NominaScreenState extends State<NominaScreen>
 
   // 🎯 Validaciones del flujo robusto
   
-  /// Verifica si se puede armar cuadrilla (requiere semana seleccionada)
+  /// Verifica si se puede armar cuadrilla (ya no requiere semana seleccionada)
   bool _validarPuedeArmarCuadrilla() {
-    return semanaSeleccionada != null && !_bloqueadoPorFaltaSemana;
+    return true; // Ahora siempre se puede armar cuadrilla
   }
   
   /// Verifica si se puede capturar datos (requiere semana y cuadrilla)
@@ -779,6 +767,12 @@ class _NominaScreenState extends State<NominaScreen>
         return 0;
       }
 
+      // Función auxiliar para obtener valores de texto seguros
+      String _getSafeStringValue(dynamic value) {
+        if (value == null) return '';
+        return value.toString();
+      }
+
       for (int i = 0; i < empleadosFiltrados.length; i++) {
         final empleado = empleadosFiltrados[i];
         final idEmpleado = empleado['id'];
@@ -787,6 +781,7 @@ class _NominaScreenState extends State<NominaScreen>
         for (int day = 0; day < 7; day++) {
           empleado['dia_${day}_id'] ??= 0;
           empleado['dia_${day}_s'] ??= 0;
+          empleado['dia_${day}_campo'] ??= '';
         }
         empleado['total'] ??= 0;
         empleado['debe'] ??= 0;
@@ -809,24 +804,32 @@ class _NominaScreenState extends State<NominaScreen>
 
         // 🔧 Mapear correctamente desde la tabla hacia la BD
         // Tabla: dia_0_s, dia_1_s, ... dia_6_s → BD: dia_1, dia_2, ... dia_7
+        // Incluye campos de actividad, salario y campo
         final data = {
           'id_empleado': idEmpleado,
           'id_semana': idSemana,
           'id_cuadrilla': idCuadrilla,
           'act_1': _getSafeIntValue(empleado['dia_0_id']), // dia_0_id de tabla → act_1 de BD
           'dia_1': _getSafeIntValue(empleado['dia_0_s']), // dia_0_s de tabla → dia_1 de BD
+          'campo_1': _getSafeStringValue(empleado['dia_0_campo']), // dia_0_campo de tabla → campo_1 de BD
           'act_2': _getSafeIntValue(empleado['dia_1_id']), // dia_1_id de tabla → act_2 de BD
           'dia_2': _getSafeIntValue(empleado['dia_1_s']), // dia_1_s de tabla → dia_2 de BD
+          'campo_2': _getSafeStringValue(empleado['dia_1_campo']), // dia_1_campo de tabla → campo_2 de BD
           'act_3': _getSafeIntValue(empleado['dia_2_id']), // dia_2_id de tabla → act_3 de BD
           'dia_3': _getSafeIntValue(empleado['dia_2_s']), // dia_2_s de tabla → dia_3 de BD
+          'campo_3': _getSafeStringValue(empleado['dia_2_campo']), // dia_2_campo de tabla → campo_3 de BD
           'act_4': _getSafeIntValue(empleado['dia_3_id']), // dia_3_id de tabla → act_4 de BD
           'dia_4': _getSafeIntValue(empleado['dia_3_s']), // dia_3_s de tabla → dia_4 de BD
+          'campo_4': _getSafeStringValue(empleado['dia_3_campo']), // dia_3_campo de tabla → campo_4 de BD
           'act_5': _getSafeIntValue(empleado['dia_4_id']), // dia_4_id de tabla → act_5 de BD
           'dia_5': _getSafeIntValue(empleado['dia_4_s']), // dia_4_s de tabla → dia_5 de BD
+          'campo_5': _getSafeStringValue(empleado['dia_4_campo']), // dia_4_campo de tabla → campo_5 de BD
           'act_6': _getSafeIntValue(empleado['dia_5_id']), // dia_5_id de tabla → act_6 de BD
           'dia_6': _getSafeIntValue(empleado['dia_5_s']), // dia_5_s de tabla → dia_6 de BD
+          'campo_6': _getSafeStringValue(empleado['dia_5_campo']), // dia_5_campo de tabla → campo_6 de BD
           'act_7': _getSafeIntValue(empleado['dia_6_id']), // dia_6_id de tabla → act_7 de BD
           'dia_7': _getSafeIntValue(empleado['dia_6_s']), // dia_6_s de tabla → dia_7 de BD
+          'campo_7': _getSafeStringValue(empleado['dia_6_campo']), // dia_6_campo de tabla → campo_7 de BD
           'total': _getSafeIntValue(empleado['total']),
           'debe': _getSafeIntValue(empleado['debe']),
           'subtotal': _getSafeIntValue(empleado['subtotal']),
@@ -838,6 +841,7 @@ class _NominaScreenState extends State<NominaScreen>
         print('🔧 [DATOS PROCESADOS] ${empleado['nombre']}:');
         print('   - dia_1=${data['dia_1']}, dia_2=${data['dia_2']}, dia_3=${data['dia_3']}');
         print('   - dia_4=${data['dia_4']}, dia_5=${data['dia_5']}, dia_6=${data['dia_6']}, dia_7=${data['dia_7']}');
+        print('   - campos: ${data['campo_1']}, ${data['campo_2']}, ${data['campo_3']}, ${data['campo_4']}, ${data['campo_5']}, ${data['campo_6']}, ${data['campo_7']}');
         print('   - total=${data['total']}, debe=${data['debe']}, subtotal=${data['subtotal']}');
         print('   - comedor=${data['comedor']}, total_neto=${data['total_neto']}');
 
@@ -847,25 +851,25 @@ class _NominaScreenState extends State<NominaScreen>
           await db.connection.query(
             '''UPDATE nomina_empleados_semanal
                SET 
-                 act_1 = @a1, dia_1 = @d1,
-                 act_2 = @a2, dia_2 = @d2,
-                 act_3 = @a3, dia_3 = @d3,
-                 act_4 = @a4, dia_4 = @d4,
-                 act_5 = @a5, dia_5 = @d5,
-                 act_6 = @a6, dia_6 = @d6,
-                 act_7 = @a7, dia_7 = @d7,
+                 act_1 = @a1, dia_1 = @d1, campo_1 = @c1,
+                 act_2 = @a2, dia_2 = @d2, campo_2 = @c2,
+                 act_3 = @a3, dia_3 = @d3, campo_3 = @c3,
+                 act_4 = @a4, dia_4 = @d4, campo_4 = @c4,
+                 act_5 = @a5, dia_5 = @d5, campo_5 = @c5,
+                 act_6 = @a6, dia_6 = @d6, campo_6 = @c6,
+                 act_7 = @a7, dia_7 = @d7, campo_7 = @c7,
                  total = @total, debe = @debe, subtotal = @subtotal, 
                  comedor = @comedor, total_neto = @neto
                WHERE id_empleado = @idEmp AND id_semana = @idSemana AND id_cuadrilla = @idCuadrilla
             ''',
             substitutionValues: {
-              'a1': data['act_1'], 'd1': data['dia_1'],
-              'a2': data['act_2'], 'd2': data['dia_2'],
-              'a3': data['act_3'], 'd3': data['dia_3'],
-              'a4': data['act_4'], 'd4': data['dia_4'],
-              'a5': data['act_5'], 'd5': data['dia_5'],
-              'a6': data['act_6'], 'd6': data['dia_6'],
-              'a7': data['act_7'], 'd7': data['dia_7'],
+              'a1': data['act_1'], 'd1': data['dia_1'], 'c1': data['campo_1'],
+              'a2': data['act_2'], 'd2': data['dia_2'], 'c2': data['campo_2'],
+              'a3': data['act_3'], 'd3': data['dia_3'], 'c3': data['campo_3'],
+              'a4': data['act_4'], 'd4': data['dia_4'], 'c4': data['campo_4'],
+              'a5': data['act_5'], 'd5': data['dia_5'], 'c5': data['campo_5'],
+              'a6': data['act_6'], 'd6': data['dia_6'], 'c6': data['campo_6'],
+              'a7': data['act_7'], 'd7': data['dia_7'], 'c7': data['campo_7'],
               'total': data['total'],
               'debe': data['debe'],
               'subtotal': data['subtotal'],
@@ -877,6 +881,51 @@ class _NominaScreenState extends State<NominaScreen>
             },
           );
           print('✅ [UPDATE EXITOSO] Empleado $idEmpleado actualizado');
+        } else {
+          // Si no existe, insertar nuevo registro
+          print('➕ [INSERT] Creando nuevo registro para empleado $idEmpleado');
+          await db.connection.query(
+            '''INSERT INTO nomina_empleados_semanal (
+                 id_empleado, id_semana, id_cuadrilla,
+                 act_1, dia_1, campo_1,
+                 act_2, dia_2, campo_2,
+                 act_3, dia_3, campo_3,
+                 act_4, dia_4, campo_4,
+                 act_5, dia_5, campo_5,
+                 act_6, dia_6, campo_6,
+                 act_7, dia_7, campo_7,
+                 total, debe, subtotal, comedor, total_neto
+               ) VALUES (
+                 @idEmp, @idSemana, @idCuadrilla,
+                 @a1, @d1, @c1,
+                 @a2, @d2, @c2,
+                 @a3, @d3, @c3,
+                 @a4, @d4, @c4,
+                 @a5, @d5, @c5,
+                 @a6, @d6, @c6,
+                 @a7, @d7, @c7,
+                 @total, @debe, @subtotal, @comedor, @neto
+               )
+            ''',
+            substitutionValues: {
+              'idEmp': idEmpleado,
+              'idSemana': idSemana,
+              'idCuadrilla': idCuadrilla,
+              'a1': data['act_1'], 'd1': data['dia_1'], 'c1': data['campo_1'],
+              'a2': data['act_2'], 'd2': data['dia_2'], 'c2': data['campo_2'],
+              'a3': data['act_3'], 'd3': data['dia_3'], 'c3': data['campo_3'],
+              'a4': data['act_4'], 'd4': data['dia_4'], 'c4': data['campo_4'],
+              'a5': data['act_5'], 'd5': data['dia_5'], 'c5': data['campo_5'],
+              'a6': data['act_6'], 'd6': data['dia_6'], 'c6': data['campo_6'],
+              'a7': data['act_7'], 'd7': data['dia_7'], 'c7': data['campo_7'],
+              'total': data['total'],
+              'debe': data['debe'],
+              'subtotal': data['subtotal'],
+              'comedor': data['comedor'],
+              'neto': data['total_neto'],
+            },
+          );
+          print('✅ [INSERT EXITOSO] Empleado $idEmpleado creado');
         } 
       }
       
@@ -935,13 +984,13 @@ class _NominaScreenState extends State<NominaScreen>
         // Obtener datos de nómina si existen
         final nominaResult = await db.connection.query('''
           SELECT 
-            n.dia_1, n.act_1,
-            n.dia_2, n.act_2,
-            n.dia_3, n.act_3,
-            n.dia_4, n.act_4,
-            n.dia_5, n.act_5,
-            n.dia_6, n.act_6,
-            n.dia_7, n.act_7,
+            n.dia_1, n.act_1, n.campo_1,
+            n.dia_2, n.act_2, n.campo_2,
+            n.dia_3, n.act_3, n.campo_3,
+            n.dia_4, n.act_4, n.campo_4,
+            n.dia_5, n.act_5, n.campo_5,
+            n.dia_6, n.act_6, n.campo_6,
+            n.dia_7, n.act_7, n.campo_7,
             n.total,
             n.debe,
             n.subtotal,
@@ -965,26 +1014,33 @@ class _NominaScreenState extends State<NominaScreen>
             'codigo': empleadoBasico[1]?.toString() ?? '',
             'nombre': empleadoBasico[2]?.toString() ?? '',
             'id': empleadoBasico[0]?.toString() ?? '',
-            // Mapear de BD a formato de tabla
+            // Mapear de BD a formato de tabla (ahora incluye campo)
             'dia_0_s': nominaData[0]?.toString() ?? '0', // dia_1 BD → dia_0_s tabla
             'dia_0_id': nominaData[1]?.toString() ?? '0', // act_1 BD → dia_0_id tabla
-            'dia_1_s': nominaData[2]?.toString() ?? '0', // dia_2 BD → dia_1_s tabla
-            'dia_1_id': nominaData[3]?.toString() ?? '0', // act_2 BD → dia_1_id tabla
-            'dia_2_s': nominaData[4]?.toString() ?? '0', // dia_3 BD → dia_2_s tabla
-            'dia_2_id': nominaData[5]?.toString() ?? '0', // act_3 BD → dia_2_id tabla
-            'dia_3_s': nominaData[6]?.toString() ?? '0', // dia_4 BD → dia_3_s tabla
-            'dia_3_id': nominaData[7]?.toString() ?? '0', // act_4 BD → dia_3_id tabla
-            'dia_4_s': nominaData[8]?.toString() ?? '0', // dia_5 BD → dia_4_s tabla
-            'dia_4_id': nominaData[9]?.toString() ?? '0', // act_5 BD → dia_4_id tabla
-            'dia_5_s': nominaData[10]?.toString() ?? '0', // dia_6 BD → dia_5_s tabla
-            'dia_5_id': nominaData[11]?.toString() ?? '0', // act_6 BD → dia_5_id tabla
-            'dia_6_s': nominaData[12]?.toString() ?? '0', // dia_7 BD → dia_6_s tabla
-            'dia_6_id': nominaData[13]?.toString() ?? '0', // act_7 BD → dia_6_id tabla
-            'total': nominaData[14]?.toString() ?? '0',
-            'debe': nominaData[15]?.toString() ?? '0',
-            'subtotal': nominaData[16]?.toString() ?? '0',
-            'comedor': nominaData[17]?.toString() ?? '0',
-            'totalNeto': nominaData[18]?.toString() ?? '0',
+            'dia_0_campo': nominaData[2]?.toString() ?? '', // campo_1 BD → dia_0_campo tabla
+            'dia_1_s': nominaData[3]?.toString() ?? '0', // dia_2 BD → dia_1_s tabla
+            'dia_1_id': nominaData[4]?.toString() ?? '0', // act_2 BD → dia_1_id tabla
+            'dia_1_campo': nominaData[5]?.toString() ?? '', // campo_2 BD → dia_1_campo tabla
+            'dia_2_s': nominaData[6]?.toString() ?? '0', // dia_3 BD → dia_2_s tabla
+            'dia_2_id': nominaData[7]?.toString() ?? '0', // act_3 BD → dia_2_id tabla
+            'dia_2_campo': nominaData[8]?.toString() ?? '', // campo_3 BD → dia_2_campo tabla
+            'dia_3_s': nominaData[9]?.toString() ?? '0', // dia_4 BD → dia_3_s tabla
+            'dia_3_id': nominaData[10]?.toString() ?? '0', // act_4 BD → dia_3_id tabla
+            'dia_3_campo': nominaData[11]?.toString() ?? '', // campo_4 BD → dia_3_campo tabla
+            'dia_4_s': nominaData[12]?.toString() ?? '0', // dia_5 BD → dia_4_s tabla
+            'dia_4_id': nominaData[13]?.toString() ?? '0', // act_5 BD → dia_4_id tabla
+            'dia_4_campo': nominaData[14]?.toString() ?? '', // campo_5 BD → dia_4_campo tabla
+            'dia_5_s': nominaData[15]?.toString() ?? '0', // dia_6 BD → dia_5_s tabla
+            'dia_5_id': nominaData[16]?.toString() ?? '0', // act_6 BD → dia_5_id tabla
+            'dia_5_campo': nominaData[17]?.toString() ?? '', // campo_6 BD → dia_5_campo tabla
+            'dia_6_s': nominaData[18]?.toString() ?? '0', // dia_7 BD → dia_6_s tabla
+            'dia_6_id': nominaData[19]?.toString() ?? '0', // act_7 BD → dia_6_id tabla
+            'dia_6_campo': nominaData[20]?.toString() ?? '', // campo_7 BD → dia_6_campo tabla
+            'total': nominaData[21]?.toString() ?? '0',
+            'debe': nominaData[22]?.toString() ?? '0',
+            'subtotal': nominaData[23]?.toString() ?? '0',
+            'comedor': nominaData[24]?.toString() ?? '0',
+            'totalNeto': nominaData[25]?.toString() ?? '0',
           };
           print('✅ Empleado ${empleadoCompleto['nombre']} con datos de nómina cargados');
         } else {
@@ -993,14 +1049,14 @@ class _NominaScreenState extends State<NominaScreen>
             'codigo': empleadoBasico[1]?.toString() ?? '',
             'nombre': empleadoBasico[2]?.toString() ?? '',
             'id': empleadoBasico[0]?.toString() ?? '',
-            // Valores por defecto para empleado nuevo
-            'dia_0_s': '0', 'dia_0_id': '0',
-            'dia_1_s': '0', 'dia_1_id': '0',
-            'dia_2_s': '0', 'dia_2_id': '0',
-            'dia_3_s': '0', 'dia_3_id': '0',
-            'dia_4_s': '0', 'dia_4_id': '0',
-            'dia_5_s': '0', 'dia_5_id': '0',
-            'dia_6_s': '0', 'dia_6_id': '0',
+            // Valores por defecto para empleado nuevo (incluye campo)
+            'dia_0_s': '0', 'dia_0_id': '0', 'dia_0_campo': '',
+            'dia_1_s': '0', 'dia_1_id': '0', 'dia_1_campo': '',
+            'dia_2_s': '0', 'dia_2_id': '0', 'dia_2_campo': '',
+            'dia_3_s': '0', 'dia_3_id': '0', 'dia_3_campo': '',
+            'dia_4_s': '0', 'dia_4_id': '0', 'dia_4_campo': '',
+            'dia_5_s': '0', 'dia_5_id': '0', 'dia_5_campo': '',
+            'dia_6_s': '0', 'dia_6_id': '0', 'dia_6_campo': '',
             'total': '0',
             'debe': '0',
             'subtotal': '0',
@@ -1209,14 +1265,14 @@ class _NominaScreenState extends State<NominaScreen>
   }
 
   void _toggleArmarCuadrilla() {
-    // 🎯 Validar que se puede armar cuadrilla antes de abrir
-    if (!_validarPuedeArmarCuadrilla()) {
+    // 🎯 Ahora se puede armar cuadrilla sin necesidad de semana
+    // Solo mostrar mensaje informativo si no hay semana pero permitir continuar
+    if (semanaSeleccionada == null) {
       _mostrarMensajeGuia(
-        'Primero debes seleccionar una semana antes de armar cuadrillas.',
-        icon: Icons.schedule,
-        accionSugerida: 'Haz clic en "Seleccionar semana" para continuar'
+        'Puedes armar cuadrillas sin tener una semana activa. Para capturar datos necesitarás seleccionar una semana.',
+        icon: Icons.info_outline,
+        accionSugerida: 'Continúa armando la cuadrilla'
       );
-      return;
     }
     
     if (showArmarCuadrilla) {
@@ -1552,39 +1608,6 @@ class _NominaScreenState extends State<NominaScreen>
     return canSave;
   }
 
-  // Mostrar diálogo para reiniciar semana con opciones
-  void _mostrarDialogoReiniciarSemana() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return NominaReiniciarSemanaWidget(
-          onMantenerCuadrillas: () {
-            // Reiniciar manteniendo las cuadrillas armadas
-            setState(() {
-              _startDate = null;
-              _endDate = null;
-              _isWeekClosed = false;
-              // Mantener empleados en la cuadrilla actual
-            });
-          },
-          onLimpiarCuadrillas: () {
-            // Reiniciar y limpiar la cuadrilla también
-            setState(() {
-              _startDate = null;
-              _endDate = null;
-              _isWeekClosed = false;
-              // Limpiar empleados de la cuadrilla actual
-              _selectedCuadrilla['empleados'] = [];
-              empleadosFiltrados = [];
-              empleadosEnCuadrilla = [];
-            });
-          },
-          onClose: () => Navigator.of(context).pop(),
-        );
-      },
-    );
-  }
-
   // Función para mostrar detalles del empleado
   void _mostrarDetallesEmpleado(
     BuildContext context,
@@ -1680,11 +1703,16 @@ class _NominaScreenState extends State<NominaScreen>
         return true; // Empleado nuevo
       }
       
-      // Comparar campos que pueden cambiar
+      // Comparar campos que pueden cambiar (incluye actividad, salario y campo)
       final fieldsToCheck = [
-        'dia_0_s', 'dia_0_id', 'dia_1_s', 'dia_1_id', 'dia_2_s', 'dia_2_id',
-        'dia_3_s', 'dia_3_id', 'dia_4_s', 'dia_4_id', 'dia_5_s', 'dia_5_id',
-        'dia_6_s', 'dia_6_id', 'debe', 'comedor'
+        'dia_0_s', 'dia_0_id', 'dia_0_campo',
+        'dia_1_s', 'dia_1_id', 'dia_1_campo',
+        'dia_2_s', 'dia_2_id', 'dia_2_campo',
+        'dia_3_s', 'dia_3_id', 'dia_3_campo',
+        'dia_4_s', 'dia_4_id', 'dia_4_campo',
+        'dia_5_s', 'dia_5_id', 'dia_5_campo',
+        'dia_6_s', 'dia_6_id', 'dia_6_campo',
+        'debe', 'comedor'
       ];
       
       for (final field in fieldsToCheck) {
@@ -1926,14 +1954,14 @@ class _NominaScreenState extends State<NominaScreen>
 
   /// Maneja el cambio de cuadrilla con verificación de cambios no guardados
   Future<void> _handleCuadrillaChange(Map<String, dynamic>? newCuadrilla) async {
-    // 🎯 Validar que hay semana seleccionada antes de cambiar cuadrilla
-    if (!_validarPuedeArmarCuadrilla()) {
+    // 🎯 Ya no se valida semana, se permite seleccionar cuadrilla sin semana
+    // Solo mostrar mensaje informativo
+    if (semanaSeleccionada == null && newCuadrilla != null) {
       _mostrarMensajeGuia(
-        'Primero debes seleccionar una semana antes de seleccionar cuadrillas.',
-        icon: Icons.schedule,
-        accionSugerida: 'Selecciona una semana usando el botón "Seleccionar semana"'
+        'Cuadrilla seleccionada. Para capturar datos necesitarás seleccionar una semana.',
+        icon: Icons.info_outline,
+        accionSugerida: 'Usa "Seleccionar semana" cuando quieras capturar datos'
       );
-      return;
     }
     
     // Detectar cambios no guardados
@@ -2088,6 +2116,10 @@ class _NominaScreenState extends State<NominaScreen>
   
   /// 🔧 Determina si un campo es numérico
   bool _isNumericField(String key) {
+    // Los campos de campo (dia_X_campo) son texto, no numéricos
+    if (key.contains('_campo')) {
+      return false;
+    }
     return key.contains('dia_') || 
            key == 'total' || 
            key == 'subtotal' || 
@@ -2215,7 +2247,6 @@ class _NominaScreenState extends State<NominaScreen>
                             semanaActiva: semanaActiva,
                             onSeleccionarSemana: _seleccionarSemana,
                             onCerrarSemana: _onCerrarSemana,
-                            onReiniciarSemana: _mostrarDialogoReiniciarSemana,
                             // 🎯 Habilitar mensajes guía del flujo
                             mostrarEstadoFlujo: true,
                           ),

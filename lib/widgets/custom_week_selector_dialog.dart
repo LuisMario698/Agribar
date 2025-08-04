@@ -45,14 +45,28 @@ class _CustomWeekSelectorDialogState extends State<CustomWeekSelectorDialog> {
         _isSelectingEnd = true;
       } else if (_isSelectingEnd) {
         // Seleccionar fecha final
+        DateTime proposedStart, proposedEnd;
+        
         if (date.isAfter(_startDate!) || date.isAtSameMomentAs(_startDate!)) {
-          _endDate = date;
-          _isSelectingEnd = false;
+          proposedStart = _startDate!;
+          proposedEnd = date;
         } else {
           // Si la fecha es anterior, intercambiar
-          _endDate = _startDate;
-          _startDate = date;
+          proposedStart = date;
+          proposedEnd = _startDate!;
+        }
+        
+        // 🎯 VALIDACIÓN: Verificar que sean exactamente 7 días
+        final daysDifference = proposedEnd.difference(proposedStart).inDays + 1;
+        
+        if (daysDifference == 7) {
+          // ✅ Exactamente 7 días - permitir selección
+          _startDate = proposedStart;
+          _endDate = proposedEnd;
           _isSelectingEnd = false;
+        } else {
+          // ❌ No son 7 días - mostrar mensaje de error y no aplicar selección
+          _showDayLimitError(daysDifference);
         }
       }
     });
@@ -62,6 +76,169 @@ class _CustomWeekSelectorDialogState extends State<CustomWeekSelectorDialog> {
     setState(() {
       _hoveredDate = date;
     });
+  }
+
+  /// 🎯 Muestra un diálogo de error cuando la selección no tiene exactamente 7 días
+  void _showDayLimitError(int actualDays) {
+    String title;
+    String message;
+    IconData icon;
+    Color iconColor;
+    
+    if (actualDays > 7) {
+      title = 'Demasiados días seleccionados';
+      message = 'Has seleccionado $actualDays días.\n\nSolo se permiten exactamente 7 días para crear una semana de nómina válida.';
+      icon = Icons.error_outline;
+      iconColor = Colors.red.shade600;
+    } else {
+      title = 'Muy pocos días seleccionados';
+      message = 'Has seleccionado $actualDays días.\n\nDebes seleccionar exactamente 7 días para crear una semana de nómina completa.';
+      icon = Icons.warning_amber_rounded;
+      iconColor = Colors.orange.shade600;
+    }
+    
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Container(
+            constraints: BoxConstraints(
+              maxWidth: 450,
+              minWidth: 350,
+            ),
+            padding: EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white,
+                  actualDays > 7 ? Colors.red.shade50 : Colors.orange.shade50,
+                ],
+              ),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.15),
+                  blurRadius: 20,
+                  offset: Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Ícono principal
+                Container(
+                  padding: EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: iconColor.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    icon,
+                    size: 48,
+                    color: iconColor,
+                  ),
+                ),
+                
+                SizedBox(height: 24),
+                
+                // Título
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: iconColor,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                
+                SizedBox(height: 16),
+                
+                // Mensaje
+                Text(
+                  message,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey.shade700,
+                    height: 1.5,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                
+                SizedBox(height: 24),
+                
+                // Información adicional
+                Container(
+                  padding: EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.blue.shade600, size: 24),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Una semana de nómina debe tener exactamente 7 días consecutivos.',
+                          style: TextStyle(
+                            color: Colors.blue.shade700,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                SizedBox(height: 32),
+                
+                // Botón de cerrar
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: Icon(Icons.check, size: 20),
+                    label: Text(
+                      'Entendido',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: iconColor,
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 2,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// 🎯 Valida que el rango seleccionado tenga exactamente 7 días
+  bool _isValidRange() {
+    if (_startDate == null || _endDate == null) return false;
+    final days = _endDate!.difference(_startDate!).inDays + 1;
+    return days == 7;
   }
 
   bool _isDateInRange(DateTime date) {
@@ -205,15 +382,22 @@ class _CustomWeekSelectorDialogState extends State<CustomWeekSelectorDialog> {
       return 'Selecciona fecha de inicio';
     } else if (_endDate == null) {
       if (_isSelectingEnd) {
-        return 'Selecciona fecha de fin';
+        return 'Selecciona fecha de fin (debe ser exactamente 7 días)';
       } else {
         return DateFormat('d \'de\' MMMM, yyyy', 'es').format(_startDate!);
       }
     } else {
       final days = _endDate!.difference(_startDate!).inDays + 1;
-      return '${DateFormat('d \'de\' MMMM', 'es').format(_startDate!)} - '
-             '${DateFormat('d \'de\' MMMM, yyyy', 'es').format(_endDate!)} '
-             '($days días)';
+      final rangeText = '${DateFormat('d \'de\' MMMM', 'es').format(_startDate!)} - '
+                       '${DateFormat('d \'de\' MMMM, yyyy', 'es').format(_endDate!)} '
+                       '($days días)';
+      
+      // 🎯 Agregar advertencia si no son exactamente 7 días
+      if (days != 7) {
+        return '$rangeText\n⚠️ Debes seleccionar exactamente 7 días';
+      }
+      
+      return rangeText;
     }
   }
 
@@ -269,13 +453,27 @@ class _CustomWeekSelectorDialogState extends State<CustomWeekSelectorDialog> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Seleccionar Período',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green.shade800,
-                  ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Seleccionar Período',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green.shade800,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Debes seleccionar exactamente 7 días',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.blue.shade600,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ),
                 IconButton(
                   onPressed: () => Navigator.of(context).pop(),
@@ -295,9 +493,15 @@ class _CustomWeekSelectorDialogState extends State<CustomWeekSelectorDialog> {
               width: double.infinity,
               padding: EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.green.shade50,
+                color: (_startDate != null && _endDate != null && !_isValidRange())
+                    ? Colors.orange.shade50  // Color de advertencia para selección inválida
+                    : Colors.green.shade50,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.green.shade200),
+                border: Border.all(
+                  color: (_startDate != null && _endDate != null && !_isValidRange())
+                      ? Colors.orange.shade300  // Borde de advertencia
+                      : Colors.green.shade200,
+                ),
               ),
               child: Column(
                 children: [
@@ -306,8 +510,12 @@ class _CustomWeekSelectorDialogState extends State<CustomWeekSelectorDialog> {
                         ? Icons.touch_app_outlined
                         : (_endDate == null 
                             ? Icons.schedule_outlined 
-                            : Icons.check_circle_outline),
-                    color: Colors.green.shade600,
+                            : (_isValidRange()
+                                ? Icons.check_circle_outline
+                                : Icons.warning_amber_rounded)),  // Ícono de advertencia para selección inválida
+                    color: (_startDate != null && _endDate != null && !_isValidRange())
+                        ? Colors.orange.shade600  // Color de advertencia
+                        : Colors.green.shade600,
                     size: 32,
                   ),
                   SizedBox(height: 8),
@@ -316,7 +524,9 @@ class _CustomWeekSelectorDialogState extends State<CustomWeekSelectorDialog> {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: Colors.green.shade800,
+                      color: (_startDate != null && _endDate != null && !_isValidRange())
+                          ? Colors.orange.shade800  // Color de texto de advertencia
+                          : Colors.green.shade800,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -439,17 +649,27 @@ class _CustomWeekSelectorDialogState extends State<CustomWeekSelectorDialog> {
                 Expanded(
                   flex: 2,
                   child: ElevatedButton.icon(
-                    onPressed: (_startDate != null && _endDate != null)
+                    onPressed: (_startDate != null && _endDate != null && _isValidRange())
                         ? () {
                             Navigator.of(context).pop(
                               DateTimeRange(start: _startDate!, end: _endDate!),
                             );
                           }
-                        : null,
+                        : (_startDate != null && _endDate != null)
+                            ? () {
+                                // Si hay fechas seleccionadas pero no son válidas, mostrar error
+                                final days = _endDate!.difference(_startDate!).inDays + 1;
+                                _showDayLimitError(days);
+                              }
+                            : null,
                     icon: Icon(Icons.check),
                     label: Text('Confirmar Período'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green.shade600,
+                      backgroundColor: (_startDate != null && _endDate != null && _isValidRange())
+                          ? Colors.green.shade600
+                          : (_startDate != null && _endDate != null)
+                              ? Colors.orange.shade600  // Color de advertencia para fechas inválidas
+                              : null,
                       foregroundColor: Colors.white,
                       padding: EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
@@ -525,6 +745,175 @@ class _ManualDateEntryDialogState extends State<_ManualDateEntryDialog> {
     return null;
   }
 
+  /// 🎯 Muestra un diálogo de error para entrada manual cuando no son exactamente 7 días
+  void _showManualEntryDayLimitError(int actualDays) {
+    String title;
+    String message;
+    IconData icon;
+    Color iconColor;
+    
+    if (actualDays > 7) {
+      title = 'Período muy largo';
+      message = 'El período ingresado tiene $actualDays días.\n\nPara una semana de nómina válida, debes ingresar fechas que comprendan exactamente 7 días consecutivos.';
+      icon = Icons.error_outline;
+      iconColor = Colors.red.shade600;
+    } else {
+      title = 'Período muy corto';
+      message = 'El período ingresado tiene $actualDays días.\n\nPara una semana de nómina completa, debes ingresar fechas que comprendan exactamente 7 días consecutivos.';
+      icon = Icons.warning_amber_rounded;
+      iconColor = Colors.orange.shade600;
+    }
+    
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Container(
+            constraints: BoxConstraints(
+              maxWidth: 450,
+              minWidth: 350,
+            ),
+            padding: EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white,
+                  actualDays > 7 ? Colors.red.shade50 : Colors.orange.shade50,
+                ],
+              ),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.15),
+                  blurRadius: 20,
+                  offset: Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Ícono principal
+                Container(
+                  padding: EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: iconColor.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    icon,
+                    size: 48,
+                    color: iconColor,
+                  ),
+                ),
+                
+                SizedBox(height: 24),
+                
+                // Título
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: iconColor,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                
+                SizedBox(height: 16),
+                
+                // Mensaje
+                Text(
+                  message,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey.shade700,
+                    height: 1.5,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                
+                SizedBox(height: 24),
+                
+                // Ejemplo de formato correcto
+                Container(
+                  padding: EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.lightbulb_outline, color: Colors.blue.shade600, size: 24),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Ejemplo de período válido:',
+                              style: TextStyle(
+                                color: Colors.blue.shade700,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        'Inicio: 01/01/2025\nFin: 07/01/2025\n(7 días consecutivos)',
+                        style: TextStyle(
+                          color: Colors.blue.shade700,
+                          fontSize: 13,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+                
+                SizedBox(height: 32),
+                
+                // Botón de cerrar
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: Icon(Icons.edit_calendar, size: 20),
+                    label: Text(
+                      'Corregir fechas',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: iconColor,
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 2,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void _submitForm() {
     if (_formKey.currentState!.validate()) {
       final startDate = _parseDate(_startController.text)!;
@@ -537,6 +926,13 @@ class _ManualDateEntryDialogState extends State<_ManualDateEntryDialog> {
             backgroundColor: Colors.red,
           ),
         );
+        return;
+      }
+      
+      // 🎯 VALIDACIÓN: Verificar que sean exactamente 7 días
+      final daysDifference = endDate.difference(startDate).inDays + 1;
+      if (daysDifference != 7) {
+        _showManualEntryDayLimitError(daysDifference);
         return;
       }
       
@@ -608,12 +1004,42 @@ class _ManualDateEntryDialogState extends State<_ManualDateEntryDialog> {
               
               SizedBox(height: 20),
               
-              Text(
-                'Ingresa las fechas en formato DD/MM/YYYY',
-                style: TextStyle(
-                  color: Colors.grey.shade600,
-                  fontSize: 14,
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Ingresa las fechas en formato DD/MM/YYYY',
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontSize: 14,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Container(
+                    padding: EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.blue.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline, color: Colors.blue.shade600, size: 20),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'El período debe tener exactamente 7 días',
+                            style: TextStyle(
+                              color: Colors.blue.shade700,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
               
               SizedBox(height: 20),

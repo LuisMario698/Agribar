@@ -11,7 +11,6 @@ class NominaWeekSelectionCard extends StatelessWidget {
   final bool semanaActiva;
   final VoidCallback? onSeleccionarSemana;
   final VoidCallback? onCerrarSemana;
-  final VoidCallback? onReiniciarSemana;
   final bool mostrarEstadoFlujo; // 🎯 Propiedad para mostrar estado del flujo
 
   const NominaWeekSelectionCard({
@@ -23,7 +22,6 @@ class NominaWeekSelectionCard extends StatelessWidget {
     this.semanaActiva = false,
     this.onSeleccionarSemana,
     this.onCerrarSemana,
-    this.onReiniciarSemana,
     this.mostrarEstadoFlujo = true,
   });
 
@@ -168,15 +166,6 @@ class NominaWeekSelectionCard extends StatelessWidget {
                 ],
               ),
             ),
-            if (startDate != null && endDate != null)
-              IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: onReiniciarSemana,
-                style: IconButton.styleFrom(
-                  foregroundColor: Colors.grey.shade600,
-                  backgroundColor: Colors.grey.shade100,
-                ),
-              ),
           ],
         ),
       ),

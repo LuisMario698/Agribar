@@ -279,6 +279,10 @@ class _NuevaTablaEditableState extends State<NuevaTablaEditable> {
       final valorEntero = int.tryParse(valorLimpio) ?? 0;
       empleado[campo] = valorEntero; // Guardar como entero, no como string
       print('  Campo $campo actualizado: $valorLimpio -> $valorEntero');
+    } else if (campo.contains('dia_') && campo.endsWith('_campo')) {
+      // Para campos de campo, guardar como texto sin limpiar
+      empleado[campo] = valor.toString();
+      print('  Campo de campo $campo actualizado: ${empleado[campo]}');
     } else if (campo == 'debe') {
       // Para debe, también guardar como entero
       final valorLimpio = valor.replaceAll(RegExp(r'[^\d]'), '');
@@ -534,31 +538,36 @@ class _NuevaTablaEditableState extends State<NuevaTablaEditable> {
     final empleado = widget.empleados[empleadoIndex];
     
     if (widget.isExpanded) {
-      // Modo expandido: ID y Salario lado a lado
+      // Modo expandido: Actividad, Salario y Campo en columna
       return DataCell(
         SizedBox(
           width: 150,
-          child: Row(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              // Celda ID
-              Expanded(
-                child: _construirWidgetEditable(
-                  empleadoIndex, 
-                  'dia_${diaIndex}_id', 
-                  empleado['dia_${diaIndex}_id'],
-                  esPequena: true,
-                ),
+              // Fila 1: Actividad (ID)
+              _construirWidgetEditable(
+                empleadoIndex, 
+                'dia_${diaIndex}_id', 
+                empleado['dia_${diaIndex}_id'],
+                esPequena: true,
               ),
-              const SizedBox(width: 2),
-              // Celda Salario
-              Expanded(
-                child: _construirWidgetEditable(
-                  empleadoIndex, 
-                  'dia_${diaIndex}_s', 
-                  empleado['dia_${diaIndex}_s'],
-                  esPequena: true,
-                  mostrarMoneda: true,
-                ),
+              const SizedBox(height: 2),
+              // Fila 2: Salario
+              _construirWidgetEditable(
+                empleadoIndex, 
+                'dia_${diaIndex}_s', 
+                empleado['dia_${diaIndex}_s'],
+                esPequena: true,
+                mostrarMoneda: true,
+              ),
+              const SizedBox(height: 2),
+              // Fila 3: Campo
+              _construirWidgetEditable(
+                empleadoIndex, 
+                'dia_${diaIndex}_campo', 
+                empleado['dia_${diaIndex}_campo'] ?? '',
+                esPequena: true,
               ),
             ],
           ),
