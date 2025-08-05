@@ -93,8 +93,14 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
           final id = (campo['id'] ?? 0).toString();
           final nombre = campo['nombre']?.toString() ?? 'Sin nombre';
           final clave = campo['clave']?.toString() ?? '';
-          _camposMap[id] = '${clave} - ${nombre}';
-          print('  Mapeando - ID: $id -> Clave: $clave -> Nombre: $nombre');
+          
+          // Si no hay clave, usar solo el nombre, si hay clave usar formato "clave - nombre"
+          if (clave.isEmpty) {
+            _camposMap[id] = nombre;
+          } else {
+            _camposMap[id] = '${clave} - ${nombre}';
+          }
+          print('  Mapeando - ID: $id -> Clave: $clave -> Nombre: $nombre -> Resultado: ${_camposMap[id]}');
         }
       });
       
@@ -116,15 +122,6 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     final nombre = _actividadesMap[id] ?? '';
     print('🔍 Buscando actividad - ID: $id -> Nombre: $nombre');
     print('  Actividades disponibles: ${_actividadesMap.keys.join(', ')}');
-    return nombre;
-  }
-
-  // Método para obtener el nombre del campo
-  String _obtenerNombreCampo(String? id) {
-    if (id == null || id.isEmpty) return '';
-    final nombre = _camposMap[id] ?? '';
-    print('🔍 Buscando campo - ID: $id -> Nombre: $nombre');
-    print('  Campos disponibles: ${_camposMap.keys.join(', ')}');
     return nombre;
   }
   
@@ -189,18 +186,25 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     
     final diasCount = _numeroDias;
     
-    // Mapear columnas a campos
-    if (columna < diasCount * 2) {
+    // Mapear columnas a campos (ahora 3 campos por día: actividad, sueldo, campo/rancho)
+    if (columna < diasCount * 3) {
       // Campos de días
-      final diaIndex = columna ~/ 2;
-      final esCampoId = columna % 2 == 0;
+      final diaIndex = columna ~/ 3;
+      final tipoCampo = columna % 3;
       
       if (diaIndex < diasCount) {
-        return '${fila}_dia_${diaIndex}_${esCampoId ? 'id' : 's'}';
+        switch (tipoCampo) {
+          case 0:
+            return '${fila}_dia_${diaIndex}_id'; // actividad
+          case 1:
+            return '${fila}_dia_${diaIndex}_s'; // sueldo
+          case 2:
+            return '${fila}_dia_${diaIndex}_campo'; // campo/rancho
+        }
       }
     } else {
       // Campos adicionales (debe, comedor)
-      final campoIndex = columna - (diasCount * 2);
+      final campoIndex = columna - (diasCount * 3);
       switch (campoIndex) {
         case 0:
           return '${fila}_debe';
@@ -236,15 +240,20 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     // Determinar columna actual basada en el tipo de campo
     if (campoActual.contains('_dia_')) {
       final diaIndex = int.tryParse(partes[2]) ?? 0;
-      final esCampoId = campoActual.endsWith('_id');
-      columnaActual = (diaIndex * 2) + (esCampoId ? 0 : 1);
+      if (campoActual.endsWith('_id')) {
+        columnaActual = (diaIndex * 3); // actividad
+      } else if (campoActual.endsWith('_s')) {
+        columnaActual = (diaIndex * 3) + 1; // sueldo
+      } else if (campoActual.endsWith('_campo')) {
+        columnaActual = (diaIndex * 3) + 2; // campo/rancho
+      }
     } else if (campoActual.endsWith('_debe')) {
-      columnaActual = (_numeroDias * 2);
+      columnaActual = (_numeroDias * 3);
     } else if (campoActual.endsWith('_comedor')) {
-      columnaActual = (_numeroDias * 2) + 1;
+      columnaActual = (_numeroDias * 3) + 1;
     }
     
-    final totalColumnas = (_numeroDias * 2) + 2; // Días * 2 + debe + comedor
+    final totalColumnas = (_numeroDias * 3) + 2; // Días * 3 + debe + comedor
     final totalFilas = widget.empleados.length;
     
     // Manejar teclas de navegación
@@ -264,38 +273,35 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
         break;
         
       case LogicalKeyboardKey.enter:
-        // Enter: comportamiento tipo Excel - bajar a la misma columna conceptual
-        // Si estoy en "Sueldo" (columna impar), ir a "actividad" (columna par) de la siguiente fila
-        // Si estoy en "actividad" (columna par), ir a "Sueldo" (columna impar) de la misma fila
-        if (filaActual < totalFilas - 1) {
-          if (campoActual.contains('_dia_') && campoActual.endsWith('_s')) {
-            // Estoy en campo de Sueldo, ir a actividad de la siguiente fila en el mismo día
-            final diaIndex = int.tryParse(partes[2]) ?? 0;
-            final nuevaColumna = (diaIndex * 2); // Columna de actividad (par)
-            _navegarA(filaActual + 1, nuevaColumna);
-          } else if (campoActual.contains('_dia_') && campoActual.endsWith('_id')) {
-            // Estoy en campo de actividad, ir a Sueldo de la misma fila en el mismo día
-            final diaIndex = int.tryParse(partes[2]) ?? 0;
-            final nuevaColumna = (diaIndex * 2) + 1; // Columna de sueldo (impar)
+        // Enter: comportamiento tipo Excel - navegar entre los 3 campos del día
+        // Orden: actividad -> sueldo -> campo/rancho -> actividad del siguiente día
+        if (campoActual.contains('_dia_')) {
+          final diaIndex = int.tryParse(partes[2]) ?? 0;
+          
+          if (campoActual.endsWith('_id')) {
+            // Estoy en actividad, ir a sueldo de la misma fila en el mismo día
+            final nuevaColumna = (diaIndex * 3) + 1; // Columna de sueldo
             _navegarA(filaActual, nuevaColumna);
-          } else {
-            // Para otros campos (debe, comedor), comportamiento normal
-            _navegarA(filaActual + 1, columnaActual);
+          } else if (campoActual.endsWith('_s')) {
+            // Estoy en sueldo, ir a campo/rancho de la misma fila en el mismo día
+            final nuevaColumna = (diaIndex * 3) + 2; // Columna de campo/rancho
+            _navegarA(filaActual, nuevaColumna);
+          } else if (campoActual.endsWith('_campo')) {
+            // Estoy en campo/rancho, ir a actividad de la siguiente fila en el mismo día
+            if (filaActual < totalFilas - 1) {
+              final nuevaColumna = (diaIndex * 3); // Columna de actividad
+              _navegarA(filaActual + 1, nuevaColumna);
+            } else {
+              // Si estamos en la última fila, ir a la primera fila
+              final nuevaColumna = (diaIndex * 3); // Columna de actividad
+              _navegarA(0, nuevaColumna);
+            }
           }
         } else {
-          // Si estamos en la última fila, comportamiento cíclico
-          if (campoActual.contains('_dia_') && campoActual.endsWith('_s')) {
-            // Desde Sueldo, ir a actividad de la primera fila en el mismo día
-            final diaIndex = int.tryParse(partes[2]) ?? 0;
-            final nuevaColumna = (diaIndex * 2); // Columna de actividad (par)
-            _navegarA(0, nuevaColumna);
-          } else if (campoActual.contains('_dia_') && campoActual.endsWith('_id')) {
-            // Desde actividad, ir a Sueldo de la misma fila en el mismo día
-            final diaIndex = int.tryParse(partes[2]) ?? 0;
-            final nuevaColumna = (diaIndex * 2) + 1; // Columna de sueldo (impar)
-            _navegarA(filaActual, nuevaColumna);
+          // Para otros campos (debe, comedor), comportamiento normal
+          if (filaActual < totalFilas - 1) {
+            _navegarA(filaActual + 1, columnaActual);
           } else {
-            // Para otros campos, ir al principio de la misma columna
             _navegarA(0, columnaActual);
           }
         }
@@ -619,7 +625,11 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     } else if (campo.contains('dia_') && campo.endsWith('_campo')) {
       // Para el campo "campo", guardar como string
       empleado[campo] = valor.isEmpty ? null : valor; // Guardamos null si está vacío
-      print('  Campo campo actualizado: $valor');
+      final nombreCampo = _camposMap[valor] ?? '';
+      print('  Campo rancho actualizado:');
+      print('    ID: $valor');
+      print('    Nombre encontrado: $nombreCampo');
+      print('    Mapa de campos disponible: ${_camposMap.keys.join(', ')}');
     } else if (campo == 'debe') {
       // Para debe, también guardar como entero
       final valorLimpio = valor.replaceAll(RegExp(r'[^\d]'), '');
@@ -1218,20 +1228,39 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     // Usar 'dia_X_id' para el ID de actividad y obtener solo el nombre
     final actividadId = empleado['dia_${diaIndex}_id']?.toString();
     final nombreActividad = _actividadesMap[actividadId] ?? '';
-    final actividadNombre = nombreActividad.isEmpty ? 'actividad' : 
-        (nombreActividad.split(' - ').length > 1 ? nombreActividad.split(' - ')[1] : nombreActividad);
+    String actividadNombre;
+    
+    if (actividadId == null || actividadId.isEmpty || actividadId == '0') {
+      actividadNombre = 'actividad';
+    } else if (nombreActividad.isEmpty) {
+      // Si el ID no se encuentra en el mapa, mostrar "no existe"
+      actividadNombre = 'no existe';
+    } else {
+      // Extraer solo el nombre sin la clave
+      final partes = nombreActividad.split(' - ');
+      actividadNombre = partes.length > 1 ? partes[1] : nombreActividad;
+    }
     
     // Usar 'dia_X_campo' para el ID de campo y obtener solo el nombre
-    final campoId = empleado['dia_${diaIndex}_campo']?.toString();
+    final campoId = empleado['dia_${diaIndex}_campo']?.toString() ?? '0';
     final nombreCampo = _camposMap[campoId] ?? '';
-    final campoNombre = nombreCampo.isEmpty ? 'campo' : 
-        (nombreCampo.split(' - ').length > 1 ? nombreCampo.split(' - ')[1] : nombreCampo);
+    String campoNombre;
+    
+    if (campoId == '0' || campoId.isEmpty) {
+      campoNombre = 'Rancho';
+    } else if (nombreCampo.isEmpty) {
+      // Si el ID no se encuentra en el mapa, mostrar "no existe"
+      campoNombre = 'no existe';
+    } else {
+      // Extraer solo el nombre sin la clave
+      final partes = nombreCampo.split(' - ');
+      campoNombre = partes.length > 1 ? partes[1] : nombreCampo;
+    }
     
     print('📅 Día $diaIndex - Empleado $empleadoIndex:');
-    print('  ID Actividad: $actividadId');
-    print('  Nombre Actividad: $actividadNombre');
-    print('  ID Campo: $campoId');
-    print('  Nombre Campo: $campoNombre');
+    print('  ID Actividad: $actividadId -> Nombre: $actividadNombre');
+    print('  ID Campo: $campoId -> Nombre: $campoNombre');
+    print('  Mapas cargados - Actividades: ${_actividadesMap.length}, Campos: ${_camposMap.length}');
 
     // Modo expandido: ID, Salario y campo adicional con labels
     return DataCell(

@@ -345,20 +345,35 @@ Future<List<Map<String, dynamic>>> obtenerNominaEmpleadosDeCuadrilla(int semanaI
       e.id_empleado,
       e.nombre,
       e.codigo,
-      n.lunes,
-      n.martes,
-      n.miercoles,
-      n.jueves,
-      n.viernes,
-      n.sabado,
-      n.domingo,
+      n.dia_1,
+      n.dia_2,
+      n.dia_3,
+      n.dia_4,
+      n.dia_5,
+      n.dia_6,
+      n.dia_7,
+      n.act_1,
+      n.act_2,
+      n.act_3,
+      n.act_4,
+      n.act_5,
+      n.act_6,
+      n.act_7,
+      n.campo_1,
+      n.campo_2,
+      n.campo_3,
+      n.campo_4,
+      n.campo_5,
+      n.campo_6,
+      n.campo_7,
       n.total,
       n.debe,
       n.subtotal,
-      n.descuento_comedor
+      n.comedor,
+      n.total_neto
     FROM nomina_empleados_semanal n
-    JOIN empleados e ON e.id_empleado = n.empleado_id
-    WHERE n.semana_id = @semanaId AND n.cuadrilla_id = @cuadrillaId;
+    JOIN empleados e ON e.id_empleado = n.id_empleado
+    WHERE n.id_semana = @semanaId AND n.id_cuadrilla = @cuadrillaId;
   ''', substitutionValues: {
     'semanaId': semanaId,
     'cuadrillaId': cuadrillaId,
@@ -370,16 +385,35 @@ Future<List<Map<String, dynamic>>> obtenerNominaEmpleadosDeCuadrilla(int semanaI
     'id': row[0],
     'nombre': row[1],
     'codigo': row[2],
-    'lunes': row[3],
-    'martes': row[4],
-    'miercoles': row[5],
-    'jueves': row[6],
-    'viernes': row[7],
-    'sabado': row[8],
-    'domingo': row[9],
-    'total': row[10],
-    'debe': row[11],
-    'subtotal': row[12],
-    'comedor': row[13],
+    // Salarios por día (día 0 = primer día, etc.)
+    'dia_0_s': row[3],  // dia_1 en BD
+    'dia_1_s': row[4],  // dia_2 en BD
+    'dia_2_s': row[5],  // dia_3 en BD
+    'dia_3_s': row[6],  // dia_4 en BD
+    'dia_4_s': row[7],  // dia_5 en BD
+    'dia_5_s': row[8],  // dia_6 en BD
+    'dia_6_s': row[9],  // dia_7 en BD
+    // IDs de actividad por día
+    'dia_0_id': row[10], // act_1 en BD
+    'dia_1_id': row[11], // act_2 en BD
+    'dia_2_id': row[12], // act_3 en BD
+    'dia_3_id': row[13], // act_4 en BD
+    'dia_4_id': row[14], // act_5 en BD
+    'dia_5_id': row[15], // act_6 en BD
+    'dia_6_id': row[16], // act_7 en BD
+    // IDs de campo/rancho por día
+    'dia_0_campo': row[17], // campo_1 en BD
+    'dia_1_campo': row[18], // campo_2 en BD
+    'dia_2_campo': row[19], // campo_3 en BD
+    'dia_3_campo': row[20], // campo_4 en BD
+    'dia_4_campo': row[21], // campo_5 en BD
+    'dia_5_campo': row[22], // campo_6 en BD
+    'dia_6_campo': row[23], // campo_7 en BD
+    // Totales
+    'total': row[24],
+    'debe': row[25],
+    'subtotal': row[26],
+    'comedor': row[27],
+    'totalNeto': row[28],
   }).toList();
 }

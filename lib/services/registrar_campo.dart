@@ -7,8 +7,8 @@ Future<List<Map<String, dynamic>>> obtenerCamposDesdeBD() async {
   try {
     print('🔍 Ejecutando consulta SQL para obtener campos...');
     final result = await db.connection.query('''
-      SELECT id_campo, clave, nombre, COUNT(*) OVER() as total_rows
-      FROM campos
+      SELECT id_rancho, nombre, COUNT(*) OVER() as total_rows
+      FROM ranchos
       ORDER BY nombre ASC;
     ''');
 
@@ -25,9 +25,9 @@ Future<List<Map<String, dynamic>>> obtenerCamposDesdeBD() async {
 
     final resultados = result.map((row) {
       final map = {
-        'id': row[0], // id_campo
-        'clave': row[1],
-        'nombre': row[2],
+        'id': row[0], // id_rancho
+        'clave': '', // No hay clave en la tabla ranchos
+        'nombre': row[1], // nombre
       };
       print('  Procesando campo: ${map.toString()}');
       return map;
@@ -53,7 +53,7 @@ Future<List<String>> obtenerNombresCamposDesdeBD() async {
   try {
     final result = await db.connection.query('''
       SELECT DISTINCT nombre 
-      FROM campos 
+      FROM ranchos 
       ORDER BY nombre ASC;
     ''');
 
@@ -72,7 +72,7 @@ Future<void> registrarCampoEnBD(Map<String, dynamic> campo) async {
 
   try {
     await db.connection.query('''
-      INSERT INTO campos (clave, nombre)
+      INSERT INTO ranchos (clave, nombre)
       VALUES (@clave, @nombre)
     ''', substitutionValues: {
       'clave': campo['clave'],
@@ -92,7 +92,7 @@ Future<String> generarSiguienteClaveCampo() async {
 
   try {
     final result = await db.connection.query('''
-      SELECT clave FROM campos
+      SELECT clave FROM ranchos
       ORDER BY CAST(clave AS INTEGER) DESC
       LIMIT 1
     ''');

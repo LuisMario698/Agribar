@@ -1434,6 +1434,8 @@ class _NominaScreenState extends State<NominaScreen>
     
     // 🔧 Validación adicional de datos antes de guardar
     bool hayDatosValidos = false;
+    bool hayCambiosPendientes = _detectUnsavedChanges();
+    
     for (final emp in empleadosFiltrados) {
       // Verificar si tiene al menos un día trabajado
       for (int day = 0; day < 7; day++) {
@@ -1446,7 +1448,8 @@ class _NominaScreenState extends State<NominaScreen>
       if (hayDatosValidos) break;
     }
     
-    if (!hayDatosValidos) {
+    // Si no hay datos válidos Y no hay cambios pendientes, mostrar mensaje
+    if (!hayDatosValidos && !hayCambiosPendientes) {
       // Mostrar diálogo informativo que solo permite cancelar
       await showDialog<bool>(
         context: context,
@@ -1475,9 +1478,11 @@ class _NominaScreenState extends State<NominaScreen>
         ),
       );
       
-      // Siempre regresar sin guardar cuando no hay datos
+      // Siempre regresar sin guardar cuando no hay datos ni cambios
       return;
     }
+    
+    // Si hay cambios pendientes pero no hay sueldos, continuar con el guardado sin confirmación
     
     if (_startDate == null ||
         _endDate == null ||
