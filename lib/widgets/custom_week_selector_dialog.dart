@@ -372,7 +372,7 @@ class _CustomWeekSelectorDialogState extends State<CustomWeekSelectorDialog> {
     );
 
     try {
-      final eliminado = await eliminarSemanaCompleta(semanaId);
+      final eliminado = await SemanaService.eliminarSemanaCompleta(semanaId);
 
       Navigator.of(context).pop(); // Cerrar loading
 

@@ -297,6 +297,36 @@ class _NominaArmarCuadrillaWidgetState extends State<NominaArmarCuadrillaWidget>
     );
   }
 
+  /// Obtiene la semana actualmente abierta
+  Future<Map<String, dynamic>?> obtenerSemanaAbierta() async {
+    try {
+      final service = SemanaService();
+      return await service.obtenerSemanaAbierta();
+    } catch (e) {
+      print('Error al obtener semana abierta: $e');
+      return null;
+    }
+  }
+
+  /// Guarda los empleados asignados a una cuadrilla para una semana específica
+  Future<void> guardarEmpleadosCuadrillaSemana({
+    required int semanaId,
+    required int cuadrillaId,
+    required List<Map<String, dynamic>> empleados,
+  }) async {
+    try {
+      final service = SemanaService();
+      await service.guardarEmpleadosCuadrillaSemana(
+        semanaId: semanaId,
+        cuadrillaId: cuadrillaId,
+        empleados: empleados,
+      );
+    } catch (e) {
+      print('Error al guardar empleados en cuadrilla: $e');
+      rethrow;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // Filtrar empleados disponibles (excluir los que ya están en la cuadrilla)

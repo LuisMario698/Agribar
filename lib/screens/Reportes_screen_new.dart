@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
 import '../services/reportes_service.dart';
 
 /// Pantalla de reportes con filtros de rancho y fechas
@@ -121,6 +122,7 @@ class _ReportesScreenState extends State<ReportesScreen>
       _resumenGeneral = await _reportesService.obtenerResumenGeneral(
         fechaInicio: _fechaInicio,
         fechaFin: _fechaFin,
+        rancho: _ranchoSeleccionado,
       );
 
     } catch (e) {

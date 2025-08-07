@@ -61,6 +61,11 @@ class NominaScreen extends StatefulWidget {
 
 class _NominaScreenState extends State<NominaScreen> 
     with CambiosNoGuardadosMixin {
+
+  /// Obtiene la semana abierta actual desde el servicio de semanas
+  Future<Map<String, dynamic>?> obtenerSemanaAbierta() async {
+    return await SemanaService().obtenerSemanaAbierta();
+  }
   
   @override
   void marcarCambiosNoGuardados() {
