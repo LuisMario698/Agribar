@@ -46,9 +46,9 @@ Future<List<Map<String, dynamic>>> obtenerActividadesDesdeBD() async {
   try {
     print('🔍 Ejecutando consulta SQL para obtener actividades...');
     final result = await db.connection.query('''
-      SELECT id_actividad, clave, nombre, importe, COUNT(*) OVER() as total_rows
+      SELECT id_actividad, clave, nombre, importe, fecha, COUNT(*) OVER() as total_rows
       FROM actividades
-      ORDER BY nombre ASC;
+      ORDER BY fecha DESC, clave ASC;
     ''');
 
     print('📊 Resultados obtenidos: ${result.length} filas');
@@ -68,6 +68,7 @@ Future<List<Map<String, dynamic>>> obtenerActividadesDesdeBD() async {
         'clave': row[1],
         'nombre': row[2],
         'importe': row[3],
+        'fecha': row[4], // Agregada la columna fecha
       };
       print('  Procesando actividad: ${map.toString()}');
       return map;

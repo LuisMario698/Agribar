@@ -23,10 +23,17 @@ class _ActividadesContentState extends State<ActividadesContent> {
   
   // Variable para controlar si se muestra el campo personalizado
   bool mostrarCampoPersonalizado = false;
+  // Variable para el valor seleccionado en el dropdown
+  String actividadSeleccionada = 'Nombre';
 @override
 void initState() {
   super.initState();
   cargarActividadesDesdeBD();
+  
+  // Establecer fecha actual directamente
+  final now = DateTime.now();
+  fecha = now;
+  fechaController.text = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
 }
 
 Future<void> cargarActividadesDesdeBD() async {
@@ -35,22 +42,35 @@ Future<void> cargarActividadesDesdeBD() async {
     actividades.clear();
     for (var fila in resultado) {
       // Convertir fecha de yyyy-mm-dd a dd/mm/yyyy para mostrar
-      String fechaMostrar = fila['fecha'];
+      String fechaMostrar = '';
       try {
-        final partes = fila['fecha'].toString().split('-');
-        if (partes.length == 3) {
-          fechaMostrar = "${partes[2]}/${partes[1]}/${partes[0]}";
+        final fechaRaw = fila['fecha'];
+        if (fechaRaw != null) {
+          // Si es un DateTime
+          if (fechaRaw is DateTime) {
+            fechaMostrar = "${fechaRaw.day.toString().padLeft(2, '0')}/${fechaRaw.month.toString().padLeft(2, '0')}/${fechaRaw.year}";
+          }
+          // Si es un String con formato yyyy-mm-dd
+          else {
+            final fechaStr = fechaRaw.toString();
+            final partes = fechaStr.split('-');
+            if (partes.length == 3) {
+              fechaMostrar = "${partes[2]}/${partes[1]}/${partes[0]}";
+            } else {
+              fechaMostrar = fechaStr; // Usar formato original si no se puede convertir
+            }
+          }
         }
       } catch (e) {
-        // Si hay error, mantener formato original
-        fechaMostrar = fila['fecha'];
+        print('Error procesando fecha: $e');
+        fechaMostrar = fila['fecha']?.toString() ?? '';
       }
       
       actividades.add([
-        fila['clave'],
+        fila['clave']?.toString() ?? '',
         fechaMostrar,
-        fila['importe'].toString(),
-        fila['nombre'],
+        fila['importe']?.toString() ?? '0',
+        fila['nombre']?.toString() ?? '',
       ]);
     }
   });
@@ -82,12 +102,22 @@ Future<void> agregarActividad() async {
     return;
   }
 
-  if (importeController.text.isEmpty ||
-      fechaController.text.isEmpty ||
-      nombreController.text.isEmpty) {
+  // Validar campos obligatorios (excluir nombreController de la validación directa)
+  if (importeController.text.isEmpty || fechaController.text.isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Por favor completa todos los campos'),
+        backgroundColor: Colors.red,
+      ),
+    );
+    return;
+  }
+
+  // Validar que se haya seleccionado una actividad válida (no "Nombre")
+  if (actividadSeleccionada == 'Nombre') {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Por favor selecciona una actividad válida'),
         backgroundColor: Colors.red,
       ),
     );
@@ -99,7 +129,7 @@ Future<void> agregarActividad() async {
   // Determinar el nombre a usar: personalizado si está habilitado, sino el del dropdown
   final nombreActividad = mostrarCampoPersonalizado 
       ? nombrePersonalizadoController.text 
-      : nombreController.text;
+      : actividadSeleccionada;
   
   final nuevaActividad = {
     'clave': claveGenerada,
@@ -132,11 +162,14 @@ Future<void> agregarActividad() async {
   /// Limpia todos los campos del formulario
   void _limpiarCampos() {
     importeController.clear();
-    fecha = null;
-    fechaController.clear();
-    nombreController.clear();
     nombrePersonalizadoController.clear();
     mostrarCampoPersonalizado = false; // Resetear el estado del campo personalizado
+    actividadSeleccionada = 'Nombre'; // Resetear el dropdown
+    
+    // Restablecer fecha actual
+    final now = DateTime.now();
+    fecha = now;
+    fechaController.text = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
   }
 
   @override
@@ -425,17 +458,16 @@ Future<void> agregarActividad() async {
     return SizedBox(
       width: width,
       child: DropdownButtonFormField<String>(
-        value: nombreController.text.isEmpty ? 'Nombre' : nombreController.text,
+        value: actividadSeleccionada,
         items: actividades.map((act) => DropdownMenuItem(value: act, child: Text(act))).toList(),
         onChanged: (value) {
           setState(() {
+            actividadSeleccionada = value ?? 'Nombre';
             if (value == 'Otro') {
               mostrarCampoPersonalizado = true;
-              nombreController.text = 'Otro';
               nombrePersonalizadoController.clear(); // Limpiar el campo personalizado
             } else {
               mostrarCampoPersonalizado = false;
-              nombreController.text = value ?? '';
               nombrePersonalizadoController.clear(); // Limpiar el campo personalizado al cambiar
             }
           });
