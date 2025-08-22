@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/reportes_service.dart';
+import '../widgets/reportes_gastos_widget.dart';
 
 /// Pantalla de reportes con filtros de rancho y fechas
 /// Incluye tres tipos de reportes: General, Por Rancho y Por Actividad
@@ -40,7 +41,7 @@ class _ReportesScreenState extends State<ReportesScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _establecerFechasPorDefecto();
     _cargarDatosIniciales();
   }
@@ -521,6 +522,12 @@ class _ReportesScreenState extends State<ReportesScreen>
                     child: Text('Por Actividad'),
                   ),
                 ),
+                Tab(
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    child: Text('Gastos por Actividad'),
+                  ),
+                ),
               ],
             ),
           ),
@@ -537,6 +544,7 @@ class _ReportesScreenState extends State<ReportesScreen>
                       _construirReporteGeneral(),
                       _construirReportePorRancho(),
                       _construirReportePorActividad(),
+                      _construirReporteGastosPorActividad(),
                     ],
                   ),
           ),
@@ -807,5 +815,9 @@ class _ReportesScreenState extends State<ReportesScreen>
         backgroundColor: Colors.blue,
       ),
     );
+  }
+
+  Widget _construirReporteGastosPorActividad() {
+    return ReportesGastosWidget();
   }
 }
