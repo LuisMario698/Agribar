@@ -1,5 +1,11 @@
 import 'dart:math' as math;
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:excel/excel.dart' as ExcelPkg;
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 import '../services/reportes_gastos_service.dart';
 import '../theme/app_styles.dart';
 
@@ -130,24 +136,537 @@ class _ReportesGastosWidgetState extends State<ReportesGastosWidget> {
     return _datosReporte.fold(0.0, (sum, item) => sum + (item['total_pagado'] as double));
   }
 
-  void _exportarPDF() {
-    // TODO: Implementar exportación a PDF
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Exportación a PDF - En desarrollo'),
-        backgroundColor: Colors.blue,
-      ),
-    );
+  void _exportarPDF() async {
+    try {
+      // Seleccionar ubicación para guardar PDF
+      String? outputFile = await FilePicker.platform.saveFile(
+        dialogTitle: 'Guardar reporte como PDF',
+        fileName: 'reporte_gastos_${_getTipoReporteLabel()}_${DateTime.now().millisecondsSinceEpoch}.pdf',
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+      );
+
+      if (outputFile != null) {
+        // Asegurar que la extensión sea correcta
+        if (!outputFile.endsWith('.pdf')) {
+          outputFile += '.pdf';
+        }
+        
+        // Crear archivo PDF profesional
+        final pdf = pw.Document();
+        
+        // Cargar logo de la empresa
+        final logoBytes = await rootBundle.load('assets/logo.jpg');
+        final logoImage = pw.MemoryImage(logoBytes.buffer.asUint8List());
+        
+        // Obtener encabezados y datos
+        List<String> headers = _getColumnHeaders();
+        List<List<String>> tableData = _datosReporte.map((fila) => 
+          _getRowValues(fila).map((value) => value.toString()).toList()
+        ).toList();
+        
+        // Calcular total general
+        double totalGeneral = 0.0;
+        for (var fila in _datosReporte) {
+          totalGeneral += (fila['total_pagado'] ?? 0.0);
+        }
+        
+        // Obtener información de la semana seleccionada
+        String semanaInfo = 'N/A';
+        if (_semanaSeleccionada != null && _semanas.isNotEmpty) {
+          final semana = _semanas.firstWhere(
+            (s) => s['id'] == _semanaSeleccionada,
+            orElse: () => {'fecha_inicio': 'N/A', 'fecha_fin': 'N/A'},
+          );
+          semanaInfo = '${semana['fecha_inicio']} - ${semana['fecha_fin']}';
+        }
+        
+        pdf.addPage(
+          pw.MultiPage(
+            pageFormat: PdfPageFormat.letter, // Cambiar a tamaño carta
+            margin: pw.EdgeInsets.all(25),
+            header: (pw.Context context) {
+              // Solo mostrar el header completo en la primera página
+              if (context.pageNumber == 1) {
+                return pw.Container(
+                  margin: pw.EdgeInsets.only(bottom: 25),
+                  child: pw.Column(
+                    children: [
+                      // Header principal con logo e información
+                      pw.Row(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          // Logo de la empresa en la esquina izquierda
+                          pw.Container(
+                            width: 70,
+                            height: 70,
+                            child: pw.Image(logoImage, fit: pw.BoxFit.contain),
+                          ),
+                          pw.SizedBox(width: 20),
+                          // Información de la empresa y reporte
+                          pw.Expanded(
+                            child: pw.Column(
+                              crossAxisAlignment: pw.CrossAxisAlignment.start,
+                              children: [
+                                pw.Text(
+                                  'AGRIBAR',
+                                  style: pw.TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: pw.FontWeight.bold,
+                                    color: PdfColors.green800,
+                                  ),
+                                ),
+                                pw.SizedBox(height: 3),
+                                pw.Text(
+                                  'Sistema de Gestión Agrícola',
+                                  style: pw.TextStyle(
+                                    fontSize: 11,
+                                    color: PdfColors.grey700,
+                                  ),
+                                ),
+                                pw.SizedBox(height: 8),
+                                pw.Container(
+                                  padding: pw.EdgeInsets.all(8),
+                                  decoration: pw.BoxDecoration(
+                                    color: PdfColors.green50,
+                                    border: pw.Border.all(color: PdfColors.green200),
+                                    borderRadius: pw.BorderRadius.circular(4),
+                                  ),
+                                  child: pw.Text(
+                                    'REPORTE DE GASTOS - ${_getTipoReporteLabel().toUpperCase()}',
+                                    style: pw.TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: pw.FontWeight.bold,
+                                      color: PdfColors.green800,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          // Información del reporte en la esquina derecha
+                          pw.Container(
+                            width: 180,
+                            child: pw.Column(
+                              crossAxisAlignment: pw.CrossAxisAlignment.end,
+                              children: [
+                                _buildInfoRow('Fecha de generación:', '${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}'),
+                                _buildInfoRow('Hora:', '${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')}'),
+                                _buildInfoRow('Generado por:', 'Sistema AGRIBAR'),
+                                _buildInfoRow('Semana:', semanaInfo),
+                                _buildInfoRow('Tipo de reporte:', _getTipoReporteLabel()),
+                                if (_tipoReporte == 'rancho' && _ranchoSeleccionado != null)
+                                  _buildInfoRow('Rancho:', _getRanchoNombre(_ranchoSeleccionado!)),
+                                if (_tipoReporte == 'actividad' && _actividadSeleccionada != null)
+                                  _buildInfoRow('Actividad:', _getActividadNombre(_actividadSeleccionada!)),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      pw.SizedBox(height: 15),
+                      // Línea divisoria después del header
+                      pw.Container(
+                        height: 2,
+                        color: PdfColors.green600,
+                      ),
+                    ],
+                  ),
+                );
+              } else {
+                // Para páginas siguientes, solo mostrar un header simple
+                return pw.Container(
+                  margin: pw.EdgeInsets.only(bottom: 15),
+                  child: pw.Column(
+                    children: [
+                      pw.Row(
+                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                        children: [
+                          pw.Text(
+                            'AGRIBAR - Reporte de Gastos',
+                            style: pw.TextStyle(
+                              fontSize: 12,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColors.green800,
+                            ),
+                          ),
+                          pw.Text(
+                            'Página ${context.pageNumber}',
+                            style: pw.TextStyle(
+                              fontSize: 10,
+                              color: PdfColors.grey600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      pw.SizedBox(height: 8),
+                      pw.Container(
+                        height: 1,
+                        color: PdfColors.green400,
+                      ),
+                    ],
+                  ),
+                );
+              }
+            },
+            build: (pw.Context context) {
+              return [
+                // Espacio después del header
+                pw.SizedBox(height: 20),
+                
+                // Mostrar resumen de ranchos si es reporte general
+                if (_tipoReporte == 'general' && _resumenRanchos.isNotEmpty) ...[
+                  pw.Text(
+                    'RESUMEN POR RANCHOS',
+                    style: pw.TextStyle(
+                      fontSize: 14,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.green800,
+                    ),
+                  ),
+                  pw.SizedBox(height: 10),
+                  pw.TableHelper.fromTextArray(
+                    headers: ['Rancho', 'Empleados', 'Cuadrillas', 'Total Pagado'],
+                    data: _resumenRanchos.map((rancho) => [
+                      rancho['rancho_nombre'] ?? 'Sin asignar',
+                      (rancho['empleados_trabajaron'] ?? 0).toString(),
+                      (rancho['cuadrillas_trabajaron'] ?? 0).toString(),
+                      '\$${(rancho['total_ganancia'] ?? 0.0).toStringAsFixed(2)}',
+                    ]).toList(),
+                    headerStyle: pw.TextStyle(
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.white,
+                    ),
+                    headerDecoration: pw.BoxDecoration(color: PdfColors.green600),
+                    cellStyle: pw.TextStyle(fontSize: 10),
+                    cellAlignments: {
+                      0: pw.Alignment.centerLeft,
+                      1: pw.Alignment.center,
+                      2: pw.Alignment.center,
+                      3: pw.Alignment.centerRight,
+                    },
+                  ),
+                  pw.SizedBox(height: 30),
+                ],
+                
+                // Título de la tabla principal
+                pw.Text(
+                  'DETALLE DE ACTIVIDADES',
+                  style: pw.TextStyle(
+                    fontSize: 14,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.green800,
+                  ),
+                ),
+                pw.SizedBox(height: 10),
+                
+                // Tabla principal de datos
+                pw.TableHelper.fromTextArray(
+                  headers: headers,
+                  data: tableData,
+                  headerStyle: pw.TextStyle(
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.white,
+                    fontSize: 11,
+                  ),
+                  headerDecoration: pw.BoxDecoration(color: PdfColors.green600),
+                  cellStyle: pw.TextStyle(fontSize: 9),
+                  cellAlignments: Map.fromIterable(
+                    List.generate(headers.length, (index) => index),
+                    value: (index) {
+                      // Alinear números a la derecha, texto a la izquierda
+                      if (headers[index].contains('Total') || 
+                          headers[index].contains('Empleados') || 
+                          headers[index].contains('Cuadrillas') ||
+                          headers[index].contains('Promedio') ||
+                          headers[index].contains('Eficiencia')) {
+                        return pw.Alignment.centerRight;
+                      }
+                      return pw.Alignment.centerLeft;
+                    },
+                  ),
+                  border: pw.TableBorder.all(color: PdfColors.grey400),
+                  oddRowDecoration: pw.BoxDecoration(color: PdfColors.grey50),
+                ),
+                
+                pw.SizedBox(height: 30),
+                
+                // Línea divisoria
+                pw.Container(
+                  height: 2,
+                  color: PdfColors.green600,
+                ),
+                
+                pw.SizedBox(height: 15),
+                
+                // Total general con diseño destacado
+                pw.Container(
+                  padding: pw.EdgeInsets.all(15),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColors.green50,
+                    border: pw.Border.all(color: PdfColors.green600, width: 2),
+                    borderRadius: pw.BorderRadius.circular(8),
+                  ),
+                  child: pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text(
+                            'TOTAL GENERAL',
+                            style: pw.TextStyle(
+                              fontSize: 16,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColors.green800,
+                            ),
+                          ),
+                          pw.Text(
+                            'Suma total de todos los gastos reportados',
+                            style: pw.TextStyle(
+                              fontSize: 10,
+                              color: PdfColors.grey700,
+                            ),
+                          ),
+                        ],
+                      ),
+                      pw.Text(
+                        '\$${totalGeneral.toStringAsFixed(2)}',
+                        style: pw.TextStyle(
+                          fontSize: 20,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.green800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                pw.SizedBox(height: 20),
+                
+                // Información adicional
+                pw.Container(
+                  padding: pw.EdgeInsets.all(10),
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border.all(color: PdfColors.grey400),
+                    borderRadius: pw.BorderRadius.circular(4),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                        'Información del Reporte:',
+                        style: pw.TextStyle(
+                          fontSize: 10,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+                      pw.SizedBox(height: 5),
+                      pw.Text(
+                        '• Total de registros: ${_datosReporte.length}',
+                        style: pw.TextStyle(fontSize: 9),
+                      ),
+                      pw.Text(
+                        '• Reporte generado automáticamente por el Sistema AGRIBAR',
+                        style: pw.TextStyle(fontSize: 9),
+                      ),
+                      pw.Text(
+                        '• Los montos están expresados en pesos mexicanos (MXN)',
+                        style: pw.TextStyle(fontSize: 9),
+                      ),
+                    ],
+                  ),
+                ),
+              ];
+            },
+            footer: (pw.Context context) {
+              return pw.Container(
+                margin: pw.EdgeInsets.only(top: 20),
+                padding: pw.EdgeInsets.symmetric(vertical: 10),
+                decoration: pw.BoxDecoration(
+                  border: pw.Border(top: pw.BorderSide(color: PdfColors.grey400)),
+                ),
+                child: pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text(
+                      'AGRIBAR - Sistema de Gestión Agrícola',
+                      style: pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+                    ),
+                    pw.Text(
+                      'Página ${context.pageNumber} de ${context.pagesCount}',
+                      style: pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        );
+        
+        // Guardar archivo
+        final file = File(outputFile);
+        await file.writeAsBytes(await pdf.save());
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('PDF guardado exitosamente en: ${outputFile}'),
+            backgroundColor: AppColors.green,
+            duration: Duration(seconds: 3),
+            action: SnackBarAction(
+              label: 'Abrir ubicación',
+              textColor: Colors.white,
+              onPressed: () {
+                // Aquí podrías agregar funcionalidad para abrir la carpeta
+              },
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al exportar PDF: $e'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 4),
+        ),
+      );
+    }
   }
 
-  void _exportarExcel() {
-    // TODO: Implementar exportación a Excel
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Exportación a Excel - En desarrollo'),
-        backgroundColor: Colors.green,
-      ),
-    );
+  String _getTipoReporteLabel() {
+    switch (_tipoReporte) {
+      case 'general':
+        return 'General';
+      case 'rancho':
+        return 'Por Rancho';
+      case 'actividad':
+        return 'Por Actividad';
+      default:
+        return 'General';
+    }
+  }
+
+  void _exportarExcel() async {
+    try {
+      // Seleccionar ubicación para guardar Excel
+      String? outputFile = await FilePicker.platform.saveFile(
+        dialogTitle: 'Guardar reporte como Excel',
+        fileName: 'reporte_gastos_${DateTime.now().millisecondsSinceEpoch}.xlsx',
+        type: FileType.custom,
+        allowedExtensions: ['xlsx'],
+      );
+
+      if (outputFile != null) {
+        // Asegurar que la extensión sea correcta
+        if (!outputFile.endsWith('.xlsx')) {
+          outputFile += '.xlsx';
+        }
+        
+        // Crear archivo Excel
+        var excel = ExcelPkg.Excel.createExcel();
+        var sheet = excel['Reporte'];
+        
+        // Agregar encabezados según el tipo de reporte
+        List<String> headers = _getColumnHeaders();
+        for (int i = 0; i < headers.length; i++) {
+          var cell = sheet.cell(ExcelPkg.CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0));
+          cell.value = headers[i];
+        }
+        
+        // Agregar datos
+        for (int rowIndex = 0; rowIndex < _datosReporte.length; rowIndex++) {
+          var fila = _datosReporte[rowIndex];
+          List<dynamic> valores = _getRowValues(fila);
+          
+          for (int colIndex = 0; colIndex < valores.length; colIndex++) {
+            var cellValue = valores[colIndex];
+            var cell = sheet.cell(ExcelPkg.CellIndex.indexByColumnRow(
+              columnIndex: colIndex, 
+              rowIndex: rowIndex + 1
+            ));
+            
+            // Asignar el valor directamente
+            cell.value = cellValue;
+          }
+        }
+        
+        // Guardar archivo
+        var fileBytes = excel.save();
+        if (fileBytes != null) {
+          final file = File(outputFile);
+          await file.writeAsBytes(fileBytes);
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Excel guardado en: ${outputFile}'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        } else {
+          throw Exception('No se pudieron generar los bytes del archivo Excel');
+        }
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al exportar Excel: $e'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 4),
+        ),
+      );
+    }
+  }
+
+  List<String> _getColumnHeaders() {
+    switch (_tipoReporte) {
+      case 'general':
+        return ['Clave', 'Actividad', 'Empleados', 'Cuadrillas', 'Total Pagado'];
+      case 'rancho':
+        return ['Clave', 'Actividad', 'Empleados', 'Cuadrillas', 'Ranchos', 'Total'];
+      case 'actividad':
+        return ['Clave', 'Cuadrilla', 'Empleados', 'Total'];
+      default:
+        return ['Clave', 'Actividad', 'Empleados', 'Cuadrillas', 'Total Pagado'];
+    }
+  }
+
+  List<dynamic> _getRowValues(Map<String, dynamic> fila) {
+    switch (_tipoReporte) {
+      case 'general':
+        return [
+          fila['actividad_clave'] ?? '',
+          fila['actividad_nombre'] ?? '',
+          fila['empleados_unicos'] ?? 0,
+          fila['cuadrillas_unicas'] ?? 0,
+          fila['total_pagado'] ?? 0.0
+        ];
+      case 'rancho':
+        return [
+          fila['actividad_clave'] ?? '',
+          fila['actividad_nombre'] ?? '',
+          fila['empleados_unicos'] ?? 0,
+          fila['cuadrillas_trabajaron'] ?? 0,
+          fila['ranchos_trabajaron'] ?? 0,
+          fila['total_pagado'] ?? 0.0
+        ];
+      case 'actividad':
+        return [
+          fila['cuadrilla_clave'] ?? '',
+          fila['cuadrilla_nombre'] ?? '',
+          fila['empleados_unicos'] ?? 0,
+          fila['total_pagado'] ?? 0.0
+        ];
+      default:
+        return [
+          fila['empleado_clave'] ?? '',
+          fila['empleado_nombre'] ?? '',
+          fila['actividad_nombre'] ?? '',
+          fila['rancho_nombre'] ?? '',
+          fila['total_pagado'] ?? 0.0
+        ];
+    }
   }
 
   Widget _buildExportButton({
@@ -715,9 +1234,35 @@ class _ReportesGastosWidgetState extends State<ReportesGastosWidget> {
       ),
     ));
 
-    // Para reporte general, solo mostrar columnas básicas
+    // Para reporte general, mostrar columnas simplificadas y profesionales
     if (_tipoReporte == 'general') {
-      // Total Pagado para reporte general
+      // Empleados Únicos
+      columns.add(DataColumn(
+        label: SizedBox(
+          width: 90,
+          child: Text(
+            'Empleados',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            textAlign: TextAlign.center,
+          ),
+        ),
+        numeric: true,
+      ));
+      
+      // Cuadrillas
+      columns.add(DataColumn(
+        label: SizedBox(
+          width: 90,
+          child: Text(
+            'Cuadrillas',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            textAlign: TextAlign.center,
+          ),
+        ),
+        numeric: true,
+      ));
+      
+      // Total Pagado
       columns.add(DataColumn(
         label: SizedBox(
           width: 120,
@@ -729,6 +1274,7 @@ class _ReportesGastosWidgetState extends State<ReportesGastosWidget> {
         ),
         numeric: true,
       ));
+      
       return columns;
     }
     
@@ -985,8 +1531,64 @@ class _ReportesGastosWidgetState extends State<ReportesGastosWidget> {
       ),
     ));
 
-    // Para el reporte general, solo mostrar columnas básicas
+    // Para el reporte general, mostrar columnas simplificadas y profesionales
     if (_tipoReporte == 'general') {
+      // Empleados únicos
+      final empleados = item['empleados_unicos'] ?? 0;
+      cells.add(DataCell(
+        SizedBox(
+          width: 90,
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: empleados > 0 ? Colors.blue.shade50 : Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: empleados > 0 ? Colors.blue.shade200 : Colors.grey.shade300,
+                ),
+              ),
+              child: Text(
+                empleados.toString(),
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: empleados > 0 ? Colors.blue.shade700 : Colors.grey.shade600,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ));
+      
+      // Cuadrillas únicas
+      final cuadrillas = item['cuadrillas_unicas'] ?? 0;
+      cells.add(DataCell(
+        SizedBox(
+          width: 90,
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: cuadrillas > 0 ? Colors.orange.shade50 : Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: cuadrillas > 0 ? Colors.orange.shade200 : Colors.grey.shade300,
+                ),
+              ),
+              child: Text(
+                cuadrillas.toString(),
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: cuadrillas > 0 ? Colors.orange.shade700 : Colors.grey.shade600,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ));
+      
       // Total pagado
       final totalPagado = item['total_pagado'] ?? 0.0;
       cells.add(DataCell(
@@ -996,7 +1598,11 @@ class _ReportesGastosWidgetState extends State<ReportesGastosWidget> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: AppColors.green.withOpacity(0.15),
+                gradient: LinearGradient(
+                  colors: [AppColors.green.withOpacity(0.15), AppColors.green.withOpacity(0.1)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: AppColors.green.withOpacity(0.3)),
               ),
@@ -1938,5 +2544,50 @@ class _ReportesGastosWidgetState extends State<ReportesGastosWidget> {
         ],
       ),
     );
+  }
+  
+  // Métodos auxiliares para el PDF
+  pw.Widget _buildInfoRow(String label, String value) {
+    return pw.Padding(
+      padding: pw.EdgeInsets.symmetric(vertical: 1),
+      child: pw.Row(
+        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+        children: [
+          pw.Text(
+            label,
+            style: pw.TextStyle(
+              fontSize: 9,
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.grey700,
+            ),
+          ),
+          pw.Text(
+            value,
+            style: pw.TextStyle(
+              fontSize: 9,
+              color: PdfColors.grey800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  String _getRanchoNombre(int ranchoId) {
+    try {
+      final rancho = _ranchos.firstWhere((r) => r['id'] == ranchoId);
+      return rancho['nombre'] ?? 'Rancho $ranchoId';
+    } catch (e) {
+      return 'Rancho $ranchoId';
+    }
+  }
+  
+  String _getActividadNombre(int actividadId) {
+    try {
+      final actividad = _actividades.firstWhere((a) => a['id'] == actividadId);
+      return actividad['nombre'] ?? 'Actividad $actividadId';
+    } catch (e) {
+      return 'Actividad $actividadId';
+    }
   }
 }
