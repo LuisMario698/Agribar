@@ -174,11 +174,17 @@ class _ReportesGastosWidgetState extends State<ReportesGastosWidget> {
         // Obtener información de la semana seleccionada
         String semanaInfo = 'N/A';
         if (_semanaSeleccionada != null && _semanas.isNotEmpty) {
-          final semana = _semanas.firstWhere(
-            (s) => s['id'] == _semanaSeleccionada,
-            orElse: () => {'fecha_inicio': 'N/A', 'fecha_fin': 'N/A'},
-          );
-          semanaInfo = '${semana['fecha_inicio']} - ${semana['fecha_fin']}';
+          try {
+            final semana = _semanas.firstWhere(
+              (s) => s['id'] == _semanaSeleccionada,
+            );
+            // Formatear las fechas para mostrar solo la fecha sin tiempo
+            String fechaInicio = semana['fecha_inicio'].toString().split(' ')[0];
+            String fechaFin = semana['fecha_fin'].toString().split(' ')[0];
+            semanaInfo = '$fechaInicio - $fechaFin';
+          } catch (e) {
+            semanaInfo = 'Semana no encontrada';
+          }
         }
         
         pdf.addPage(
@@ -314,8 +320,9 @@ class _ReportesGastosWidgetState extends State<ReportesGastosWidget> {
                 // Espacio después del header
                 pw.SizedBox(height: 20),
                 
-                // Mostrar resumen de ranchos si es reporte general
-                if (_tipoReporte == 'general' && _resumenRanchos.isNotEmpty) ...[
+                // Mostrar resumen de ranchos si es reporte general o por actividad
+                if ((_tipoReporte == 'general' && _resumenRanchos.isNotEmpty) || 
+                    (_tipoReporte == 'actividad' && _resumenRanchosPorActividad.isNotEmpty)) ...[
                   pw.Text(
                     'RESUMEN POR RANCHOS',
                     style: pw.TextStyle(
@@ -327,7 +334,7 @@ class _ReportesGastosWidgetState extends State<ReportesGastosWidget> {
                   pw.SizedBox(height: 10),
                   pw.TableHelper.fromTextArray(
                     headers: ['Rancho', 'Empleados', 'Cuadrillas', 'Total Pagado'],
-                    data: _resumenRanchos.map((rancho) => [
+                    data: (_tipoReporte == 'general' ? _resumenRanchos : _resumenRanchosPorActividad).map((rancho) => [
                       rancho['rancho_nombre'] ?? 'Sin asignar',
                       (rancho['empleados_trabajaron'] ?? 0).toString(),
                       (rancho['cuadrillas_trabajaron'] ?? 0).toString(),
@@ -552,7 +559,7 @@ class _ReportesGastosWidgetState extends State<ReportesGastosWidget> {
       // Seleccionar ubicación para guardar Excel
       String? outputFile = await FilePicker.platform.saveFile(
         dialogTitle: 'Guardar reporte como Excel',
-        fileName: 'reporte_gastos_${DateTime.now().millisecondsSinceEpoch}.xlsx',
+        fileName: 'AGRIBAR_Reporte_${_getTipoReporteLabel()}_${DateTime.now().millisecondsSinceEpoch}.xlsx',
         type: FileType.custom,
         allowedExtensions: ['xlsx'],
       );
@@ -563,18 +570,111 @@ class _ReportesGastosWidgetState extends State<ReportesGastosWidget> {
           outputFile += '.xlsx';
         }
         
-        // Crear archivo Excel
+        // Crear archivo Excel profesional
         var excel = ExcelPkg.Excel.createExcel();
-        var sheet = excel['Reporte'];
         
-        // Agregar encabezados según el tipo de reporte
-        List<String> headers = _getColumnHeaders();
-        for (int i = 0; i < headers.length; i++) {
-          var cell = sheet.cell(ExcelPkg.CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0));
-          cell.value = headers[i];
+        // Eliminar la hoja por defecto
+        excel.delete('Sheet1');
+        
+        // Crear hoja principal con nombre descriptivo
+        String nombreHoja = 'Reporte ${_getTipoReporteLabel()}';
+        var sheet = excel[nombreHoja];
+        
+        // Obtener información de la semana
+        String semanaInfo = 'N/A';
+        if (_semanaSeleccionada != null && _semanas.isNotEmpty) {
+          try {
+            final semana = _semanas.firstWhere(
+              (s) => s['id'] == _semanaSeleccionada,
+            );
+            String fechaInicio = semana['fecha_inicio'].toString().split(' ')[0];
+            String fechaFin = semana['fecha_fin'].toString().split(' ')[0];
+            semanaInfo = '$fechaInicio - $fechaFin';
+          } catch (e) {
+            semanaInfo = 'Semana no encontrada';
+          }
         }
         
-        // Agregar datos
+        int filaActual = 0;
+        
+        // ===== HEADER INFORMATIVO =====
+        // Título principal
+        var celdaTitulo = sheet.cell(ExcelPkg.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: filaActual));
+        celdaTitulo.value = 'AGRIBAR - SISTEMA DE GESTIÓN AGRÍCOLA';
+        filaActual++;
+        
+        // Subtítulo
+        var celdaSubtitulo = sheet.cell(ExcelPkg.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: filaActual));
+        celdaSubtitulo.value = 'REPORTE DE GASTOS - ${_getTipoReporteLabel().toUpperCase()}';
+        filaActual += 2;
+        
+        // Información del reporte
+        sheet.cell(ExcelPkg.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: filaActual)).value = 'Fecha de generación:';
+        sheet.cell(ExcelPkg.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: filaActual)).value = '${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}';
+        filaActual++;
+        
+        sheet.cell(ExcelPkg.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: filaActual)).value = 'Semana:';
+        sheet.cell(ExcelPkg.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: filaActual)).value = semanaInfo;
+        filaActual++;
+        
+        sheet.cell(ExcelPkg.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: filaActual)).value = 'Tipo de reporte:';
+        sheet.cell(ExcelPkg.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: filaActual)).value = _getTipoReporteLabel();
+        filaActual++;
+        
+        if (_tipoReporte == 'rancho' && _ranchoSeleccionado != null) {
+          sheet.cell(ExcelPkg.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: filaActual)).value = 'Rancho:';
+          sheet.cell(ExcelPkg.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: filaActual)).value = _getRanchoNombre(_ranchoSeleccionado!);
+          filaActual++;
+        }
+        
+        if (_tipoReporte == 'actividad' && _actividadSeleccionada != null) {
+          sheet.cell(ExcelPkg.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: filaActual)).value = 'Actividad:';
+          sheet.cell(ExcelPkg.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: filaActual)).value = _getActividadNombre(_actividadSeleccionada!);
+          filaActual++;
+        }
+        
+        filaActual += 2;
+        
+        // ===== RESUMEN DE RANCHOS (para reporte general y por actividad) =====
+        if ((_tipoReporte == 'general' && _resumenRanchos.isNotEmpty) || 
+            (_tipoReporte == 'actividad' && _resumenRanchosPorActividad.isNotEmpty)) {
+          // Título del resumen
+          sheet.cell(ExcelPkg.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: filaActual)).value = 'RESUMEN POR RANCHOS';
+          filaActual += 2;
+          
+          // Headers del resumen
+          sheet.cell(ExcelPkg.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: filaActual)).value = 'Rancho';
+          sheet.cell(ExcelPkg.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: filaActual)).value = 'Empleados';
+          sheet.cell(ExcelPkg.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: filaActual)).value = 'Cuadrillas';
+          sheet.cell(ExcelPkg.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: filaActual)).value = 'Total Pagado';
+          filaActual++;
+          
+          // Datos del resumen - usar el resumen correcto según el tipo de reporte
+          List<Map<String, dynamic>> resumenAUsar = _tipoReporte == 'general' ? _resumenRanchos : _resumenRanchosPorActividad;
+          for (var rancho in resumenAUsar) {
+            sheet.cell(ExcelPkg.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: filaActual)).value = rancho['rancho_nombre'] ?? 'Sin asignar';
+            sheet.cell(ExcelPkg.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: filaActual)).value = rancho['empleados_trabajaron'] ?? 0;
+            sheet.cell(ExcelPkg.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: filaActual)).value = rancho['cuadrillas_trabajaron'] ?? 0;
+            sheet.cell(ExcelPkg.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: filaActual)).value = rancho['total_ganancia'] ?? 0.0;
+            filaActual++;
+          }
+          filaActual += 2;
+        }
+        
+        // ===== TABLA PRINCIPAL DE DATOS =====
+        // Título de la tabla
+        sheet.cell(ExcelPkg.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: filaActual)).value = 'DETALLE DE ACTIVIDADES';
+        filaActual += 2;
+        
+        // Headers de la tabla principal
+        List<String> headers = _getColumnHeaders();
+        for (int i = 0; i < headers.length; i++) {
+          var cell = sheet.cell(ExcelPkg.CellIndex.indexByColumnRow(columnIndex: i, rowIndex: filaActual));
+          cell.value = headers[i];
+        }
+        filaActual++;
+        
+        // Datos de la tabla principal
         for (int rowIndex = 0; rowIndex < _datosReporte.length; rowIndex++) {
           var fila = _datosReporte[rowIndex];
           List<dynamic> valores = _getRowValues(fila);
@@ -583,13 +683,30 @@ class _ReportesGastosWidgetState extends State<ReportesGastosWidget> {
             var cellValue = valores[colIndex];
             var cell = sheet.cell(ExcelPkg.CellIndex.indexByColumnRow(
               columnIndex: colIndex, 
-              rowIndex: rowIndex + 1
+              rowIndex: filaActual + rowIndex
             ));
-            
-            // Asignar el valor directamente
             cell.value = cellValue;
           }
         }
+        
+        filaActual += _datosReporte.length + 2;
+        
+        // ===== TOTALES =====
+        double totalGeneral = 0.0;
+        for (var fila in _datosReporte) {
+          totalGeneral += (fila['total_pagado'] ?? 0.0);
+        }
+        
+        sheet.cell(ExcelPkg.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: filaActual)).value = 'TOTAL GENERAL:';
+        sheet.cell(ExcelPkg.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: filaActual)).value = totalGeneral;
+        filaActual++;
+        
+        sheet.cell(ExcelPkg.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: filaActual)).value = 'Total de registros:';
+        sheet.cell(ExcelPkg.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: filaActual)).value = _datosReporte.length;
+        filaActual++;
+        
+        sheet.cell(ExcelPkg.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: filaActual)).value = 'Generado por:';
+        sheet.cell(ExcelPkg.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: filaActual)).value = 'Sistema AGRIBAR';
         
         // Guardar archivo
         var fileBytes = excel.save();
@@ -599,9 +716,24 @@ class _ReportesGastosWidgetState extends State<ReportesGastosWidget> {
           
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Excel guardado en: ${outputFile}'),
-              backgroundColor: Colors.green,
+              content: Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text('Excel profesional guardado exitosamente'),
+                  ),
+                ],
+              ),
+              backgroundColor: AppColors.green,
               duration: Duration(seconds: 3),
+              action: SnackBarAction(
+                label: 'Ver ubicación',
+                textColor: Colors.white,
+                onPressed: () {
+                  // Aquí podrías agregar funcionalidad para abrir la carpeta
+                },
+              ),
             ),
           );
         } else {
@@ -611,7 +743,13 @@ class _ReportesGastosWidgetState extends State<ReportesGastosWidget> {
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error al exportar Excel: $e'),
+          content: Row(
+            children: [
+              Icon(Icons.error, color: Colors.white),
+              const SizedBox(width: 8),
+              Expanded(child: Text('Error al exportar Excel: $e')),
+            ],
+          ),
           backgroundColor: Colors.red,
           duration: Duration(seconds: 4),
         ),
@@ -624,7 +762,7 @@ class _ReportesGastosWidgetState extends State<ReportesGastosWidget> {
       case 'general':
         return ['Clave', 'Actividad', 'Empleados', 'Cuadrillas', 'Total Pagado'];
       case 'rancho':
-        return ['Clave', 'Actividad', 'Empleados', 'Cuadrillas', 'Ranchos', 'Total'];
+        return ['Clave', 'Actividad', 'Empleados', 'Cuadrilla', 'Total'];
       case 'actividad':
         return ['Clave', 'Cuadrilla', 'Empleados', 'Total'];
       default:
@@ -647,8 +785,7 @@ class _ReportesGastosWidgetState extends State<ReportesGastosWidget> {
           fila['actividad_clave'] ?? '',
           fila['actividad_nombre'] ?? '',
           fila['empleados_unicos'] ?? 0,
-          fila['cuadrillas_trabajaron'] ?? 0,
-          fila['ranchos_trabajaron'] ?? 0,
+          fila['cuadrillas_unicas'] ?? 0,
           fila['total_pagado'] ?? 0.0
         ];
       case 'actividad':
@@ -922,97 +1059,183 @@ class _ReportesGastosWidgetState extends State<ReportesGastosWidget> {
   }
 
   Widget _buildDropdownSemana() {
+    // Obtener información de la semana seleccionada para mostrar
+    String semanaTexto = 'Seleccionar semana';
+    if (_semanaSeleccionada != null && _semanas.isNotEmpty) {
+      try {
+        final semana = _semanas.firstWhere(
+          (s) => s['id'] == _semanaSeleccionada,
+        );
+        String fechaInicio = semana['fecha_inicio'].toString().split(' ')[0];
+        String fechaFin = semana['fecha_fin'].toString().split(' ')[0];
+        semanaTexto = '$fechaInicio - $fechaFin';
+      } catch (e) {
+        semanaTexto = 'Semana no encontrada';
+      }
+    }
+    
     return SizedBox(
       width: 350,
-      child: DropdownButtonFormField<int>(
-        value: _semanaSeleccionada,
-        decoration: InputDecoration(
-          labelText: 'Semana *',
-          border: OutlineInputBorder(),
-          prefixIcon: Icon(Icons.calendar_today, color: AppColors.green),
-        ),
-        isExpanded: true,
-        menuMaxHeight: 250, // Altura controlada para semanas
-        items: _semanas.map((semana) {
-          return DropdownMenuItem<int>(
-            value: semana['id'],
-            child: Container(
-              width: double.infinity,
-              child: Text(
-                semana['nombre'] ?? 'Semana sin nombre',
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 14),
+      child: InkWell(
+        onTap: () => _mostrarSelectorSemana(),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.shade400),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.calendar_today, color: AppColors.green),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Semana *',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      semanaTexto,
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: _semanaSeleccionada != null ? Colors.black87 : Colors.grey.shade500,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
               ),
-            ),
-          );
-        }).toList(),
-        onChanged: (value) {
-          setState(() => _semanaSeleccionada = value);
-        },
+              Icon(Icons.arrow_drop_down, color: Colors.grey.shade600),
+            ],
+          ),
+        ),
       ),
     );
   }
 
   Widget _buildDropdownRancho() {
+    // Obtener información del rancho seleccionado para mostrar
+    String ranchoTexto = 'Seleccionar rancho';
+    if (_ranchoSeleccionado != null && _ranchos.isNotEmpty) {
+      try {
+        final rancho = _ranchos.firstWhere(
+          (r) => r['id'] == _ranchoSeleccionado,
+        );
+        ranchoTexto = rancho['nombre'] ?? 'Rancho sin nombre';
+      } catch (e) {
+        ranchoTexto = 'Rancho no encontrado';
+      }
+    }
+    
     return SizedBox(
       width: 250,
-      child: DropdownButtonFormField<int>(
-        value: _ranchoSeleccionado,
-        decoration: InputDecoration(
-          labelText: 'Rancho *',
-          border: OutlineInputBorder(),
-          prefixIcon: Icon(Icons.landscape, color: AppColors.green),
-        ),
-        isExpanded: true,
-        menuMaxHeight: 200, // Altura menor para ranchos (son menos)
-        items: _ranchos.map((rancho) {
-          return DropdownMenuItem<int>(
-            value: rancho['id'],
-            child: Container(
-              width: double.infinity,
-              child: Text(
-                rancho['nombre'] ?? 'Rancho sin nombre',
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 14),
+      child: InkWell(
+        onTap: () => _mostrarSelectorRancho(),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.shade400),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.landscape, color: AppColors.green),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Rancho *',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      ranchoTexto,
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: _ranchoSeleccionado != null ? Colors.black87 : Colors.grey.shade500,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
               ),
-            ),
-          );
-        }).toList(),
-        onChanged: (value) {
-          setState(() => _ranchoSeleccionado = value);
-        },
+              Icon(Icons.arrow_drop_down, color: Colors.grey.shade600),
+            ],
+          ),
+        ),
       ),
     );
   }
 
   Widget _buildDropdownActividad() {
+    // Obtener información de la actividad seleccionada para mostrar
+    String actividadTexto = 'Seleccionar actividad';
+    if (_actividadSeleccionada != null && _actividades.isNotEmpty) {
+      try {
+        final actividad = _actividades.firstWhere(
+          (a) => a['id'] == _actividadSeleccionada,
+        );
+        actividadTexto = actividad['nombre'] ?? 'Actividad sin nombre';
+      } catch (e) {
+        actividadTexto = 'Actividad no encontrada';
+      }
+    }
+    
     return SizedBox(
       width: 250,
-      child: DropdownButtonFormField<int>(
-        value: _actividadSeleccionada,
-        decoration: InputDecoration(
-          labelText: 'Actividad *',
-          border: OutlineInputBorder(),
-          prefixIcon: Icon(Icons.work, color: AppColors.green),
-        ),
-        isExpanded: true,
-        menuMaxHeight: 300, // Limitar altura máxima del menú
-        items: _actividades.map((actividad) {
-          return DropdownMenuItem<int>(
-            value: actividad['id'],
-            child: Container(
-              width: double.infinity,
-              child: Text(
-                actividad['nombre'] ?? 'Actividad sin nombre',
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 14),
+      child: InkWell(
+        onTap: () => _mostrarSelectorActividad(),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.shade400),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.work, color: AppColors.green),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Actividad *',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      actividadTexto,
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: _actividadSeleccionada != null ? Colors.black87 : Colors.grey.shade500,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
               ),
-            ),
-          );
-        }).toList(),
-        onChanged: (value) {
-          setState(() => _actividadSeleccionada = value);
-        },
+              Icon(Icons.arrow_drop_down, color: Colors.grey.shade600),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -2589,5 +2812,887 @@ class _ReportesGastosWidgetState extends State<ReportesGastosWidget> {
     } catch (e) {
       return 'Actividad $actividadId';
     }
+  }
+
+  // Método para mostrar el selector de semana con búsqueda
+  void _mostrarSelectorSemana() async {
+    final semanaSeleccionada = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (BuildContext context) {
+        return _SelectorSemanaDialog(
+          semanas: _semanas,
+          semanaActual: _semanaSeleccionada,
+        );
+      },
+    );
+
+    if (semanaSeleccionada != null) {
+      setState(() {
+        _semanaSeleccionada = semanaSeleccionada['id'];
+      });
+    }
+  }
+
+  // Método para mostrar el selector de rancho con búsqueda
+  void _mostrarSelectorRancho() async {
+    final ranchoSeleccionado = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (BuildContext context) {
+        return _SelectorRanchoDialog(
+          ranchos: _ranchos,
+          ranchoActual: _ranchoSeleccionado,
+        );
+      },
+    );
+
+    if (ranchoSeleccionado != null) {
+      setState(() {
+        _ranchoSeleccionado = ranchoSeleccionado['id'];
+      });
+    }
+  }
+
+  // Método para mostrar el selector de actividad con búsqueda
+  void _mostrarSelectorActividad() async {
+    final actividadSeleccionada = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (BuildContext context) {
+        return _SelectorActividadDialog(
+          actividades: _actividades,
+          actividadActual: _actividadSeleccionada,
+        );
+      },
+    );
+
+    if (actividadSeleccionada != null) {
+      setState(() {
+        _actividadSeleccionada = actividadSeleccionada['id'];
+      });
+    }
+  }
+}
+
+// Dialog personalizado para seleccionar semana con búsqueda
+class _SelectorSemanaDialog extends StatefulWidget {
+  final List<Map<String, dynamic>> semanas;
+  final int? semanaActual;
+
+  const _SelectorSemanaDialog({
+    required this.semanas,
+    this.semanaActual,
+  });
+
+  @override
+  State<_SelectorSemanaDialog> createState() => _SelectorSemanaDialogState();
+}
+
+class _SelectorSemanaDialogState extends State<_SelectorSemanaDialog> {
+  late List<Map<String, dynamic>> semanasFiltradas;
+  final TextEditingController _busquedaController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    semanasFiltradas = List.from(widget.semanas);
+  }
+
+  void _filtrarSemanas(String query) {
+    setState(() {
+      if (query.isEmpty) {
+        semanasFiltradas = List.from(widget.semanas);
+      } else {
+        semanasFiltradas = widget.semanas.where((semana) {
+          final nombre = semana['nombre']?.toString().toLowerCase() ?? '';
+          final fechaInicio = semana['fecha_inicio']?.toString() ?? '';
+          final fechaFin = semana['fecha_fin']?.toString() ?? '';
+          
+          // Búsqueda normal por nombre
+          if (nombre.contains(query.toLowerCase())) {
+            return true;
+          }
+          
+          // Búsqueda por formato de fecha
+          if (query.contains('/') || query.length >= 4) {
+            // Extraer fechas en formato dd/mm/yyyy
+            final fechaInicioFormateada = _formatearFechaParaBusqueda(fechaInicio);
+            final fechaFinFormateada = _formatearFechaParaBusqueda(fechaFin);
+            
+            // Buscar en fecha de inicio o fin
+            if (fechaInicioFormateada.contains(query) || fechaFinFormateada.contains(query)) {
+              return true;
+            }
+            
+            // Búsqueda parcial por año, mes/año, etc.
+            if (_coincideFechaParcial(fechaInicioFormateada, query) || 
+                _coincideFechaParcial(fechaFinFormateada, query)) {
+              return true;
+            }
+          }
+          
+          return false;
+        }).toList();
+      }
+    });
+  }
+  
+  // Convierte fecha de "2024-09-15" a "15/09/2024"
+  String _formatearFechaParaBusqueda(String fecha) {
+    try {
+      if (fecha.contains('-') && fecha.length >= 10) {
+        final partes = fecha.substring(0, 10).split('-');
+        if (partes.length == 3) {
+          return '${partes[2]}/${partes[1]}/${partes[0]}';
+        }
+      }
+      return fecha;
+    } catch (e) {
+      return fecha;
+    }
+  }
+  
+  // Verifica si una fecha coincide parcialmente con la búsqueda
+  bool _coincideFechaParcial(String fechaCompleta, String busqueda) {
+    // Ejemplos de búsqueda:
+    // "2024" -> busca año 2024
+    // "09/2024" -> busca septiembre 2024
+    // "15/09" -> busca día 15 de septiembre
+    
+    final partesFecha = fechaCompleta.split('/');
+    final partesBusqueda = busqueda.split('/');
+    
+    if (partesFecha.length != 3) return false;
+    
+    // Búsqueda solo por año
+    if (partesBusqueda.length == 1 && busqueda.length == 4) {
+      return partesFecha[2] == busqueda;
+    }
+    
+    // Búsqueda por mes/año
+    if (partesBusqueda.length == 2) {
+      return partesFecha[1] == partesBusqueda[0] && partesFecha[2] == partesBusqueda[1];
+    }
+    
+    // Búsqueda por día/mes
+    if (partesBusqueda.length == 2 && partesBusqueda[1].length == 2) {
+      return partesFecha[0] == partesBusqueda[0] && partesFecha[1] == partesBusqueda[1];
+    }
+    
+    return false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        width: 500,
+        height: 600,
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            // Header
+            Row(
+              children: [
+                Icon(Icons.calendar_today, color: AppColors.green, size: 28),
+                const SizedBox(width: 12),
+                Text(
+                  'Seleccionar Semana',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.greenDark,
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            
+            // Campo de búsqueda con formato de fecha
+            TextField(
+              controller: _busquedaController,
+              keyboardType: TextInputType.datetime,
+              decoration: InputDecoration(
+                hintText: 'dd/mm/yyyy - Buscar por fecha...',
+                helperStyle: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                prefixIcon: Icon(Icons.date_range, color: AppColors.green),
+                suffixIcon: _busquedaController.text.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(Icons.clear, color: Colors.grey.shade600),
+                        onPressed: () {
+                          _busquedaController.clear();
+                          _filtrarSemanas('');
+                        },
+                      )
+                    : Icon(Icons.search, color: Colors.grey.shade400),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: AppColors.green, width: 2),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey.shade400),
+                ),
+              ),
+              onChanged: _filtrarSemanas,
+              inputFormatters: [
+                // Permitir solo números y barras
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9/]')),
+                // Limitador de longitud
+                LengthLimitingTextInputFormatter(10),
+                // Formateador personalizado para agregar barras automáticamente
+                _DateInputFormatter(),
+              ],
+            ),
+            const SizedBox(height: 16),
+            
+            // Información
+            Text(
+              '${semanasFiltradas.length} semana(s) encontrada(s)',
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 12),
+            
+            // Lista de semanas
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: semanasFiltradas.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.search_off, size: 48, color: Colors.grey.shade400),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No se encontraron semanas',
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        itemCount: semanasFiltradas.length,
+                        itemBuilder: (context, index) {
+                          final semana = semanasFiltradas[index];
+                          final isSelected = semana['id'] == widget.semanaActual;
+                          
+                          return Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: isSelected ? AppColors.green.withOpacity(0.1) : null,
+                              borderRadius: BorderRadius.circular(6),
+                              border: isSelected ? Border.all(color: AppColors.green, width: 2) : null,
+                            ),
+                            child: ListTile(
+                              title: Text(
+                                semana['nombre'] ?? 'Semana sin nombre',
+                                style: TextStyle(
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                  color: isSelected ? AppColors.greenDark : Colors.black87,
+                                ),
+                              ),
+                              leading: Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: isSelected ? AppColors.green : AppColors.green.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Icon(
+                                  Icons.calendar_month,
+                                  color: isSelected ? Colors.white : AppColors.green,
+                                  size: 20,
+                                ),
+                              ),
+                              trailing: isSelected 
+                                  ? Icon(Icons.check_circle, color: AppColors.green, size: 24)
+                                  : null,
+                              onTap: () {
+                                Navigator.of(context).pop(semana);
+                              },
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ),
+            
+            const SizedBox(height: 20),
+            
+            // Botones de acción
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(
+                    'Cancelar',
+                    style: TextStyle(color: Colors.grey.shade600),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.green,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  onPressed: () {
+                    if (widget.semanaActual != null) {
+                      final semanaActual = widget.semanas.firstWhere(
+                        (s) => s['id'] == widget.semanaActual,
+                        orElse: () => {},
+                      );
+                      Navigator.of(context).pop(semanaActual);
+                    }
+                  },
+                  child: const Text('Confirmar'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _busquedaController.dispose();
+    super.dispose();
+  }
+}
+
+// Formateador personalizado para fechas con formato dd/mm/yyyy
+class _DateInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final text = newValue.text;
+    
+    // Remover caracteres no numéricos excepto /
+    final numericText = text.replaceAll(RegExp(r'[^0-9/]'), '');
+    
+    // Si se está borrando, permitir
+    if (numericText.length < oldValue.text.length) {
+      return newValue.copyWith(text: numericText);
+    }
+    
+    String formattedText = '';
+    int digitCount = 0;
+    
+    for (int i = 0; i < numericText.length; i++) {
+      final char = numericText[i];
+      
+      if (char == '/') {
+        // Solo agregar / si no es consecutiva
+        if (formattedText.isNotEmpty && !formattedText.endsWith('/')) {
+          formattedText += char;
+        }
+      } else {
+        formattedText += char;
+        digitCount++;
+        
+        // Agregar / automáticamente después del día (2 dígitos)
+        if (digitCount == 2 && !formattedText.contains('/')) {
+          formattedText += '/';
+        }
+        // Agregar / automáticamente después del mes (después de dd/mm)
+        else if (digitCount == 4 && formattedText.split('/').length == 2) {
+          formattedText += '/';
+        }
+      }
+      
+      // Limitar a formato dd/mm/yyyy
+      if (formattedText.length >= 10) break;
+    }
+    
+    return TextEditingValue(
+      text: formattedText,
+      selection: TextSelection.collapsed(offset: formattedText.length),
+    );
+  }
+}
+
+// Dialog personalizado para seleccionar rancho con búsqueda
+class _SelectorRanchoDialog extends StatefulWidget {
+  final List<Map<String, dynamic>> ranchos;
+  final int? ranchoActual;
+
+  const _SelectorRanchoDialog({
+    required this.ranchos,
+    this.ranchoActual,
+  });
+
+  @override
+  State<_SelectorRanchoDialog> createState() => _SelectorRanchoDialogState();
+}
+
+class _SelectorRanchoDialogState extends State<_SelectorRanchoDialog> {
+  late List<Map<String, dynamic>> ranchosFiltrados;
+  final TextEditingController _busquedaController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    ranchosFiltrados = List.from(widget.ranchos);
+  }
+
+  void _filtrarRanchos(String query) {
+    setState(() {
+      if (query.isEmpty) {
+        ranchosFiltrados = List.from(widget.ranchos);
+      } else {
+        ranchosFiltrados = widget.ranchos.where((rancho) {
+          final nombre = rancho['nombre']?.toString().toLowerCase() ?? '';
+          return nombre.contains(query.toLowerCase());
+        }).toList();
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        width: 450,
+        height: 500,
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            // Header
+            Row(
+              children: [
+                Icon(Icons.landscape, color: AppColors.green, size: 28),
+                const SizedBox(width: 12),
+                Text(
+                  'Seleccionar Rancho',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.greenDark,
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            
+            // Campo de búsqueda
+            TextField(
+              controller: _busquedaController,
+              decoration: InputDecoration(
+                hintText: 'Buscar rancho...',
+                prefixIcon: Icon(Icons.search, color: AppColors.green),
+                suffixIcon: _busquedaController.text.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(Icons.clear, color: Colors.grey.shade600),
+                        onPressed: () {
+                          _busquedaController.clear();
+                          _filtrarRanchos('');
+                        },
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: AppColors.green, width: 2),
+                ),
+              ),
+              onChanged: _filtrarRanchos,
+            ),
+            const SizedBox(height: 16),
+            
+            // Información
+            Text(
+              '${ranchosFiltrados.length} rancho(s) encontrado(s)',
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 12),
+            
+            // Lista de ranchos
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: ranchosFiltrados.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.search_off, size: 48, color: Colors.grey.shade400),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No se encontraron ranchos',
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        itemCount: ranchosFiltrados.length,
+                        itemBuilder: (context, index) {
+                          final rancho = ranchosFiltrados[index];
+                          final isSelected = rancho['id'] == widget.ranchoActual;
+                          
+                          return Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: isSelected ? AppColors.green.withOpacity(0.1) : null,
+                              borderRadius: BorderRadius.circular(6),
+                              border: isSelected ? Border.all(color: AppColors.green, width: 2) : null,
+                            ),
+                            child: ListTile(
+                              title: Text(
+                                rancho['nombre'] ?? 'Rancho sin nombre',
+                                style: TextStyle(
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                  color: isSelected ? AppColors.greenDark : Colors.black87,
+                                ),
+                              ),
+                              leading: Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: isSelected ? AppColors.green : AppColors.green.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Icon(
+                                  Icons.landscape,
+                                  color: isSelected ? Colors.white : AppColors.green,
+                                  size: 20,
+                                ),
+                              ),
+                              trailing: isSelected 
+                                  ? Icon(Icons.check_circle, color: AppColors.green, size: 24)
+                                  : null,
+                              onTap: () {
+                                Navigator.of(context).pop(rancho);
+                              },
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ),
+            
+            const SizedBox(height: 20),
+            
+            // Botones de acción
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(
+                    'Cancelar',
+                    style: TextStyle(color: Colors.grey.shade600),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.green,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  onPressed: () {
+                    if (widget.ranchoActual != null) {
+                      final ranchoActual = widget.ranchos.firstWhere(
+                        (r) => r['id'] == widget.ranchoActual,
+                        orElse: () => {},
+                      );
+                      Navigator.of(context).pop(ranchoActual);
+                    }
+                  },
+                  child: const Text('Confirmar'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _busquedaController.dispose();
+    super.dispose();
+  }
+}
+
+// Dialog personalizado para seleccionar actividad con búsqueda
+class _SelectorActividadDialog extends StatefulWidget {
+  final List<Map<String, dynamic>> actividades;
+  final int? actividadActual;
+
+  const _SelectorActividadDialog({
+    required this.actividades,
+    this.actividadActual,
+  });
+
+  @override
+  State<_SelectorActividadDialog> createState() => _SelectorActividadDialogState();
+}
+
+class _SelectorActividadDialogState extends State<_SelectorActividadDialog> {
+  late List<Map<String, dynamic>> actividadesFiltradas;
+  final TextEditingController _busquedaController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    actividadesFiltradas = List.from(widget.actividades);
+  }
+
+  void _filtrarActividades(String query) {
+    setState(() {
+      if (query.isEmpty) {
+        actividadesFiltradas = List.from(widget.actividades);
+      } else {
+        actividadesFiltradas = widget.actividades.where((actividad) {
+          final nombre = actividad['nombre']?.toString().toLowerCase() ?? '';
+          final clave = actividad['clave']?.toString().toLowerCase() ?? '';
+          return nombre.contains(query.toLowerCase()) || clave.contains(query.toLowerCase());
+        }).toList();
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        width: 500,
+        height: 600,
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            // Header
+            Row(
+              children: [
+                Icon(Icons.work, color: AppColors.green, size: 28),
+                const SizedBox(width: 12),
+                Text(
+                  'Seleccionar Actividad',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.greenDark,
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            
+            // Campo de búsqueda
+            TextField(
+              controller: _busquedaController,
+              decoration: InputDecoration(
+                hintText: 'Buscar actividad o clave...',
+                helperText: 'Puedes buscar por nombre o clave de actividad',
+                helperStyle: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                prefixIcon: Icon(Icons.search, color: AppColors.green),
+                suffixIcon: _busquedaController.text.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(Icons.clear, color: Colors.grey.shade600),
+                        onPressed: () {
+                          _busquedaController.clear();
+                          _filtrarActividades('');
+                        },
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: AppColors.green, width: 2),
+                ),
+              ),
+              onChanged: _filtrarActividades,
+            ),
+            const SizedBox(height: 16),
+            
+            // Información
+            Text(
+              '${actividadesFiltradas.length} actividad(es) encontrada(s)',
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 12),
+            
+            // Lista de actividades
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: actividadesFiltradas.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.search_off, size: 48, color: Colors.grey.shade400),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No se encontraron actividades',
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        itemCount: actividadesFiltradas.length,
+                        itemBuilder: (context, index) {
+                          final actividad = actividadesFiltradas[index];
+                          final isSelected = actividad['id'] == widget.actividadActual;
+                          
+                          return Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: isSelected ? AppColors.green.withOpacity(0.1) : null,
+                              borderRadius: BorderRadius.circular(6),
+                              border: isSelected ? Border.all(color: AppColors.green, width: 2) : null,
+                            ),
+                            child: ListTile(
+                              title: Text(
+                                actividad['nombre'] ?? 'Actividad sin nombre',
+                                style: TextStyle(
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                  color: isSelected ? AppColors.greenDark : Colors.black87,
+                                ),
+                              ),
+                              subtitle: actividad['clave'] != null
+                                  ? Text(
+                                      'Clave: ${actividad['clave']}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey.shade600,
+                                      ),
+                                    )
+                                  : null,
+                              leading: Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: isSelected ? AppColors.green : AppColors.green.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Icon(
+                                  Icons.work,
+                                  color: isSelected ? Colors.white : AppColors.green,
+                                  size: 20,
+                                ),
+                              ),
+                              trailing: isSelected 
+                                  ? Icon(Icons.check_circle, color: AppColors.green, size: 24)
+                                  : null,
+                              onTap: () {
+                                Navigator.of(context).pop(actividad);
+                              },
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ),
+            
+            const SizedBox(height: 20),
+            
+            // Botones de acción
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(
+                    'Cancelar',
+                    style: TextStyle(color: Colors.grey.shade600),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.green,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  onPressed: () {
+                    if (widget.actividadActual != null) {
+                      final actividadActual = widget.actividades.firstWhere(
+                        (a) => a['id'] == widget.actividadActual,
+                        orElse: () => {},
+                      );
+                      Navigator.of(context).pop(actividadActual);
+                    }
+                  },
+                  child: const Text('Confirmar'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _busquedaController.dispose();
+    super.dispose();
   }
 }
