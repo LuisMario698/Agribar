@@ -1,0 +1,15 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Ejecutar proyecto Flutter",
+			"type": "shell",
+			"command": "flutter run",
+			"group": "build",
+			"isBackground": true,
+			"problemMatcher": [
+				"$flutter"
+			]
+		}
+	]
+}
