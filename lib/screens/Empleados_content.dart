@@ -472,11 +472,7 @@ class _RegistroEmpleadoWizardState extends State<RegistroEmpleadoWizard> {
 
   final TextEditingController registroPatronalController =
       TextEditingController();
-  final TextEditingController empresaController = TextEditingController();
-  final TextEditingController puestoController = TextEditingController();
-  String cuadrilla = '';
   String registroPatronalSeleccionado = ''; // 🔧 Variable específica para dropdown de registro patronal
-  String tipoEmpleado = '';
   bool mostrarMensajeUbicacion = false; // 🔧 Para mostrar mensaje de ubicación
   String ubicacionSeleccionada = ''; // 🔧 Para guardar la ubicación
   
@@ -541,12 +537,6 @@ class _RegistroEmpleadoWizardState extends State<RegistroEmpleadoWizard> {
   final TextEditingController fechaIngresoController = TextEditingController();
 
   final TextEditingController sueldoController = TextEditingController();
-  bool domingoLaboral = false;
-  final TextEditingController domingoLaboralMontoController =
-      TextEditingController();
-  bool descuentoComedor = false;
-  final TextEditingController descuentoComedorController =
-      TextEditingController();
   final TextEditingController descuentoInfonavitController =
       TextEditingController();
 
@@ -601,27 +591,21 @@ class _RegistroEmpleadoWizardState extends State<RegistroEmpleadoWizard> {
         'nss': nssController.text,
         'estado': estadoOrigen,
 
-        'tipo': tipoEmpleado,
-        'idCuadrilla':
-            int.tryParse(cuadrilla) ?? null, // si cuadrilla es ID numérico
+        // Campos laborales con valores por defecto
+        'tipo': 'Temporal', // Valor por defecto
+        'idCuadrilla': null, // Se asignará posteriormente en nómina
         'fechaIngreso': fechaIngreso?.toIso8601String().split('T').first ?? '',
-        'empresa': empresaController.text,
-        'puesto': puestoController.text,
+        'empresa': 'AGRIBAR', // Valor por defecto
+        'puesto': 'Operador', // Valor por defecto
         'registroPatronal': registroPatronalSeleccionado.isNotEmpty 
             ? registroPatronalSeleccionado 
-            : registroPatronalController.text,
+            : 'E6483368131', // Valor por defecto
 
+        // Campos de nómina simplificados
         'sueldo': double.tryParse(sueldoController.text) ?? 0.0,
-        'domingoLaboral':
-            domingoLaboral
-                ? double.tryParse(domingoLaboralMontoController.text) ?? 0.0
-                : 0.0,
-        'descuentoComedor':
-            descuentoComedor
-                ? double.tryParse(descuentoComedorController.text) ?? 0.0
-                : 0.0,
-        'descuentoInfonavit':
-            double.tryParse(descuentoInfonavitController.text) ?? 0.0,
+        'domingoLaboral': 0.0, // Campo eliminado, valor por defecto
+        'descuentoComedor': 0.0, // Campo eliminado, valor por defecto
+        'descuentoInfonavit': double.tryParse(descuentoInfonavitController.text) ?? 0.0,
       };
       await registrarEmpleadoEnBD(nuevoEmpleado);
 
@@ -630,7 +614,7 @@ class _RegistroEmpleadoWizardState extends State<RegistroEmpleadoWizard> {
         nuevoCodigo,
         nombreController.text,
         apellidoPaternoController.text, apellidoMaternoController.text,
-        cuadrilla,
+        'General', // Valor por defecto para cuadrilla
         sueldoController.text,
         '', // Eliminamos tipoDescuentoInfonavit
       ]);
@@ -679,17 +663,9 @@ class _RegistroEmpleadoWizardState extends State<RegistroEmpleadoWizard> {
     estadoOrigen = '';
     nssController.clear();
     registroPatronalController.clear();
-    empresaController.clear();
-    puestoController.clear();
-    cuadrilla = '';
-    tipoEmpleado = '';
     fechaIngreso = null;
     fechaIngresoController.clear();
     sueldoController.clear();
-    domingoLaboral = false;
-    domingoLaboralMontoController.clear();
-    descuentoComedor = false;
-    descuentoComedorController.clear();
     descuentoInfonavitController.clear();
     setState(() {});
   }
@@ -1075,312 +1051,260 @@ class _RegistroEmpleadoWizardState extends State<RegistroEmpleadoWizard> {
   }
 
   Widget _datosLaborales(Color grisInput) {
-    // Estilo de tarjeta
+    // Estilo de tarjeta mejorado
     BoxDecoration cardDecoration = BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(16),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withOpacity(0.05),
-          blurRadius: 4,
-          offset: Offset(0, 2),
+          color: Colors.black.withOpacity(0.08),
+          blurRadius: 12,
+          offset: Offset(0, 4),
         ),
       ],
     );
-    EdgeInsets cardPadding = const EdgeInsets.all(16);
+    EdgeInsets cardPadding = const EdgeInsets.all(24);
 
     return Center(
       child: Container(
-        width: 800,
-        height: 600,
-        child: Wrap(
-          alignment: WrapAlignment.center,
-          spacing: 32,
-          runSpacing: 32,
+        width: 700,
+        height: 500,
+        child: Column(
           children: [
-            // Tipo de Empleado
+            // Título de la sección
             Container(
-              width: 290,
-              height: 100,
-              decoration: cardDecoration,
-              padding: cardPadding,
+              width: double.infinity,
+              padding: EdgeInsets.only(bottom: 32),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Tipo de Empleado',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                  Icon(
+                    Icons.work_outline,
+                    size: 48,
+                    color: Color(0xFF0B7A2F),
                   ),
-                  Expanded(
-                    child: Center(
-                      child: DropdownButtonFormField<String>(
-                        value: tipoEmpleado.isEmpty ? null : tipoEmpleado,
-                        items:
-                            ["Temporal", "Fijo"]
-                                .map(
-                                  (e) => DropdownMenuItem(
-                                    value: e,
-                                    child: Text(e),
-                                  ),
-                                )
-                                .toList(),
-                        onChanged:
-                            (v) => setState(() => tipoEmpleado = v ?? ''),
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: grisInput,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
-                      ),
+                  SizedBox(height: 16),
+                  Text(
+                    'Datos Laborales',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0B7A2F),
                     ),
                   ),
-                ],
-              ),
-            ), // Cuadrilla
-            Container(
-              width: 290,
-              height: 100,
-              decoration: cardDecoration,
-              padding: cardPadding,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
+                  SizedBox(height: 8),
                   Text(
-                    'Cuadrilla',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
-                  ),
-                  Expanded(
-                    child: Center(
-                      child: isLoadingCuadrillas 
-                        ? CircularProgressIndicator()
-                        : DropdownButtonFormField<String>(
-                            value: cuadrilla.isEmpty ? null : cuadrilla,
-                            items: cuadrillasDisponibles
-                                .map((cuadrillaItem) => DropdownMenuItem(
-                                    value: cuadrillaItem['id'].toString(),
-                                    child: Text('${cuadrillaItem['clave']} - ${cuadrillaItem['nombre']}'),
-                                  ))
-                                .toList(),
-                            onChanged: (v) => setState(() => cuadrilla = v ?? ''),
-                            decoration: InputDecoration(
-                              filled: true,
-                              fillColor: grisInput,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
-                              ),
-                            ),
-                          ),
-                    ),
-                  ),
-                ],
-              ),
-            ), // Fecha de Ingreso
-            Container(
-              width: 290,
-              height: 100,
-              decoration: cardDecoration,
-              padding: cardPadding,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Fecha de Ingreso',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
-                  ),
-                  Expanded(
-                    child: Center(
-                      child: GestureDetector(
-                        onTap: () async {
-                          DateTime? picked = await showDatePicker(
-                            context: context,
-                            initialDate: fechaIngreso ?? DateTime.now(),
-                            firstDate: DateTime(2000),
-                            lastDate: DateTime(2100),
-                          );
-                          if (picked != null) {
-                            setState(() {
-                              fechaIngreso = picked;
-                              fechaIngresoController.text =
-                                  "${picked.day.toString().padLeft(2, '0')}/${picked.month.toString().padLeft(2, '0')}/${picked.year}";
-                            });
-                          }
-                        },
-                        child: AbsorbPointer(
-                          child: TextField(
-                            controller: fechaIngresoController,
-                            decoration: InputDecoration(
-                              filled: true,
-                              fillColor: grisInput,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
-                              ),
-                              suffixIcon: Icon(Icons.calendar_today),
-                            ),
-                          ),
-                        ),
-                      ),
+                    'Información relacionada con el trabajo',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey[600],
                     ),
                   ),
                 ],
               ),
             ),
-            // Empresa
-            Container(
-              width: 320,
-              height: 140,
-              decoration: cardDecoration,
-              padding: cardPadding,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            
+            // Cards organizadas en fila
+            Expanded(
+              child: Row(
                 children: [
-                  Text(
-                    'Empresa',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
-                  ),
+                  // Fecha de Ingreso
                   Expanded(
-                    child: Center(
-                      child: _customInput(empresaController, '', grisInput),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Puesto
-            Container(
-              width: 320,
-              height: 140,
-              decoration: cardDecoration,
-              padding: cardPadding,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Puesto',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
-                  ),
-                  Expanded(
-                    child: Center(
-                      child: _customInput(puestoController, '', grisInput),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Registro Patronal
-            Container(
-              width: 400,
-              height: 140,
-              decoration: cardDecoration,
-              padding: cardPadding,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Registro Patronal',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
-                  ),
-                  Expanded(
-                    child: Row(
-                      children: [
-                        // Dropdown
-                        Expanded(
-                          flex: 3,
-                          child: DropdownButtonFormField<String>(
-                            value: registroPatronalSeleccionado.isEmpty ? null : registroPatronalSeleccionado,
-                            items:
-                                ["E6483368131", "E5920112136"]
-                                    .map(
-                                      (e) => DropdownMenuItem(
-                                        value: e,
-                                        child: Text(e),
-                                      ),
-                                    )
-                                    .toList(),
-                            onChanged: (v) => setState(() {
-                              registroPatronalSeleccionado = v ?? '';
-                              // Mostrar mensaje según la opción seleccionada
-                              if (v == "E6483368131") {
-                                mostrarMensajeUbicacion = true;
-                                ubicacionSeleccionada = 'Hermosillo';
-                              } else if (v == "E5920112136") {
-                                mostrarMensajeUbicacion = true;
-                                ubicacionSeleccionada = 'Caborca';
-                              } else {
-                                mostrarMensajeUbicacion = false;
-                                ubicacionSeleccionada = '';
-                              }
-                            }),
-                            decoration: InputDecoration(
-                              filled: true,
-                              fillColor: grisInput,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
+                    child: Container(
+                      height: 120,
+                      decoration: cardDecoration,
+                      padding: cardPadding,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.calendar_today,
+                                color: Color(0xFF0B7A2F),
+                                size: 20,
                               ),
-                            ),
-                          ),
-                        ),
-                        SizedBox(width: 12),
-                        // Mensaje de ubicación
-                        Expanded(
-                          flex: 2,
-                          child: AnimatedOpacity(
-                            opacity: mostrarMensajeUbicacion ? 1.0 : 0.0,
-                            duration: Duration(milliseconds: 300),
-                            child: Container(
-                              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: ubicacionSeleccionada == 'Hermosillo' 
-                                    ? Colors.blue.shade50 
-                                    : Colors.green.shade50,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: ubicacionSeleccionada == 'Hermosillo' 
-                                      ? Colors.blue.shade200 
-                                      : Colors.green.shade200,
-                                  width: 1.5,
+                              SizedBox(width: 8),
+                              Text(
+                                'Fecha de Ingreso',
+                                style: TextStyle(
+                                  fontSize: 18, 
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF0B7A2F),
                                 ),
                               ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.location_on,
-                                    size: 20,
-                                    color: ubicacionSeleccionada == 'Hermosillo' 
-                                        ? Colors.blue.shade600
-                                        : Colors.green.shade600,
+                            ],
+                          ),
+                          Expanded(
+                            child: Center(
+                              child: GestureDetector(
+                                onTap: () async {
+                                  DateTime? picked = await showDatePicker(
+                                    context: context,
+                                    initialDate: fechaIngreso ?? DateTime.now(),
+                                    firstDate: DateTime(2000),
+                                    lastDate: DateTime(2100),
+                                  );
+                                  if (picked != null) {
+                                    setState(() {
+                                      fechaIngreso = picked;
+                                      fechaIngresoController.text =
+                                          "${picked.day.toString().padLeft(2, '0')}/${picked.month.toString().padLeft(2, '0')}/${picked.year}";
+                                    });
+                                  }
+                                },
+                                child: AbsorbPointer(
+                                  child: TextField(
+                                    controller: fechaIngresoController,
+                                    decoration: InputDecoration(
+                                      filled: true,
+                                      fillColor: grisInput,
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: BorderSide.none,
+                                      ),
+                                      suffixIcon: Icon(
+                                        Icons.calendar_today,
+                                        color: Color(0xFF0B7A2F),
+                                      ),
+                                      hintText: 'Seleccionar fecha',
+                                    ),
                                   ),
-                                  SizedBox(width: 6),
-                                  Flexible(
-                                    child: Text(
-                                      ubicacionSeleccionada,
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: ubicacionSeleccionada == 'Hermosillo' 
-                                            ? Colors.blue.shade700
-                                            : Colors.green.shade700,
-                                        fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  
+                  SizedBox(width: 24),
+                  
+                  // Registro Patronal
+                  Expanded(
+                    child: Container(
+                      height: 120,
+                      decoration: cardDecoration,
+                      padding: cardPadding,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.business,
+                                color: Color(0xFF0B7A2F),
+                                size: 20,
+                              ),
+                              SizedBox(width: 8),
+                              Text(
+                                'Registro Patronal',
+                                style: TextStyle(
+                                  fontSize: 18, 
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF0B7A2F),
+                                ),
+                              ),
+                            ],
+                          ),
+                          Expanded(
+                            child: Row(
+                              children: [
+                                // Dropdown
+                                Expanded(
+                                  flex: 3,
+                                  child: DropdownButtonFormField<String>(
+                                    value: registroPatronalSeleccionado.isEmpty ? null : registroPatronalSeleccionado,
+                                    items:
+                                        ["E6483368131", "E5920112136"]
+                                            .map(
+                                              (e) => DropdownMenuItem(
+                                                value: e,
+                                                child: Text(e),
+                                              ),
+                                            )
+                                            .toList(),
+                                    onChanged: (v) => setState(() {
+                                      registroPatronalSeleccionado = v ?? '';
+                                      // Mostrar mensaje según la opción seleccionada
+                                      if (v == "E6483368131") {
+                                        mostrarMensajeUbicacion = true;
+                                        ubicacionSeleccionada = 'Hermosillo';
+                                      } else if (v == "E5920112136") {
+                                        mostrarMensajeUbicacion = true;
+                                        ubicacionSeleccionada = 'Caborca';
+                                      } else {
+                                        mostrarMensajeUbicacion = false;
+                                        ubicacionSeleccionada = '';
+                                      }
+                                    }),
+                                    decoration: InputDecoration(
+                                      labelText: "Seleccionar",
+                                      filled: true,
+                                      fillColor: grisInput,
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: BorderSide.none,
                                       ),
                                     ),
                                   ),
-                                ],
-                              ),
+                                ),
+                                SizedBox(width: 12),
+                                // Mensaje de ubicación
+                                Expanded(
+                                  flex: 2,
+                                  child: AnimatedOpacity(
+                                    opacity: mostrarMensajeUbicacion ? 1.0 : 0.0,
+                                    duration: Duration(milliseconds: 300),
+                                    child: Container(
+                                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                      decoration: BoxDecoration(
+                                        color: ubicacionSeleccionada == 'Hermosillo' 
+                                            ? Colors.blue.shade50 
+                                            : Colors.green.shade50,
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(
+                                          color: ubicacionSeleccionada == 'Hermosillo' 
+                                              ? Colors.blue.shade200 
+                                              : Colors.green.shade200,
+                                          width: 1.5,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.location_on,
+                                            size: 20,
+                                            color: ubicacionSeleccionada == 'Hermosillo' 
+                                                ? Colors.blue.shade600
+                                                : Colors.green.shade600,
+                                          ),
+                                          SizedBox(width: 6),
+                                          Flexible(
+                                            child: Text(
+                                              ubicacionSeleccionada,
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                color: ubicacionSeleccionada == 'Hermosillo' 
+                                                    ? Colors.blue.shade700
+                                                    : Colors.green.shade700,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -1393,181 +1317,192 @@ class _RegistroEmpleadoWizardState extends State<RegistroEmpleadoWizard> {
   }
 
   Widget _datosNomina(Color grisInput, Color verde) {
-    // Estilo de tarjeta
+    // Estilo de tarjeta mejorado
     BoxDecoration cardDecoration = BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(16),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withOpacity(0.05),
-          blurRadius: 4,
-          offset: Offset(0, 2),
+          color: Colors.black.withOpacity(0.08),
+          blurRadius: 12,
+          offset: Offset(0, 4),
         ),
       ],
     );
-    EdgeInsets cardPadding = const EdgeInsets.all(16);
+    EdgeInsets cardPadding = const EdgeInsets.all(24);
 
     return Center(
       child: Container(
-        width: 800,
-        height: 600,
-        child: Wrap(
-          alignment: WrapAlignment.center,
-          spacing: 32,
-          runSpacing: 32,
+        width: 700,
+        height: 500,
+        child: Column(
           children: [
-            // Sueldo
+            // Título de la sección
             Container(
-              width: 320,
-              height: 140,
-              decoration: cardDecoration,
-              padding: cardPadding,
+              width: double.infinity,
+              padding: EdgeInsets.only(bottom: 32),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  Icon(
+                    Icons.attach_money,
+                    size: 48,
+                    color: Color(0xFF0B7A2F),
+                  ),
+                  SizedBox(height: 16),
                   Text(
-                    'Sueldo',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                    'Información Salarial',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0B7A2F),
+                    ),
                   ),
-                  Expanded(
-                    child: Center(
-                      child: _customInput(sueldoController, '', grisInput),
+                  SizedBox(height: 8),
+                  Text(
+                    'Sueldo y descuentos del empleado',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey[600],
                     ),
                   ),
                 ],
               ),
             ),
-            // Domingo Laboral
-            Container(
-              width: 320,
-              height: 140,
-              decoration: cardDecoration,
-              padding: cardPadding,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Domingo Laboral',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      Switch(
-                        value: domingoLaboral,
-                        onChanged: (v) => setState(() => domingoLaboral = v),
-                        activeColor: verde,
-                      ),
-                    ],
-                  ),
-                  Expanded(
-                    child: Center(
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: _customInput(
-                              domingoLaboralMontoController,
-                              '',
-                              grisInput,
-                            ),
-                          ),
-                          SizedBox(width: 8),
-                          Text(
-                            '/ hr',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.grey[700],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Descuento Comedor
-            Container(
-              width: 320,
-              height: 140,
-              decoration: cardDecoration,
-              padding: cardPadding,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Descuento Comedor',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      Switch(
-                        value: descuentoComedor,
-                        onChanged: (v) => setState(() => descuentoComedor = v),
-                        activeColor: verde,
-                      ),
-                    ],
-                  ),
-                  Expanded(
-                    child: Center(
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: _customInput(
-                              descuentoComedorController,
-                              '',
-                              grisInput,
-                            ),
-                          ),
-                          SizedBox(width: 8),
-                          Text(
-                            '%',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.grey[700],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ), // Descuento Infonavit
-            Container(
-              width: 290,
-              height: 100,
-              decoration: cardDecoration,
-              padding: cardPadding,
+            
+            // Cards organizadas en fila
+            Expanded(
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Text(
-                    'Descuento Infonavit',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                  // Sueldo
+                  Expanded(
+                    child: Container(
+                      height: 120,
+                      decoration: cardDecoration,
+                      padding: cardPadding,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.payments_outlined,
+                                color: Color(0xFF0B7A2F),
+                                size: 20,
+                              ),
+                              SizedBox(width: 8),
+                              Text(
+                                'Sueldo Diario',
+                                style: TextStyle(
+                                  fontSize: 18, 
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF0B7A2F),
+                                ),
+                              ),
+                            ],
+                          ),
+                          Expanded(
+                            child: Center(
+                              child: TextField(
+                                controller: sueldoController,
+                                keyboardType: TextInputType.numberWithOptions(decimal: true),
+                                decoration: InputDecoration(
+                                  filled: true,
+                                  fillColor: grisInput,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  prefixIcon: Icon(
+                                    Icons.attach_money,
+                                    color: Color(0xFF0B7A2F),
+                                  ),
+                                  hintText: '0.00',
+                                  suffixText: 'MXN',
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                  Switch(
-                    value: descuentoInfonavitController.text.isNotEmpty,
-                    onChanged:
-                        (v) => setState(() {
-                          if (v == true) {
-                            descuentoInfonavitController.text = '5.0';
-                          } else {
-                            descuentoInfonavitController.clear();
-                          }
-                        }),
-                    activeColor: verde,
+                  
+                  SizedBox(width: 24),
+                  
+                  // Descuento Infonavit
+                  Expanded(
+                    child: Container(
+                      height: 120,
+                      decoration: cardDecoration,
+                      padding: cardPadding,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.account_balance,
+                                color: Color(0xFF0B7A2F),
+                                size: 20,
+                              ),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Descuento Infonavit',
+                                  style: TextStyle(
+                                    fontSize: 18, 
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF0B7A2F),
+                                  ),
+                                ),
+                              ),
+                              Switch(
+                                value: descuentoInfonavitController.text.isNotEmpty,
+                                onChanged: (v) => setState(() {
+                                  if (v == true) {
+                                    descuentoInfonavitController.text = '5.0';
+                                  } else {
+                                    descuentoInfonavitController.clear();
+                                  }
+                                }),
+                                activeColor: Color(0xFF0B7A2F),
+                              ),
+                            ],
+                          ),
+                          Expanded(
+                            child: Center(
+                              child: TextField(
+                                controller: descuentoInfonavitController,
+                                keyboardType: TextInputType.numberWithOptions(decimal: true),
+                                enabled: descuentoInfonavitController.text.isNotEmpty,
+                                decoration: InputDecoration(
+                                  filled: true,
+                                  fillColor: descuentoInfonavitController.text.isNotEmpty 
+                                      ? grisInput 
+                                      : Colors.grey[100],
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  prefixIcon: Icon(
+                                    Icons.percent,
+                                    color: descuentoInfonavitController.text.isNotEmpty 
+                                        ? Color(0xFF0B7A2F)
+                                        : Colors.grey,
+                                  ),
+                                  hintText: descuentoInfonavitController.text.isNotEmpty 
+                                      ? '5.0' 
+                                      : 'Sin descuento',
+                                  suffixText: '%',
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ],
               ),
