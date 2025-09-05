@@ -1995,13 +1995,6 @@ class _NominaScreenState extends State<NominaScreen>
   /// ✨ Función para refresh manual de la tabla
   Future<void> _refreshTablaManual() async {
     try {
-      print('🔄🔄🔄 [REFRESH MANUAL] INICIANDO ACTUALIZACIÓN DE TABLA 🔄🔄🔄');
-      print('📋 Estado antes del refresh:');
-      print('   - idSemanaSeleccionada: $idSemanaSeleccionada');
-      print('   - cuadrilla seleccionada: ${_selectedCuadrilla['nombre']}');
-      print('   - empleadosFiltrados.length: ${empleadosFiltrados.length}');
-      print('   - _optionsCuadrilla.length: ${_optionsCuadrilla.length}');
-
       // Mostrar indicador de carga
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -2025,85 +2018,53 @@ class _NominaScreenState extends State<NominaScreen>
         ),
       );
 
-      // ✅ 1. Recargar cuadrillas desde BD si hay semana seleccionada
+      // ✅ 1. Recargar cuadrillas si hay semana seleccionada
       if (idSemanaSeleccionada != null) {
-        print('🔄 [REFRESH] Recargando cuadrillas desde BD...');
         await _cargarCuadrillasSemana(idSemanaSeleccionada!);
-        print('🔄 [REFRESH] Recargando empleados de cuadrillas...');
         await _cargarEmpleadosDeCuadrillas();
-        print('✅ [REFRESH] Cuadrillas recargadas: ${_optionsCuadrilla.length}');
       }
       
       // ✅ 2. Recargar datos completos de nómina
-      print('🔄 [REFRESH] Recargando datos de nómina...');
       await cargarDatosNomina();
       
       // ✅ 3. Actualizar la cuadrilla seleccionada si existe
-      if (_selectedCuadrilla['nombre'] != null && _selectedCuadrilla['nombre'] != '' && mounted) {
-        print('🔄 [REFRESH] Actualizando cuadrilla seleccionada: ${_selectedCuadrilla['nombre']}');
-        
+      if (_selectedCuadrilla['nombre'] != null && mounted) {
         final cuadrillaActualizada = _optionsCuadrilla.firstWhere(
           (c) => c['nombre'] == _selectedCuadrilla['nombre'],
           orElse: () => {},
         );
         
         if (cuadrillaActualizada.isNotEmpty) {
-          print('✅ [REFRESH] Cuadrilla encontrada con ${cuadrillaActualizada['empleados']?.length ?? 0} empleados');
-          
           setState(() {
-            _selectedCuadrilla = Map<String, dynamic>.from(cuadrillaActualizada);
-            cuadrillaSeleccionada = Map<String, dynamic>.from(cuadrillaActualizada);
+            _selectedCuadrilla = cuadrillaActualizada;
+            cuadrillaSeleccionada = cuadrillaActualizada;
             empleadosEnCuadrilla = List<Map<String, dynamic>>.from(
               cuadrillaActualizada['empleados'] ?? []
             );
-            empleadosFiltrados = List<Map<String, dynamic>>.from(
-              cuadrillaActualizada['empleados'] ?? []
-            );
-            empleadosNomina = List<Map<String, dynamic>>.from(
-              cuadrillaActualizada['empleados'] ?? []
-            );
-            empleadosNominaTemp = List<Map<String, dynamic>>.from(
-              cuadrillaActualizada['empleados'] ?? []
-            );
           });
-          
-          print('✅ [REFRESH] empleadosFiltrados actualizado: ${empleadosFiltrados.length} empleados');
-        } else {
-          print('⚠️ [REFRESH] No se encontró la cuadrilla seleccionada: ${_selectedCuadrilla['nombre']}');
         }
       }
       
-      // ✅ 4. Recalcular totales para todos los empleados
-      print('🔄 [REFRESH] Recalculando totales...');
+      // ✅ 4. Recalcular totales
       for (var empleado in empleadosFiltrados) {
         _recalcularTotalesEmpleado(empleado);
       }
       
-      // ✅ 5. Actualizar estados de validación
-      if (mounted) {
-        _puedeCapturarDatos = _validarPuedeCapturarDatos();
-      }
-      
-      // ✅ 6. Guardar estado original
+      // ✅ 5. Guardar estado original
       if (mounted) {
         _saveOriginalData();
         marcarCambiosGuardados();
       }
       
-      // ✅ 7. Mostrar confirmación
+      // ✅ 6. Mostrar confirmación
       if (mounted) {
-        print('✅✅✅ [REFRESH MANUAL] COMPLETADO EXITOSAMENTE ✅✅✅');
-        print('📋 Estado después del refresh:');
-        print('   - empleadosFiltrados.length: ${empleadosFiltrados.length}');
-        print('   - cuadrilla seleccionada: ${_selectedCuadrilla['nombre']}');
-        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
               children: [
                 Icon(Icons.check_circle_rounded, color: Colors.white),
                 SizedBox(width: 8),
-                Text('Tabla actualizada: ${empleadosFiltrados.length} empleados cargados'),
+                Text('Tabla actualizada exitosamente'),
               ],
             ),
             backgroundColor: Colors.green.shade600,
