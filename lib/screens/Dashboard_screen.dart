@@ -9,7 +9,7 @@
 /// - Mostrar el contenido correspondiente a cada sección
 
 import 'package:flutter/material.dart';
-import 'Dashboard_content.dart';
+import 'modern_dashboard.dart';
 import 'Empleados_content.dart';
 import 'Nomina_screen.dart';
 import 'Actividades_content.dart';
@@ -254,11 +254,9 @@ class _DashboardScreenState extends State<DashboardScreen> with NominaTabChangeG
     // Usar la sección real en lugar del índice
     switch (selectedItem.seccion) {
       case 'dashboard':
-        return DashboardHomeContent(
+        return ModernDashboard(
           userName: widget.nombre,
-          userRole: widget.rol,
           tipoUsuario: widget.tipoUsuario ?? 'Usuario',
-          seccionesPermitidas: widget.seccionesPermitidas ?? [],
         );
       case 'empleados':
         return EmpleadosContent();
