@@ -475,7 +475,68 @@ class _RegistroEmpleadoWizardState extends State<RegistroEmpleadoWizard> {
   final TextEditingController empresaController = TextEditingController();
   final TextEditingController puestoController = TextEditingController();
   String cuadrilla = '';
+  String registroPatronalSeleccionado = ''; // 🔧 Variable específica para dropdown de registro patronal
   String tipoEmpleado = '';
+  bool mostrarMensajeUbicacion = false; // 🔧 Para mostrar mensaje de ubicación
+  String ubicacionSeleccionada = ''; // 🔧 Para guardar la ubicación
+  
+  // 🔧 Variables para cargar datos dinámicamente
+  List<Map<String, dynamic>> cuadrillasDisponibles = [];
+  List<String> registrosPatronalesDisponibles = ["E6483368131", "E5920112136"];
+  bool isLoadingCuadrillas = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarCuadrillasDisponibles();
+  }
+
+  /// Carga las cuadrillas disponibles desde la base de datos
+  Future<void> _cargarCuadrillasDisponibles() async {
+    if (isLoadingCuadrillas) return;
+    
+    setState(() {
+      isLoadingCuadrillas = true;
+    });
+
+    try {
+      final db = DatabaseService();
+      await db.connect();
+      
+      final result = await db.connection.query('''
+        SELECT id, nombre, clave 
+        FROM cuadrillas 
+        WHERE habilitado = true 
+        ORDER BY nombre
+      ''');
+      
+      await db.close();
+      
+      if (mounted) {
+        setState(() {
+          cuadrillasDisponibles = result.map((row) => {
+            'id': row[0],
+            'nombre': row[1],
+            'clave': row[2],
+          }).toList();
+          isLoadingCuadrillas = false;
+        });
+      }
+    } catch (e) {
+      print('❌ Error al cargar cuadrillas: $e');
+      if (mounted) {
+        setState(() {
+          // Fallback a cuadrillas predeterminadas
+          cuadrillasDisponibles = [
+            {'id': 1, 'nombre': 'Cuadrilla 1', 'clave': '001'},
+            {'id': 2, 'nombre': 'Cuadrilla 2', 'clave': '002'},
+            {'id': 3, 'nombre': 'Cuadrilla 3', 'clave': '003'},
+          ];
+          isLoadingCuadrillas = false;
+        });
+      }
+    }
+  }
   DateTime? fechaIngreso;
   final TextEditingController fechaIngresoController = TextEditingController();
 
@@ -546,7 +607,9 @@ class _RegistroEmpleadoWizardState extends State<RegistroEmpleadoWizard> {
         'fechaIngreso': fechaIngreso?.toIso8601String().split('T').first ?? '',
         'empresa': empresaController.text,
         'puesto': puestoController.text,
-        'registroPatronal': registroPatronalController.text,
+        'registroPatronal': registroPatronalSeleccionado.isNotEmpty 
+            ? registroPatronalSeleccionado 
+            : registroPatronalController.text,
 
         'sueldo': double.tryParse(sueldoController.text) ?? 0.0,
         'domingoLaboral':
@@ -1065,7 +1128,6 @@ class _RegistroEmpleadoWizardState extends State<RegistroEmpleadoWizard> {
                         onChanged:
                             (v) => setState(() => tipoEmpleado = v ?? ''),
                         decoration: InputDecoration(
-                          labelText: "Tipo",
                           filled: true,
                           fillColor: grisInput,
                           border: OutlineInputBorder(
@@ -1094,28 +1156,26 @@ class _RegistroEmpleadoWizardState extends State<RegistroEmpleadoWizard> {
                   ),
                   Expanded(
                     child: Center(
-                      child: DropdownButtonFormField<String>(
-                        value: cuadrilla.isEmpty ? null : cuadrilla,
-                        items:
-                            ["Cuadrilla 1", "Cuadrilla 2", "Cuadrilla 3"]
-                                .map(
-                                  (e) => DropdownMenuItem(
-                                    value: e,
-                                    child: Text(e),
-                                  ),
-                                )
+                      child: isLoadingCuadrillas 
+                        ? CircularProgressIndicator()
+                        : DropdownButtonFormField<String>(
+                            value: cuadrilla.isEmpty ? null : cuadrilla,
+                            items: cuadrillasDisponibles
+                                .map((cuadrillaItem) => DropdownMenuItem(
+                                    value: cuadrillaItem['id'].toString(),
+                                    child: Text('${cuadrillaItem['clave']} - ${cuadrillaItem['nombre']}'),
+                                  ))
                                 .toList(),
-                        onChanged: (v) => setState(() => cuadrilla = v ?? ''),
-                        decoration: InputDecoration(
-                          labelText: "Cuadrilla",
-                          filled: true,
-                          fillColor: grisInput,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
+                            onChanged: (v) => setState(() => cuadrilla = v ?? ''),
+                            decoration: InputDecoration(
+                              filled: true,
+                              fillColor: grisInput,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
                     ),
                   ),
                 ],
@@ -1156,7 +1216,6 @@ class _RegistroEmpleadoWizardState extends State<RegistroEmpleadoWizard> {
                           child: TextField(
                             controller: fechaIngresoController,
                             decoration: InputDecoration(
-                              labelText: 'Fecha',
                               filled: true,
                               fillColor: grisInput,
                               border: OutlineInputBorder(
@@ -1219,7 +1278,7 @@ class _RegistroEmpleadoWizardState extends State<RegistroEmpleadoWizard> {
             ),
             // Registro Patronal
             Container(
-              width: 320,
+              width: 400,
               height: 140,
               decoration: cardDecoration,
               padding: cardPadding,
@@ -1232,12 +1291,96 @@ class _RegistroEmpleadoWizardState extends State<RegistroEmpleadoWizard> {
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
                   ),
                   Expanded(
-                    child: Center(
-                      child: _customInput(
-                        registroPatronalController,
-                        '',
-                        grisInput,
-                      ),
+                    child: Row(
+                      children: [
+                        // Dropdown
+                        Expanded(
+                          flex: 3,
+                          child: DropdownButtonFormField<String>(
+                            value: registroPatronalSeleccionado.isEmpty ? null : registroPatronalSeleccionado,
+                            items:
+                                ["E6483368131", "E5920112136"]
+                                    .map(
+                                      (e) => DropdownMenuItem(
+                                        value: e,
+                                        child: Text(e),
+                                      ),
+                                    )
+                                    .toList(),
+                            onChanged: (v) => setState(() {
+                              registroPatronalSeleccionado = v ?? '';
+                              // Mostrar mensaje según la opción seleccionada
+                              if (v == "E6483368131") {
+                                mostrarMensajeUbicacion = true;
+                                ubicacionSeleccionada = 'Hermosillo';
+                              } else if (v == "E5920112136") {
+                                mostrarMensajeUbicacion = true;
+                                ubicacionSeleccionada = 'Caborca';
+                              } else {
+                                mostrarMensajeUbicacion = false;
+                                ubicacionSeleccionada = '';
+                              }
+                            }),
+                            decoration: InputDecoration(
+                              filled: true,
+                              fillColor: grisInput,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        // Mensaje de ubicación
+                        Expanded(
+                          flex: 2,
+                          child: AnimatedOpacity(
+                            opacity: mostrarMensajeUbicacion ? 1.0 : 0.0,
+                            duration: Duration(milliseconds: 300),
+                            child: Container(
+                              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: ubicacionSeleccionada == 'Hermosillo' 
+                                    ? Colors.blue.shade50 
+                                    : Colors.green.shade50,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: ubicacionSeleccionada == 'Hermosillo' 
+                                      ? Colors.blue.shade200 
+                                      : Colors.green.shade200,
+                                  width: 1.5,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.location_on,
+                                    size: 20,
+                                    color: ubicacionSeleccionada == 'Hermosillo' 
+                                        ? Colors.blue.shade600
+                                        : Colors.green.shade600,
+                                  ),
+                                  SizedBox(width: 6),
+                                  Flexible(
+                                    child: Text(
+                                      ubicacionSeleccionada,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: ubicacionSeleccionada == 'Hermosillo' 
+                                            ? Colors.blue.shade700
+                                            : Colors.green.shade700,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],

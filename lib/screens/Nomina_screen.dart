@@ -131,7 +131,7 @@ class _NominaScreenState extends State<NominaScreen>
   
   // 📋 Cache de cuadrillas para evitar recargas innecesarias
   final CuadrillasCache _cuadrillasCache = CuadrillasCache();
-  bool _isCuadrillasLoadingInBackground = false;
+
   
   Map<String, dynamic> _selectedCuadrilla = {
     'nombre': '',
@@ -145,6 +145,125 @@ class _NominaScreenState extends State<NominaScreen>
   bool showArmarCuadrilla = false;
   List<Map<String, dynamic>> todosLosEmpleados = [];
   List<Map<String, dynamic>> empleadosEnCuadrilla = [];
+
+  // 🔑 Variables para conversión de claves de actividad
+  Map<String, int> _claveAIdMap = {};
+  Map<int, String> _idAClaveMap = {};
+  Map<String, String> _claveANombreMap = {};
+
+  // 🔑 Funciones auxiliares para manejo de claves de actividad
+  
+  /// Carga los mapas de conversión de actividades desde la base de datos
+  Future<void> _cargarMappingActividades() async {
+    try {
+      final connection = await DatabaseService.createSafeConnection();
+      
+      final actividades = await connection.query(
+        'SELECT id_actividad, clave, nombre FROM actividades ORDER BY clave'
+      );
+      
+      _claveAIdMap.clear();
+      _idAClaveMap.clear();
+      _claveANombreMap.clear();
+      
+      for (final actividad in actividades) {
+        final id = actividad[0] as int;
+        final clave = actividad[1]?.toString() ?? '';
+        final nombre = actividad[2]?.toString() ?? '';
+        
+        if (clave.isNotEmpty) {
+          _claveAIdMap[clave] = id;
+          _idAClaveMap[id] = clave;
+          _claveANombreMap[clave] = nombre;
+        }
+      }
+      
+      await connection.close();
+    } catch (e) {
+      print('Error cargando mapping de actividades: $e');
+    }
+  }
+  
+  /// Valida si una clave de actividad es válida
+  bool _esClaveActividadValida(String clave) {
+    return _claveAIdMap.containsKey(clave);
+  }
+  
+  /// Obtiene el nombre de una actividad por su clave
+  String _obtenerNombrePorClave(String clave) {
+    return _claveANombreMap[clave] ?? '';
+  }
+  
+  /// Convierte una clave de actividad a su ID correspondiente
+  int _convertirClaveAId(String clave) {
+    // Si ya es un número, lo devuelve como está (compatibilidad)
+    final numero = int.tryParse(clave);
+    if (numero != null) return numero;
+    
+    // Si es una clave, la convierte a ID
+    return _claveAIdMap[clave] ?? 0;
+  }
+  
+  /// Convierte un ID de actividad a su clave correspondiente
+  String _convertirIdAClave(int id) {
+    // Si no hay mapeo, devuelve el ID como string (compatibilidad)
+    return _idAClaveMap[id] ?? id.toString();
+  }
+
+  /// Función inteligente para obtener la clave a mostrar al usuario
+  /// Maneja tanto IDs como claves existentes
+  String _obtenerClaveParaMostrar(dynamic valor) {
+    if (valor == null) return '';
+    
+    final valorStr = valor.toString();
+    if (valorStr == '0' || valorStr.isEmpty) return '';
+    
+    // Si el valor ya es una clave conocida, devolverla
+    if (_claveAIdMap.containsKey(valorStr)) {
+      return valorStr;
+    }
+    
+    // Si es un ID numérico, intentar convertirlo a clave
+    final id = int.tryParse(valorStr);
+    if (id != null && _idAClaveMap.containsKey(id)) {
+      return _idAClaveMap[id]!;
+    }
+    
+    // Si no se puede convertir, devolver el valor original
+    return valorStr;
+  }
+
+  /// Función inteligente para obtener el ID a guardar en la base de datos
+  /// Maneja tanto claves como IDs existentes
+  int _obtenerIdParaGuardar(dynamic valor) {
+    if (valor == null) return 0;
+    
+    final valorStr = valor.toString();
+    if (valorStr == '0' || valorStr.isEmpty) return 0;
+    
+    // Si el valor es una clave conocida, convertirla a ID
+    if (_claveAIdMap.containsKey(valorStr)) {
+      return _claveAIdMap[valorStr]!;
+    }
+    
+    // Si es un ID numérico válido, devolverlo
+    final id = int.tryParse(valorStr);
+    if (id != null && id > 0) {
+      return id;
+    }
+    
+    // Si no se puede convertir, devolver 0
+    return 0;
+  }
+
+  // 🔑 Getter para funciones de conversión (para widgets hijos)
+  Map<String, Function> get funcionesConversionActividad => {
+    'convertirClaveAId': _convertirClaveAId,
+    'convertirIdAClave': _convertirIdAClave,
+    'esClaveActividadValida': _esClaveActividadValida,
+    'obtenerNombrePorClave': _obtenerNombrePorClave,
+    'obtenerIdParaGuardar': _obtenerIdParaGuardar, // 🔑 Función para convertir clave a ID al guardar
+  };
 
   @override
   void initState() {
@@ -161,6 +280,9 @@ class _NominaScreenState extends State<NominaScreen>
     
     // Registrar la función de guardado con el Dashboard
     widget.onGuardadoCallbackSet?.call(_guardarNomina);
+    
+    // 🔑 Cargar mapping de actividades para conversión de claves
+    _cargarMappingActividades();
     
     // Cargar datos iniciales básicos
     _loadInitialData();
@@ -789,13 +911,15 @@ class _NominaScreenState extends State<NominaScreen>
 
   Future<void> _cargarCuadrillasHabilitadas() async {
     // 🚀 Verificar si necesitamos cargar o ya tenemos datos en cache
+    print('🔍 [DEBUG] Estado semana - semanaSeleccionada: $semanaSeleccionada, idSemanaSeleccionada: $idSemanaSeleccionada');
+    
     if (semanaSeleccionada == null || idSemanaSeleccionada == null) {
       print('ℹ️ No hay semana activa, cargando cuadrillas básicas sin empleados');
       await _cargarCuadrillasBasicasSinCache();
       return;
     }
 
-    print('� [CACHE] Verificando cache para semana ${idSemanaSeleccionada}');
+    print('📋 [CACHE] Verificando cache para semana ${idSemanaSeleccionada}');
     
     try {
       // Obtener cuadrillas del cache (carga automáticamente si es necesario)
@@ -859,8 +983,6 @@ class _NominaScreenState extends State<NominaScreen>
   /// Función para cargar empleados en background (usada por el cache)
   Future<void> _loadEmpleadosEnBackground(List<Map<String, dynamic>> cuadrillas) async {
     print('🔄 [CACHE] Iniciando carga de empleados en background');
-    
-    _isCuadrillasLoadingInBackground = true;
     
     // 🎯 CAMBIO: Mostrar notificación solo si hay muchas cuadrillas (más de 20)
     // Para pocas cuadrillas, solo mostrar un mensaje inicial sutil
@@ -987,7 +1109,6 @@ class _NominaScreenState extends State<NominaScreen>
     } catch (e) {
       print('❌ [CACHE] Error en carga de empleados: $e');
     } finally {
-      _isCuadrillasLoadingInBackground = false;
       
       // Ocultar loading overlay
       if (mounted) {
@@ -1072,6 +1193,8 @@ class _NominaScreenState extends State<NominaScreen>
         
         if (nuevaSemana != null) {
           if (!mounted || _isDisposed) return;
+          
+          // ✅ PRIMERO: Asignar variables de semana ANTES de cargar cuadrillas
           setState(() {
             _startDate = nuevaSemana['fechaInicio'];
             _endDate = nuevaSemana['fechaFin'];
@@ -1092,18 +1215,23 @@ class _NominaScreenState extends State<NominaScreen>
             marcarCambiosGuardados(); // Usar el método del mixin
           });
 
-          // 🗑️ CACHE: Invalidar cache al cambiar de semana
-          _invalidarCacheCuadrillas();
-
-          // 🎯 Si la última opción fue "mantener", copiar empleados a la nueva semana ANTES de recargar
+          // 🎯 Si la última opción fue "mantener", copiar empleados a la nueva semana ANTES de invalidar cache
           if (_ultimaOpcionCierre == 'mantener') {
             await _copiarCuadrillasANuevaSemana(nuevaSemana['id']);
           }
+
+          // 🗑️ CACHE: Invalidar cache al cambiar de semana (DESPUÉS de copiar datos)
+          print('🔄 [DEBUG] Invalidando cache...');
+          _invalidarCacheCuadrillas();
           
-          // ✅ Recargar cuadrillas con empleados para la nueva semana
+          // ✅ Recargar cuadrillas con empleados para la nueva semana (DESPUÉS de asignar variables)
+          print('🔄 [DEBUG] Cargando cuadrillas habilitadas...');
           await _cargarCuadrillasHabilitadas();
+          
+          print('🔄 [DEBUG] Cargando cuadrillas de semana...');
           await _cargarCuadrillasSemana(nuevaSemana['id']);
           
+          print('🔄 [DEBUG] Cargando empleados de cuadrillas...');
           // ✅ Cargar empleados de todas las cuadrillas desde la BD
           await _cargarEmpleadosDeCuadrillas();
           
@@ -1217,25 +1345,25 @@ class _NominaScreenState extends State<NominaScreen>
           'id_empleado': idEmpleado,
           'id_semana': idSemana,
           'id_cuadrilla': idCuadrilla,
-          'act_1': _getSafeIntValue(empleado['dia_0_id']), // dia_0_id de tabla → act_1 de BD
+          'act_1': _obtenerIdParaGuardar(empleado['dia_0_id']), // dia_0_id de tabla → act_1 de BD (convierte clave a ID)
           'dia_1': _getSafeIntValue(empleado['dia_0_s']), // dia_0_s de tabla → dia_1 de BD
           'campo_1': _getSafeStringValue(empleado['dia_0_campo']), // dia_0_campo de tabla → campo_1 de BD
-          'act_2': _getSafeIntValue(empleado['dia_1_id']), // dia_1_id de tabla → act_2 de BD
+          'act_2': _obtenerIdParaGuardar(empleado['dia_1_id']), // dia_1_id de tabla → act_2 de BD (convierte clave a ID)
           'dia_2': _getSafeIntValue(empleado['dia_1_s']), // dia_1_s de tabla → dia_2 de BD
           'campo_2': _getSafeStringValue(empleado['dia_1_campo']), // dia_1_campo de tabla → campo_2 de BD
-          'act_3': _getSafeIntValue(empleado['dia_2_id']), // dia_2_id de tabla → act_3 de BD
+          'act_3': _obtenerIdParaGuardar(empleado['dia_2_id']), // dia_2_id de tabla → act_3 de BD (convierte clave a ID)
           'dia_3': _getSafeIntValue(empleado['dia_2_s']), // dia_2_s de tabla → dia_3 de BD
           'campo_3': _getSafeStringValue(empleado['dia_2_campo']), // dia_2_campo de tabla → campo_3 de BD
-          'act_4': _getSafeIntValue(empleado['dia_3_id']), // dia_3_id de tabla → act_4 de BD
+          'act_4': _obtenerIdParaGuardar(empleado['dia_3_id']), // dia_3_id de tabla → act_4 de BD (convierte clave a ID)
           'dia_4': _getSafeIntValue(empleado['dia_3_s']), // dia_3_s de tabla → dia_4 de BD
           'campo_4': _getSafeStringValue(empleado['dia_3_campo']), // dia_3_campo de tabla → campo_4 de BD
-          'act_5': _getSafeIntValue(empleado['dia_4_id']), // dia_4_id de tabla → act_5 de BD
+          'act_5': _obtenerIdParaGuardar(empleado['dia_4_id']), // dia_4_id de tabla → act_5 de BD (convierte clave a ID)
           'dia_5': _getSafeIntValue(empleado['dia_4_s']), // dia_4_s de tabla → dia_5 de BD
           'campo_5': _getSafeStringValue(empleado['dia_4_campo']), // dia_4_campo de tabla → campo_5 de BD
-          'act_6': _getSafeIntValue(empleado['dia_5_id']), // dia_5_id de tabla → act_6 de BD
+          'act_6': _obtenerIdParaGuardar(empleado['dia_5_id']), // dia_5_id de tabla → act_6 de BD (convierte clave a ID)
           'dia_6': _getSafeIntValue(empleado['dia_5_s']), // dia_5_s de tabla → dia_6 de BD
           'campo_6': _getSafeStringValue(empleado['dia_5_campo']), // dia_5_campo de tabla → campo_6 de BD
-          'act_7': _getSafeIntValue(empleado['dia_6_id']), // dia_6_id de tabla → act_7 de BD
+          'act_7': _obtenerIdParaGuardar(empleado['dia_6_id']), // dia_6_id de tabla → act_7 de BD (convierte clave a ID)
           'dia_7': _getSafeIntValue(empleado['dia_6_s']), // dia_6_s de tabla → dia_7 de BD
           'campo_7': _getSafeStringValue(empleado['dia_6_campo']), // dia_6_campo de tabla → campo_7 de BD
           'total': _getSafeIntValue(empleado['total']),
@@ -1422,27 +1550,27 @@ class _NominaScreenState extends State<NominaScreen>
             'codigo': empleadoBasico[1]?.toString() ?? '',
             'nombre': empleadoBasico[2]?.toString() ?? '',
             'id': empleadoBasico[0]?.toString() ?? '',
-            // Mapear de BD a formato de tabla (ahora incluye campo)
+            // Mapear de BD a formato de tabla (conversión inteligente de ID a clave)
             'dia_0_s': nominaData[0]?.toString() ?? '0', // dia_1 BD → dia_0_s tabla
-            'dia_0_id': nominaData[1]?.toString() ?? '0', // act_1 BD → dia_0_id tabla
+            'dia_0_id': _obtenerClaveParaMostrar(nominaData[1]), // act_1 BD → dia_0_id tabla 
             'dia_0_campo': nominaData[2]?.toString() ?? '', // campo_1 BD → dia_0_campo tabla
             'dia_1_s': nominaData[3]?.toString() ?? '0', // dia_2 BD → dia_1_s tabla
-            'dia_1_id': nominaData[4]?.toString() ?? '0', // act_2 BD → dia_1_id tabla
+            'dia_1_id': _obtenerClaveParaMostrar(nominaData[4]), // act_2 BD → dia_1_id tabla 
             'dia_1_campo': nominaData[5]?.toString() ?? '', // campo_2 BD → dia_1_campo tabla
             'dia_2_s': nominaData[6]?.toString() ?? '0', // dia_3 BD → dia_2_s tabla
-            'dia_2_id': nominaData[7]?.toString() ?? '0', // act_3 BD → dia_2_id tabla
+            'dia_2_id': _obtenerClaveParaMostrar(nominaData[7]), // act_3 BD → dia_2_id tabla 
             'dia_2_campo': nominaData[8]?.toString() ?? '', // campo_3 BD → dia_2_campo tabla
             'dia_3_s': nominaData[9]?.toString() ?? '0', // dia_4 BD → dia_3_s tabla
-            'dia_3_id': nominaData[10]?.toString() ?? '0', // act_4 BD → dia_3_id tabla
+            'dia_3_id': _obtenerClaveParaMostrar(nominaData[10]), // act_4 BD → dia_3_id tabla 
             'dia_3_campo': nominaData[11]?.toString() ?? '', // campo_4 BD → dia_3_campo tabla
             'dia_4_s': nominaData[12]?.toString() ?? '0', // dia_5 BD → dia_4_s tabla
-            'dia_4_id': nominaData[13]?.toString() ?? '0', // act_5 BD → dia_4_id tabla
+            'dia_4_id': _obtenerClaveParaMostrar(nominaData[13]), // act_5 BD → dia_4_id tabla 
             'dia_4_campo': nominaData[14]?.toString() ?? '', // campo_5 BD → dia_4_campo tabla
             'dia_5_s': nominaData[15]?.toString() ?? '0', // dia_6 BD → dia_5_s tabla
-            'dia_5_id': nominaData[16]?.toString() ?? '0', // act_6 BD → dia_5_id tabla
+            'dia_5_id': _obtenerClaveParaMostrar(nominaData[16]), // act_6 BD → dia_5_id tabla 
             'dia_5_campo': nominaData[17]?.toString() ?? '', // campo_6 BD → dia_5_campo tabla
             'dia_6_s': nominaData[18]?.toString() ?? '0', // dia_7 BD → dia_6_s tabla
-            'dia_6_id': nominaData[19]?.toString() ?? '0', // act_7 BD → dia_6_id tabla
+            'dia_6_id': _obtenerClaveParaMostrar(nominaData[19]), // act_7 BD → dia_6_id tabla
             'dia_6_campo': nominaData[20]?.toString() ?? '', // campo_7 BD → dia_6_campo tabla
             'total': nominaData[21]?.toString() ?? '0',
             'debe': nominaData[22]?.toString() ?? '0',
@@ -1636,10 +1764,21 @@ class _NominaScreenState extends State<NominaScreen>
         print('🎯 Opción MANTENER: Conservando ${_cuadrillasTemporales.length} cuadrillas en temporales');
         
         // Debug: mostrar cuántos empleados se están conservando
+        int totalEmpleados = 0;
         for (var cuadrilla in _cuadrillasTemporales) {
           final empleados = cuadrilla['empleados'] as List;
+          totalEmpleados += empleados.length;
           print('   - ${cuadrilla['nombre']}: ${empleados.length} empleados');
+          // Debug adicional: mostrar nombres de empleados
+          for (var emp in empleados) {
+            print('     * ${emp['nombre'] ?? emp['id']}');
+          }
         }
+        print('🎯 TOTAL EMPLEADOS TEMPORALES: $totalEmpleados');
+        
+        // Guardar referencia adicional para debug
+        _ultimaOpcionCierre = 'mantener';
+        
         // Las cuadrillas en _optionsCuadrilla mantienen sus empleados asignados
         // Solo se resetearán los valores de sueldos/actividades cuando se cree nueva semana
       }
@@ -1689,16 +1828,31 @@ class _NominaScreenState extends State<NominaScreen>
   /// 🎯 Función para copiar empleados de cuadrillas a una nueva semana (opción mantener)
   Future<void> _copiarCuadrillasANuevaSemana(int nuevaSemanaId) async {
     try {
-      print('🎯 Iniciando copia de cuadrillas a nueva semana $nuevaSemanaId');
+      print('🎯🎯🎯 === INICIO COPIA CUADRILLAS === 🎯🎯🎯');
+      print('🎯 Nueva semana ID: $nuevaSemanaId');
+      print('🎯 Última opción cierre: $_ultimaOpcionCierre');
       print('🎯 Cuadrillas temporales disponibles: ${_cuadrillasTemporales.length}');
       
+      // Debug adicional: mostrar contenido completo de cuadrillas temporales
+      for (int i = 0; i < _cuadrillasTemporales.length; i++) {
+        var cuadrilla = _cuadrillasTemporales[i];
+        print('   Cuadrilla [$i]: ${cuadrilla['nombre']} (ID: ${cuadrilla['id']})');
+        final empleados = cuadrilla['empleados'] as List? ?? [];
+        print('   Empleados: ${empleados.length}');
+        for (var emp in empleados) {
+          print('     - ${emp['nombre'] ?? emp['id']} (ID: ${emp['id'] ?? emp['id_empleado']})');
+        }
+      }
+      
       if (_cuadrillasTemporales.isEmpty) {
-        print('⚠️ No hay cuadrillas temporales para copiar');
+        print('⚠️⚠️⚠️ NO HAY CUADRILLAS TEMPORALES PARA COPIAR ⚠️⚠️⚠️');
+        print('🔍 Esto puede indicar que se perdieron en el proceso de cierre');
         return;
       }
       
       // Obtener todas las cuadrillas que tienen empleados asignados
       int empleadosCopiadosTotal = 0;
+      int cuadrillasConEmpleados = 0;
       
       for (var cuadrilla in _cuadrillasTemporales) {
         final empleadosCuadrilla = List<Map<String, dynamic>>.from(
@@ -1706,22 +1860,35 @@ class _NominaScreenState extends State<NominaScreen>
         );
         
         if (empleadosCuadrilla.isNotEmpty) {
-          print('📋 Copiando cuadrilla "${cuadrilla['nombre']}" con ${empleadosCuadrilla.length} empleados');
+          cuadrillasConEmpleados++;
+          print('📋 COPIANDO cuadrilla "${cuadrilla['nombre']}" con ${empleadosCuadrilla.length} empleados');
           
-          // Usar el servicio de semana para guardar los empleados en la nueva semana
-          await SemanaService().guardarEmpleadosCuadrillaSemana(
-            semanaId: nuevaSemanaId,
-            cuadrillaId: cuadrilla['id'],
-            empleados: empleadosCuadrilla,
-          );
-          
-          empleadosCopiadosTotal += empleadosCuadrilla.length;
-          print('✅ Cuadrilla "${cuadrilla['nombre']}" copiada exitosamente');
+          try {
+            // Usar el servicio de semana para guardar los empleados en la nueva semana
+            await SemanaService().guardarEmpleadosCuadrillaSemana(
+              semanaId: nuevaSemanaId,
+              cuadrillaId: cuadrilla['id'],
+              empleados: empleadosCuadrilla,
+            );
+            
+            empleadosCopiadosTotal += empleadosCuadrilla.length;
+            print('✅ Cuadrilla "${cuadrilla['nombre']}" copiada exitosamente');
+          } catch (e) {
+            print('❌ Error copiando cuadrilla "${cuadrilla['nombre']}": $e');
+            // Continuar con las siguientes cuadrillas
+          }
+        } else {
+          print('⭕ Cuadrilla "${cuadrilla['nombre']}" sin empleados, saltando...');
         }
       }
       
+      print('🎯🎯🎯 === RESULTADO COPIA === 🎯🎯🎯');
+      print('📊 Cuadrillas procesadas: ${_cuadrillasTemporales.length}');
+      print('📊 Cuadrillas con empleados: $cuadrillasConEmpleados');
+      print('📊 Total empleados copiados: $empleadosCopiadosTotal');
+      
       if (empleadosCopiadosTotal > 0) {
-        print('🎉 Copia completada: $empleadosCopiadosTotal empleados copiados a nueva semana');
+        print('🎉 COPIA COMPLETADA EXITOSAMENTE: $empleadosCopiadosTotal empleados copiados a nueva semana $nuevaSemanaId');
         
         // Mostrar mensaje de éxito
         if (mounted) {
@@ -1733,22 +1900,32 @@ class _NominaScreenState extends State<NominaScreen>
                   SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      '✅ Cuadrillas mantenidas: $empleadosCopiadosTotal empleados copiados a la nueva semana'
+                      '✅ Cuadrillas mantenidas: $empleadosCopiadosTotal empleados en $cuadrillasConEmpleados cuadrillas copiados a la nueva semana'
                     ),
                   ),
                 ],
               ),
               backgroundColor: Colors.green.shade600,
-              duration: Duration(seconds: 4),
+              duration: Duration(seconds: 5),
             ),
           );
         }
       } else {
         print('ℹ️ No había empleados asignados para copiar');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('ℹ️ No había empleados asignados en las cuadrillas para mantener'),
+              backgroundColor: Colors.orange.shade600,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
       }
       
     } catch (e) {
-      print('❌ Error al copiar cuadrillas a nueva semana: $e');
+      print('❌❌❌ ERROR CRÍTICO AL COPIAR CUADRILLAS: $e ❌❌❌');
+      print('🔍 Stack trace: ${StackTrace.current}');
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1758,20 +1935,22 @@ class _NominaScreenState extends State<NominaScreen>
                 Icon(Icons.error, color: Colors.white),
                 SizedBox(width: 8),
                 Expanded(
-                  child: Text('❌ Error al copiar cuadrillas: $e'),
+                  child: Text('❌ Error crítico al copiar cuadrillas: $e'),
                 ),
               ],
             ),
             backgroundColor: Colors.red.shade600,
-            duration: Duration(seconds: 4),
+            duration: Duration(seconds: 6),
           ),
         );
       }
+    } finally {
+      // 🔄 Limpiar cuadrillas temporales después de copiar
+      final cantidadAntes = _cuadrillasTemporales.length;
+      _cuadrillasTemporales = [];
+      print('🧹 Cuadrillas temporales limpiadas (antes: $cantidadAntes, después: ${_cuadrillasTemporales.length})');
+      print('🎯🎯🎯 === FIN COPIA CUADRILLAS === 🎯🎯🎯');
     }
-    
-    // 🔄 Limpiar cuadrillas temporales después de copiar
-    _cuadrillasTemporales = [];
-    print('🧹 Cuadrillas temporales limpiadas');
   }
 
   // Función auxiliar para procesar los datos de un empleado
@@ -3074,6 +3253,7 @@ class _NominaScreenState extends State<NominaScreen>
                         onTableChange: _onFieldChanged,
                         onMostrarSemanasCerradas: _mostrarSemanasCerradas,
                         onRefreshTabla: _refreshTablaManual, // ✨ Callback para refresh manual
+                        funcionesConversionActividad: funcionesConversionActividad, // 🔑 Funciones de conversión de actividad
                       ),
                     ), // Export section
                     const SizedBox(height: 24),

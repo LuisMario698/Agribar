@@ -12,6 +12,7 @@ class NominaTablaEditable extends StatefulWidget {
   final void Function(int index, String key, dynamic value)? onChanged;
   final bool isExpanded;
   final bool readOnly;
+  final Map<String, Function>? funcionesConversionActividad; // 🔑 Funciones de conversión de actividad
 
   const NominaTablaEditable({
     Key? key,
@@ -20,6 +21,7 @@ class NominaTablaEditable extends StatefulWidget {
     this.onChanged,
     this.isExpanded = false,
     this.readOnly = false,
+    this.funcionesConversionActividad, // 🔑 Funciones de conversión de actividad
   }) : super(key: key);
 
   @override
@@ -42,8 +44,11 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
   // Variable para controlar si el widget ha been disposed
   bool _isDisposed = false;
 
-  // Mapa para almacenar las actividades
-  Map<String, String> _actividadesMap = {};
+  // Mapas para almacenar las actividades
+  Map<String, String> _actividadesMap = {}; // ID -> nombre
+  Map<String, String> _claveAIdMap = {}; // clave -> ID  
+  Map<String, String> _idAClaveMap = {}; // ID -> clave
+  Map<String, String> _claveANombreMap = {}; // clave -> nombre
 
   // Mapa para almacenar los campos
   Map<String, String> _camposMap = {};
@@ -57,27 +62,57 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
 
       print('📦 Procesando ${actividades.length} actividades...');
       setState(() {
-        _actividadesMap.clear(); // Limpiar el mapa existente
+        // Limpiar todos los mapas
+        _actividadesMap.clear();
+        _claveAIdMap.clear();
+        _idAClaveMap.clear();
+        _claveANombreMap.clear();
+        
         for (var actividad in actividades) {
           final id = (actividad['id'] ?? 0).toString();
           final nombre = actividad['nombre']?.toString() ?? 'Sin nombre';
           final clave = actividad['clave']?.toString() ?? '';
-          _actividadesMap[id] = '${clave} - ${nombre}';
-          print('  Mapeando - ID: $id -> Clave: $clave -> Nombre: $nombre');
+          
+          // Mapas para compatibilidad y conversión
+          _actividadesMap[id] = '${clave} - ${nombre}'; // Original
+          _claveAIdMap[clave] = id; // clave -> ID (para conversión al guardar)
+          _idAClaveMap[id] = clave; // ID -> clave (para mostrar en interfaz)
+          _claveANombreMap[clave] = nombre; // clave -> nombre (para mostrar nombre)
+          
+          print('  Mapeando - Clave: $clave -> ID: $id -> Nombre: $nombre');
         }
       });
       
       print('✅ Actividades cargadas exitosamente:');
-      print('  Total en mapa: ${_actividadesMap.length}');
-      print('  Contenido del mapa:');
-      _actividadesMap.forEach((id, nombre) {
-        print('    • ID: $id -> Nombre: $nombre');
+      print('  Total actividades: ${_actividadesMap.length}');
+      print('  Mapeo clave->ID: ${_claveAIdMap.length} entradas');
+      print('  Contenido del mapa clave->nombre:');
+      _claveANombreMap.forEach((clave, nombre) {
+        print('    • Clave: $clave -> Nombre: $nombre');
       });
     } catch (e, stackTrace) {
       print('❌ Error al cargar actividades: $e');
       print('Stack trace: $stackTrace');
     }
   }
+
+  // 🔑 Funciones auxiliares que usan las funciones del widget padre
+  
+  /// Valida si una clave de actividad es válida
+  bool _esClaveActividadValida(String clave) {
+    if (widget.funcionesConversionActividad == null) return true; // Si no hay funciones, permitir
+    final funcion = widget.funcionesConversionActividad!['esClaveActividadValida'] as bool Function(String)?;
+    return funcion?.call(clave) ?? true;
+  }
+  
+  /// Obtiene el nombre de una actividad por su clave
+  String _obtenerNombrePorClave(String clave) {
+    if (widget.funcionesConversionActividad == null) return '';
+    final funcion = widget.funcionesConversionActividad!['obtenerNombrePorClave'] as String Function(String)?;
+    return funcion?.call(clave) ?? '';
+  }
+  
+
 
   // Método para cargar los campos desde la base de datos
   Future<void> _cargarCampos() async {
@@ -116,13 +151,11 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     }
   }
 
-  // Método para obtener el nombre de la actividad
-  String _obtenerNombreActividad(String? id) {
-    if (id == null || id.isEmpty) return '';
-    final nombre = _actividadesMap[id] ?? '';
-    print('🔍 Buscando actividad - ID: $id -> Nombre: $nombre');
-    print('  Actividades disponibles: ${_actividadesMap.keys.join(', ')}');
-    return nombre;
+  /// Obtiene el ID para guardar en BD a partir de una clave
+  int _obtenerIdParaGuardar(String clave) {
+    if (widget.funcionesConversionActividad == null) return int.tryParse(clave) ?? 0;
+    final funcion = widget.funcionesConversionActividad!['obtenerIdParaGuardar'] as int Function(String)?;
+    return funcion?.call(clave) ?? int.tryParse(clave) ?? 0;
   }
   
   @override
@@ -616,12 +649,31 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
       empleado[campo] = valorEntero; // Guardar como entero, no como string
       print('  Campo $campo actualizado: $valorLimpio -> $valorEntero');
     } else if (campo.contains('dia_') && campo.endsWith('_id')) {
-      // Para campos de ID de actividad
-      empleado[campo] = valor.isEmpty ? null : valor;
-      final nombre = _obtenerNombreActividad(valor);
-      print('  Campo actividad actualizado:');
-      print('    ID: $valor');
-      print('    Nombre encontrado: $nombre');
+      // Para campos de ID de actividad - usuario ingresa CLAVE, guardamos ID
+      if (valor.isEmpty) {
+        empleado[campo] = null;
+        print('  Campo actividad limpiado');
+      } else {
+        // 🔧 PASO 1: Verificar si la clave es válida
+        if (_esClaveActividadValida(valor)) {
+          // 🔧 PASO 2: Convertir clave a ID para guardar
+          final idParaGuardar = _obtenerIdParaGuardar(valor);
+          empleado[campo] = idParaGuardar;
+          
+          // 🔧 PASO 3: Obtener nombre para feedback
+          final nombreActividad = _obtenerNombrePorClave(valor);
+          
+          print('  ✅ Campo actividad actualizado correctamente:');
+          print('    Clave ingresada: $valor');
+          print('    ID guardado: $idParaGuardar');
+          print('    Nombre: $nombreActividad');
+        } else {
+          // Clave no válida - no guardar nada y mostrar error
+          print('  ❌ Clave de actividad no válida: $valor');
+          // Mantener el valor anterior o null
+          // empleado[campo] se queda como estaba
+        }
+      }
     } else if (campo.contains('dia_') && campo.endsWith('_campo')) {
       // Para el campo "campo", guardar como string
       empleado[campo] = valor.isEmpty ? null : valor; // Guardamos null si está vacío
@@ -886,9 +938,6 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
           nombreDia = dias[i];
           fechaCorta = diasNumeros[i];
         }
-        
-        // Verificar si hay datos en el día anterior para activar el botón
-        final bool hayDatosAnterior = i > 0 ? _hayDatosEnDia(i - 1) : false;
         
         return DataColumn(
           label: Container(

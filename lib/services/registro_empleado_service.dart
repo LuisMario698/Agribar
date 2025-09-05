@@ -44,15 +44,14 @@ Future<void> registrarEmpleadoEnBD(Map<String, dynamic> datos) async {
 
     await db.connection.query(
       '''
-      INSERT INTO datos_nomina (id_empleado, sueldo, domingo_laboral, descuento_comedor, tipo_descuento_infonavit, descuento_infonavit)
-      VALUES (@idEmpleado, @sueldo, @domingoLaboral, @descuentoComedor, @tipoDescuento, @descuentoInfonavit);
+      INSERT INTO datos_nomina (id_empleado, sueldo, domingo_laboral, descuento_comedor, descuento_infonavit)
+      VALUES (@idEmpleado, @sueldo, @domingoLaboral, @descuentoComedor, @descuentoInfonavit);
     ''',
       substitutionValues: {
         'idEmpleado': idEmpleado,
         'sueldo': datos['sueldo'],
         'domingoLaboral': datos['domingoLaboral'],
         'descuentoComedor': datos['descuentoComedor'],
-        'tipoDescuento': datos['tipoDescuento'],
         'descuentoInfonavit': datos['descuentoInfonavit'],
       },
     );

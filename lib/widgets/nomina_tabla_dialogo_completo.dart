@@ -18,6 +18,8 @@ class NominaTablaDialogoCompleto extends StatefulWidget {
   final ScrollController horizontalController;
   /// Controlador para el scroll vertical de la tabla
   final ScrollController verticalController;
+  /// Funciones de conversión de actividades (clave<->ID)
+  final Map<String, Function>? funcionesConversionActividad;
   
   const NominaTablaDialogoCompleto({
     Key? key,
@@ -27,6 +29,7 @@ class NominaTablaDialogoCompleto extends StatefulWidget {
     required this.onClose,
     required this.horizontalController,
     required this.verticalController,
+    this.funcionesConversionActividad, // 🔑 Funciones de conversión de actividad
   }) : super(key: key);
 
   @override
@@ -528,6 +531,7 @@ class _NominaTablaDialogoCompletoState extends State<NominaTablaDialogoCompleto>
                                           semanaSeleccionada: widget.semanaSeleccionada,
                                           onChanged: widget.onChanged,
                                           isExpanded: true,
+                                          funcionesConversionActividad: widget.funcionesConversionActividad, // 🔑 Funciones de conversión de actividad
                                         ),
                                       ),
                                     ),
