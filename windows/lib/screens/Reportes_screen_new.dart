@@ -122,7 +122,6 @@ class _ReportesScreenState extends State<ReportesScreen>
       _resumenGeneral = await _reportesService.obtenerResumenGeneral(
         fechaInicio: _fechaInicio,
         fechaFin: _fechaFin,
-        rancho: _ranchoSeleccionado,
       );
 
     } catch (e) {

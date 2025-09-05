@@ -307,10 +307,11 @@ class ReportesGastosService {
           s.fecha_fin,
           s.esta_cerrada,
           s.autorizado_por,
-          s.fecha_autorizacion
+          s.fecha_autorizacion,
+          COUNT(n.id) as registros_nomina
         FROM semanas_nomina s
-        INNER JOIN nomina_empleados_historial n ON n.id_semana = s.id_semana
-        WHERE s.esta_cerrada = true
+        LEFT JOIN nomina_empleados_historial n ON n.id_semana = s.id_semana
+        GROUP BY s.id_semana, s.fecha_inicio, s.fecha_fin, s.esta_cerrada, s.autorizado_por, s.fecha_autorizacion
         ORDER BY s.fecha_inicio DESC
       ''');
 
@@ -321,10 +322,67 @@ class ReportesGastosService {
         'cerrada': row[3] as bool,
         'autorizado_por': row[4] as String?,
         'fecha_autorizacion': row[5] as DateTime?,
-        'nombre': '${_formatearFecha(row[1] as DateTime)} - ${_formatearFecha(row[2] as DateTime)}'
+        'registros_nomina': row[6] as int,
+        'nombre': '${_formatearFecha(row[1] as DateTime)} - ${_formatearFecha(row[2] as DateTime)}${row[3] as bool ? ' (Cerrada)' : ' (Abierta)'}${row[6] as int == 0 ? ' - Sin datos' : ''}'
       }).toList();
     } catch (e) {
       print('Error al obtener semanas: $e');
+      return [];
+    } finally {
+      await db.close();
+    }
+  }
+
+  /// Obtiene semanas con filtros específicos
+  Future<List<Map<String, dynamic>>> obtenerSemanasConFiltros({
+    bool? soloCerradas,
+    bool incluirSinDatos = true,
+  }) async {
+    final db = DatabaseService();
+    await db.connect();
+    
+    try {
+      String whereClause = '';
+      if (soloCerradas != null) {
+        whereClause = 'WHERE s.esta_cerrada = $soloCerradas';
+      }
+      
+      if (!incluirSinDatos) {
+        if (whereClause.isEmpty) {
+          whereClause = 'WHERE COUNT(n.id) > 0';
+        } else {
+          whereClause += ' AND COUNT(n.id) > 0';
+        }
+      }
+
+      final result = await db.connection.query('''
+        SELECT DISTINCT 
+          s.id_semana,
+          s.fecha_inicio,
+          s.fecha_fin,
+          s.esta_cerrada,
+          s.autorizado_por,
+          s.fecha_autorizacion,
+          COUNT(n.id) as registros_nomina
+        FROM semanas_nomina s
+        LEFT JOIN nomina_empleados_historial n ON n.id_semana = s.id_semana
+        GROUP BY s.id_semana, s.fecha_inicio, s.fecha_fin, s.esta_cerrada, s.autorizado_por, s.fecha_autorizacion
+        $whereClause
+        ORDER BY s.fecha_inicio DESC
+      ''');
+
+      return result.map((row) => {
+        'id': row[0] as int,
+        'fecha_inicio': row[1] as DateTime,
+        'fecha_fin': row[2] as DateTime,
+        'cerrada': row[3] as bool,
+        'autorizado_por': row[4] as String?,
+        'fecha_autorizacion': row[5] as DateTime?,
+        'registros_nomina': row[6] as int,
+        'nombre': '${_formatearFecha(row[1] as DateTime)} - ${_formatearFecha(row[2] as DateTime)}${row[3] as bool ? ' (Cerrada)' : ' (Abierta)'}${row[6] as int == 0 ? ' - Sin datos' : ''}'
+      }).toList();
+    } catch (e) {
+      print('Error al obtener semanas con filtros: $e');
       return [];
     } finally {
       await db.close();

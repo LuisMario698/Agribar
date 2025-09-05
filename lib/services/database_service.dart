@@ -710,9 +710,10 @@ Future<Map<String, dynamic>> descargarBackup(String rutaArchivo, String nombreAr
 }
 
 /// Marca una semana como cerrada en la base de datos
-Future<bool> cerrarSemanaEnBD(int idSemana) async {
+Future<bool> cerrarSemanaEnBD(int idSemana, {String? autorizadoPor}) async {
   print('🔥🔥🔥 [CERRAR SEMANA] ¡¡¡FUNCIÓN CERRAR SEMANA INICIADA!!! 🔥🔥🔥');
   print('📋 [CERRAR SEMANA] Parámetro recibido - idSemana: $idSemana (tipo: ${idSemana.runtimeType})');
+  print('👤 [CERRAR SEMANA] Usuario autorizado: ${autorizadoPor ?? 'NO PROPORCIONADO - ERROR'}');
   
   final db = DatabaseService();
   
@@ -772,16 +773,27 @@ Future<bool> cerrarSemanaEnBD(int idSemana) async {
     await db.connection.execute('BEGIN;');
     
     try {
+      // Validar que SIEMPRE se proporcione un usuario autorizado
+      if (autorizadoPor == null || autorizadoPor.trim().isEmpty) {
+        throw Exception('ERROR: Se requiere un usuario autorizado válido para cerrar la semana. No se puede usar "sistema" por defecto.');
+      }
+      
+      final usuarioFinal = autorizadoPor.trim();
+      
       print('🔄 [CERRAR SEMANA] Ejecutando UPDATE con parámetros:');
       print('   - idSemana: $idSemana (tipo: ${idSemana.runtimeType})');
+      print('   - autorizadoPor: $usuarioFinal');
       
       final updateResult = await db.connection.execute('''
         UPDATE semanas_nomina
         SET esta_cerrada = true,
             fecha_autorizacion = CURRENT_TIMESTAMP,
-            autorizado_por = 'sistema'
+            autorizado_por = @autorizadoPor
         WHERE id_semana = @idSemana;
-      ''', substitutionValues: {'idSemana': idSemana});
+      ''', substitutionValues: {
+        'idSemana': idSemana,
+        'autorizadoPor': usuarioFinal,
+      });
       
       print('✅ [CERRAR SEMANA] UPDATE ejecutado exitosamente, filas afectadas: $updateResult');
       
@@ -835,8 +847,10 @@ Future<bool> cerrarSemanaEnBD(int idSemana) async {
       if (fechaAutorizacion == null) {
         print('❌ [CERRAR SEMANA] FALLA: fecha_autorizacion es null');
       }
-      if (autorizadoPor == null || autorizadoPor != 'sistema') {
-        print('❌ [CERRAR SEMANA] FALLA: autorizado_por es: $autorizadoPor (esperado: "sistema")');
+      if (autorizadoPor == null) {
+        print('❌ [CERRAR SEMANA] FALLA: autorizado_por es null');
+      } else {
+        print('✅ [CERRAR SEMANA] Usuario autorizado correcto: $autorizadoPor');
       }
     } else {
       print('❌ [CERRAR SEMANA] No se encontraron resultados en la verificación');

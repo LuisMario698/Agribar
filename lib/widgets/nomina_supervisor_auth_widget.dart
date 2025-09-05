@@ -9,7 +9,8 @@ import '../theme/app_styles.dart';
 /// incluyendo validación de credenciales y manejo de errores.
 class NominaSupervisorAuthWidget extends StatefulWidget {
   /// Callback que se ejecuta cuando la autenticación es exitosa
-  final VoidCallback onAuthSuccess;
+  /// Incluye el nombre del usuario autenticado
+  final Function(String usuario) onAuthSuccess;
   /// Callback que se ejecuta al cerrar el diálogo
   final VoidCallback onClose;
 
@@ -65,8 +66,9 @@ class _NominaSupervisorAuthWidgetState extends State<NominaSupervisorAuthWidget>
       
       if (userData != null && userData['puede_gestionar'] == true && userData['puede_cerrar_semana'] == true) {
         // Autenticación exitosa y usuario con permisos para cerrar semanas
-        widget.onAuthSuccess();
-        await respaldarYLimpiarNominaUltimaSemana(userData['nombre_usuario']);
+        final nombreUsuario = userData['nombre_usuario'] ?? 'Usuario';
+        widget.onAuthSuccess(nombreUsuario);
+        await respaldarYLimpiarNominaUltimaSemana(nombreUsuario);
       } else {
         if (mounted) {
           setState(() {

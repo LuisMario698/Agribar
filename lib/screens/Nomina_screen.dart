@@ -1485,7 +1485,7 @@ class _NominaScreenState extends State<NominaScreen>
     }
   }
 
-  Future<void> _cerrarSemanaActual({String opcion = 'resetear'}) async {
+  Future<void> _cerrarSemanaActual({String opcion = 'resetear', String? usuarioAutorizado}) async {
     if (_startDate == null || _endDate == null) return;
 
     // 🔄 Guardar la opción seleccionada para uso futuro
@@ -1548,7 +1548,8 @@ class _NominaScreenState extends State<NominaScreen>
     if (idSemanaSeleccionada != null) {
       print('🚀🚀🚀 [UI] INICIANDO CIERRE DE SEMANA $idSemanaSeleccionada DESDE LA INTERFAZ!!! 🚀🚀🚀');
       print('🔍 [UI] Verificando idSemanaSeleccionada: $idSemanaSeleccionada (tipo: ${idSemanaSeleccionada.runtimeType})');
-      final cerradaExitosamente = await cerrarSemanaEnBD(idSemanaSeleccionada!);
+      print('👤 [UI] Usuario autorizado: $usuarioAutorizado');
+      final cerradaExitosamente = await cerrarSemanaEnBD(idSemanaSeleccionada!, autorizadoPor: usuarioAutorizado);
       print('🔄🔄🔄 [UI] RESULTADO DEL CIERRE: $cerradaExitosamente 🔄🔄🔄');
       if (!cerradaExitosamente) {
         print('❌❌❌ ERROR: NO SE PUDO MARCAR LA SEMANA COMO CERRADA EN BD ❌❌❌');
@@ -1995,13 +1996,14 @@ class _NominaScreenState extends State<NominaScreen>
       barrierDismissible: false,
       builder:
           (context) => NominaSupervisorAuthWidget(
-            onAuthSuccess: () async {
+            onAuthSuccess: (String usuarioAutenticado) async {
               Navigator.of(context).pop();
               
               // 🔄 Crear backup antes de cerrar semana
               await _crearBackupAntesDeCarrar();
               
-              _mostrarResumenCuadrillasYCerrar();
+              // Pasar el usuario autenticado al método de cierre
+              _mostrarResumenCuadrillasYCerrar(usuarioAutorizado: usuarioAutenticado);
             },
             onClose: () => Navigator.of(context).pop(),
           ),
@@ -3547,7 +3549,7 @@ class _NominaScreenState extends State<NominaScreen>
     }
   }
 
-  void _mostrarResumenCuadrillasYCerrar() async {
+  void _mostrarResumenCuadrillasYCerrar({String? usuarioAutorizado}) async {
     if (_startDate == null || _endDate == null) return;
 
     // 🚨 CRÍTICO: Guardar todos los datos pendientes ANTES de mostrar el resumen
@@ -3679,7 +3681,7 @@ class _NominaScreenState extends State<NominaScreen>
         empleadosNominaTemp: null, // Ya no necesitamos datos temporales
         onConfirmarCierre: (String opcion) async {
           Navigator.of(context).pop();
-          await _cerrarSemanaActual(opcion: opcion);
+          await _cerrarSemanaActual(opcion: opcion, usuarioAutorizado: usuarioAutorizado);
         },
         onCancelar: () => Navigator.of(context).pop(),
       ),

@@ -335,7 +335,7 @@ class _CustomWeekSelectorDialogState extends State<CustomWeekSelectorDialog> {
       context: context,
       barrierDismissible: false,
       builder: (context) => NominaSupervisorAuthWidget(
-        onAuthSuccess: () async {
+        onAuthSuccess: (String usuario) async {
           Navigator.of(context).pop(); // Cerrar auth dialog
           await _eliminarSemana(semana);
         },

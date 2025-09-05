@@ -132,6 +132,45 @@ class _ReportesGastosWidgetState extends State<ReportesGastosWidget> {
     );
   }
 
+  Future<void> _refrescarSemanas() async {
+    try {
+      setState(() => _cargando = true);
+      
+      // Recargar semanas
+      _semanas = await _reportesService.obtenerSemanasDisponibles();
+      
+      setState(() {
+        // Mantener la semana seleccionada si existe, sino seleccionar la más reciente
+        if (_semanaSeleccionada != null) {
+          bool semanaExiste = _semanas.any((s) => s['id'] == _semanaSeleccionada);
+          if (!semanaExiste && _semanas.isNotEmpty) {
+            _semanaSeleccionada = _semanas.first['id'];
+          }
+        } else if (_semanas.isNotEmpty) {
+          _semanaSeleccionada = _semanas.first['id'];
+        }
+      });
+      
+      // Mostrar mensaje de éxito
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Semanas actualizadas. ${_semanas.length} semana(s) encontrada(s).'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      
+      // Regenerar reporte si hay una semana seleccionada
+      if (_semanaSeleccionada != null) {
+        await _generarReporte();
+      }
+      
+    } catch (e) {
+      _mostrarError('Error al refrescar semanas: $e');
+    } finally {
+      setState(() => _cargando = false);
+    }
+  }
+
   double get _totalGeneral {
     return _datosReporte.fold(0.0, (sum, item) => sum + (item['total_pagado'] as double));
   }
@@ -1074,49 +1113,73 @@ class _ReportesGastosWidgetState extends State<ReportesGastosWidget> {
       }
     }
     
-    return SizedBox(
-      width: 350,
-      child: InkWell(
-        onTap: () => _mostrarSelectorSemana(),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey.shade400),
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.calendar_today, color: AppColors.green),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Semana *',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      semanaTexto,
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: _semanaSeleccionada != null ? Colors.black87 : Colors.grey.shade500,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
+    return Row(
+      children: [
+        SizedBox(
+          width: 350,
+          child: InkWell(
+            onTap: () => _mostrarSelectorSemana(),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.shade400),
+                borderRadius: BorderRadius.circular(4),
               ),
-              Icon(Icons.arrow_drop_down, color: Colors.grey.shade600),
-            ],
+              child: Row(
+                children: [
+                  Icon(Icons.calendar_today, color: AppColors.green),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Semana *',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          semanaTexto,
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: _semanaSeleccionada != null ? Colors.black87 : Colors.grey.shade500,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.arrow_drop_down, color: Colors.grey.shade600),
+                ],
+              ),
+            ),
           ),
         ),
-      ),
+        const SizedBox(width: 8),
+        // Botón de refrescar semanas
+        Tooltip(
+          message: 'Actualizar lista de semanas',
+          child: OutlinedButton.icon(
+            onPressed: _cargando ? null : _refrescarSemanas,
+            icon: _cargando
+                ? SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Icon(Icons.refresh, size: 18),
+            label: Text('${_semanas.length}'),
+            style: OutlinedButton.styleFrom(
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+              minimumSize: Size(60, 50),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
