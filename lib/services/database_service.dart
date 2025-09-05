@@ -143,7 +143,7 @@ Future<List<Map<String, dynamic>>> obtenerEmpleadosAsignadosCuadrilla(
     
     if (semanaId != null) {
       results = await db.connection.query('''
-        SELECT DISTINCT e.id_empleado, e.nombre, e.apellido_paterno, e.apellido_materno, e.codigo_empleado,
+        SELECT DISTINCT e.id_empleado, e.nombre, e.apellido_paterno, e.apellido_materno,
                nes.id as nomina_id
         FROM empleados e
         INNER JOIN nomina_empleados_semanal nes ON e.id_empleado = nes.id_empleado
@@ -153,7 +153,7 @@ Future<List<Map<String, dynamic>>> obtenerEmpleadosAsignadosCuadrilla(
     } else {
       // Si no hay semana específica, obtener todos los empleados activos
       results = await db.connection.query('''
-        SELECT id_empleado, nombre, apellido_paterno, apellido_materno, codigo_empleado
+        SELECT id_empleado, nombre, apellido_paterno, apellido_materno
         FROM empleados 
         WHERE activo = true
         ORDER BY nombre, apellido_paterno
@@ -167,8 +167,8 @@ Future<List<Map<String, dynamic>>> obtenerEmpleadosAsignadosCuadrilla(
               'id': row[0],
               'nombres': row[1],
               'apellidos': '${row[2] ?? ''} ${row[3] ?? ''}'.trim(),
-              'codigo': row[4],
-              'nomina_id': row.length > 5 ? row[5] : null,
+              'codigo': row[0].toString(), // Usar ID como código temporal
+              'nomina_id': semanaId != null && row.length > 4 ? row[4] : null,
             })
         .toList();
         
