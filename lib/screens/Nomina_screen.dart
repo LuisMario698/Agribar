@@ -156,14 +156,11 @@ class _NominaScreenState extends State<NominaScreen>
     // Registrar la función de guardado con el Dashboard
     widget.onGuardadoCallbackSet?.call(_guardarNomina);
     
-    // Cargar datos iniciales
-    _cargarCuadrillasHabilitadas();
+    // Cargar datos iniciales básicos
     _loadInitialData();
     
-    // 🎯 Verificar semana activa y restaurar estado si existe
+    // 🎯 Verificar semana activa (esto ya carga cuadrillas con empleados internamente)
     verificarSemanaActiva();
-    
-    // Esperar un poco para que se carguen los datos antes de restaurar estado
   }
 
   @override
@@ -230,7 +227,8 @@ class _NominaScreenState extends State<NominaScreen>
         }
         
         // 📊 LLAMADA CALCULO TOTAL SEMANAL: Después de cargar datos de nómina
-        _actualizarTotalSemana();
+        // Se ejecuta con un pequeño delay para asegurar que el widget esté completamente montado
+        Future.microtask(() => _actualizarTotalSemana());
       }
     }
   }
@@ -258,13 +256,27 @@ class _NominaScreenState extends State<NominaScreen>
       // 🚨 Solo ejecutar si el widget sigue montado
       if (mounted) {
         // ✅ Recargar cuadrillas con empleados ahora que hay semana activa
+        print('🔄 [INIT] Iniciando carga de cuadrillas con empleados...');
         await _cargarCuadrillasHabilitadas();
+        
+        print('🔄 [INIT] Cargando cuadrillas de semana específica...');
         await _cargarCuadrillasSemana(semana['id']);
+        
+        print('🔄 [INIT] Cargando datos completos de empleados de cuadrillas...');
         // ✅ Cargar empleados de todas las cuadrillas desde la BD
         await _cargarEmpleadosDeCuadrillas();
         
-        // 📊 LLAMADA CALCULO TOTAL SEMANAL: Después de verificar y cargar semana activa
-        _actualizarTotalSemana();
+        // � MEJORA: Asegurar que el dropdown se actualice después de cargar empleados
+        if (mounted) {
+          setState(() {
+            print('✅ [INIT] Carga inicial completa - Cuadrillas disponibles: ${_optionsCuadrilla.length}');
+            _optionsCuadrilla.forEach((c) => print('   - ${c['nombre']}: ${(c['empleados'] as List?)?.length ?? 0} empleados'));
+          });
+        }
+        
+        // �📊 LLAMADA CALCULO TOTAL SEMANAL: Después de verificar y cargar semana activa
+        // Se ejecuta con un pequeño delay para asegurar que el widget esté completamente montado
+        Future.microtask(() => _actualizarTotalSemana());
       }
     } else {
       if (mounted) {
@@ -662,6 +674,10 @@ class _NominaScreenState extends State<NominaScreen>
       }
     } else {
       print('ℹ️ No hay semana activa, cargando cuadrillas sin empleados');
+      // 🔄 Asegurar que todas las cuadrillas tengan una lista de empleados vacía
+      for (int i = 0; i < cuadrillasBD.length; i++) {
+        cuadrillasBD[i]['empleados'] = [];
+      }
     }
     
     if (mounted) {
@@ -671,6 +687,15 @@ class _NominaScreenState extends State<NominaScreen>
       });
       
       print('📊 Cargadas ${_optionsCuadrilla.length} cuadrillas en dropdowns');
+      
+      // 🔄 MEJORA: Forzar actualización del widget dropdown para reflejar cambios
+      Future.microtask(() {
+        if (mounted) {
+          setState(() {
+            // Pequeña actualización para forzar redibujado del dropdown
+          });
+        }
+      });
     }
   }
 
@@ -754,7 +779,8 @@ class _NominaScreenState extends State<NominaScreen>
           _actualizarEstadosValidacion();
           
           // 📊 LLAMADA CALCULO TOTAL SEMANAL: Después de crear nueva semana
-          _actualizarTotalSemana();
+          // Se ejecuta con un pequeño delay para asegurar que el widget esté completamente montado
+          Future.microtask(() => _actualizarTotalSemana());
 
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -2440,14 +2466,19 @@ class _NominaScreenState extends State<NominaScreen>
     empleado['subtotal'] = subtotal;
     empleado['totalNeto'] = totalNeto;
     
-    // 📊 LLAMADA CALCULO TOTAL SEMANAL: Después de recalcular totales de empleado
-    // Esto actualiza el total semanal en tiempo real cuando el usuario cambia valores
-    _actualizarTotalSemana();
+    // 📊 El total semanal se actualiza únicamente al guardar, no en tiempo real
+    // para evitar problemas de setState() después del dispose()
   }
 
   /// 🔄 Método para forzar la actualización del indicador Total semana
   /// 📊 CALCULO TOTAL SEMANAL: Se llama después de guardar datos para recalcular el total de la semana
   void _actualizarTotalSemana() {
+    // Verificar que el widget esté montado y no esté disposed antes de llamar setState
+    if (!mounted || _isDisposed) {
+      print('⚠️ [CALCULO TOTAL SEMANAL] Widget desmontado o disposed, cancelando actualización');
+      return;
+    }
+    
     // Forzar reconstrucción del widget de indicadores incrementando la key
     // Esto causará que el NominaIndicatorsRow se reconstruya y recalcule automáticamente el total
     setState(() {
