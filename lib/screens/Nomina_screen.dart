@@ -24,6 +24,7 @@ import '../widgets/nomina_export_section.dart';
 import '../widgets/nomina_flow_indicator.dart';
 import '../widgets/nomina_dialogo_cambios_no_guardados.dart';
 import '../widgets/cuadrillas_loading_widget.dart';
+import '../services/cuadrillas_cache_service.dart';
 
 /// Widget principal de la pantalla de nómina.
 /// Gestiona el proceso completo de nómina semanal incluyendo:
@@ -128,6 +129,10 @@ class _NominaScreenState extends State<NominaScreen>
   // 🎯 Variable para forzar actualización de indicadores
   int _indicatorsUpdateKey = 0;
   
+  // 📋 Cache de cuadrillas para evitar recargas innecesarias
+  final CuadrillasCache _cuadrillasCache = CuadrillasCache();
+  bool _isCuadrillasLoadingInBackground = false;
+  
   Map<String, dynamic> _selectedCuadrilla = {
     'nombre': '',
     'empleados': [],
@@ -162,6 +167,9 @@ class _NominaScreenState extends State<NominaScreen>
     
     // 🎯 Verificar semana activa (esto ya carga cuadrillas con empleados internamente)
     verificarSemanaActiva();
+    
+    // 🆕 Cargar semanas cerradas desde la base de datos
+    _cargarSemanasCerradas();
   }
 
   @override
@@ -169,6 +177,10 @@ class _NominaScreenState extends State<NominaScreen>
     _isDisposed = true;
     _buscarDisponiblesController.dispose();
     _buscarEnCuadrillaController.dispose();
+    
+    // 🧹 Limpiar overlay de loading si está visible
+    CuadrillasLoadingOverlay.hide();
+    
     super.dispose();
   }
 
@@ -252,6 +264,12 @@ class _NominaScreenState extends State<NominaScreen>
           _puedeArmarCuadrilla = true; // Siempre permitir armar cuadrillas
           _puedeCapturarDatos = false; // Solo después de armar cuadrilla
         });
+
+        // 🗑️ CACHE: Verificar si cambió la semana para invalidar cache si es necesario
+        if (_cuadrillasCache.hasCachedData && !_cuadrillasCache.isValidForSemana(semana['id'])) {
+          print('🔄 Semana cambió, invalidando cache de cuadrillas');
+          _invalidarCacheCuadrillas();
+        }
       }
 
       // 🚨 Solo ejecutar si el widget sigue montado
@@ -290,8 +308,129 @@ class _NominaScreenState extends State<NominaScreen>
           _puedeArmarCuadrilla = true; // Siempre permitir armar cuadrillas
           _puedeCapturarDatos = false;
         });
+        
+        // 🧹 Limpiar cache ya que no hay semana activa
+        _cuadrillasCache.clearCache();
       }
     }
+  }
+
+  /// 🆕 Cargar semanas cerradas desde la base de datos
+  Future<void> _cargarSemanasCerradas() async {
+    try {
+      print('\n\n�🟢🟢 [HISTORIAL] INICIANDO CARGA DE SEMANAS CERRADAS 🟢🟢🟢');
+      
+      // 🔍 DEBUG: Verificar primero qué semanas hay en la BD
+      final db = DatabaseService();
+      await db.connect();
+      
+      final semanasQuery = await db.connection.query('''
+        SELECT 
+          id_semana,
+          fecha_inicio,
+          fecha_fin,
+          esta_cerrada,
+          creado_en
+        FROM semanas_nomina
+        ORDER BY fecha_inicio DESC;
+      ''');
+      
+      print('📋 [HISTORIAL] TODAS LAS SEMANAS EN BD (${semanasQuery.length}):');
+      for (var semana in semanasQuery) {
+        final cerrada = semana[3] == true ? 'CERRADA' : 'ABIERTA';
+        print('   • ID: ${semana[0]}, Fechas: ${semana[1]} - ${semana[2]}, Estado: $cerrada');
+        
+        // Verificar datos de nómina para esta semana
+        final nominaQuery = await db.connection.query('''
+          SELECT COUNT(*) as total_empleados, SUM(total_neto) as total_nomina
+          FROM nomina_empleados_semanal
+          WHERE id_semana = @semanaId;
+        ''', substitutionValues: {'semanaId': semana[0]});
+        
+        if (nominaQuery.isNotEmpty) {
+          print('     ➜ Empleados en nómina: ${nominaQuery.first[0]}, Total: \$${nominaQuery.first[1] ?? 0}');
+        }
+      }
+      
+      await db.close();
+      
+      print('🚀 [HISTORIAL] Llamando a obtenerSemanasCerradas()...');
+      
+      // Llamar función original
+      final semanasCerradasBD = await obtenerSemanasCerradas();
+      
+      print('✅ [HISTORIAL] obtenerSemanasCerradas() retornó: ${semanasCerradasBD.length} semanas');
+      
+      for (int i = 0; i < semanasCerradasBD.length; i++) {
+        final semana = semanasCerradasBD[i];
+        print('   📊 Semana $i: ID=${semana['id']}, Cuadrillas=${(semana['cuadrillas'] as List).length}, Total=\$${semana['totalSemana']}');
+        
+        final cuadrillas = semana['cuadrillas'] as List;
+        for (int j = 0; j < cuadrillas.length; j++) {
+          final cuadrilla = cuadrillas[j];
+          print('      🔸 ${cuadrilla['nombre']}: ${cuadrilla['empleados']?.length ?? 0} empleados, Total: \$${cuadrilla['total']}');
+        }
+      }
+      
+      if (mounted) {
+        setState(() {
+          semanasCerradas = semanasCerradasBD;
+        });
+        print('✅ [HISTORIAL] Estado actualizado con ${semanasCerradasBD.length} semanas cerradas');
+      }
+      
+      print('🟢🟢🟢 [HISTORIAL] CARGA COMPLETADA 🟢🟢🟢\n\n');
+    } catch (e) {
+      print('❌❌❌ [HISTORIAL] ERROR: $e');
+      print('Stack trace: ${StackTrace.current}');
+    }
+  }
+
+  /// Invalida el cache de cuadrillas cuando sea necesario
+  void _invalidarCacheCuadrillas() {
+    print('🗑️ Invalidando cache de cuadrillas');
+    _cuadrillasCache.invalidateCache();
+  }
+
+  /// Muestra un SnackBar de progreso no intrusivo para cargas pequeñas
+  void _mostrarProgresoCarga(int processed, int total, String current) {
+    if (!mounted) return;
+
+    // Solo mostrar cada 10 cuadrillas procesadas para no spam
+    if (processed % 10 != 0 && processed != total) return;
+
+    final progress = (processed / total * 100).round();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+                value: processed / total,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Cargando empleados... $progress% ($processed/$total)',
+                style: const TextStyle(fontSize: 14),
+              ),
+            ),
+          ],
+        ),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        backgroundColor: AppColors.green.withOpacity(0.9),
+      ),
+    );
   }
 
   // 🎯 Validaciones del flujo robusto
@@ -649,135 +788,243 @@ class _NominaScreenState extends State<NominaScreen>
   // Cargar semana activa automáticamente al abrir pantalla
 
   Future<void> _cargarCuadrillasHabilitadas() async {
+    // 🚀 Verificar si necesitamos cargar o ya tenemos datos en cache
+    if (semanaSeleccionada == null || idSemanaSeleccionada == null) {
+      print('ℹ️ No hay semana activa, cargando cuadrillas básicas sin empleados');
+      await _cargarCuadrillasBasicasSinCache();
+      return;
+    }
+
+    print('� [CACHE] Verificando cache para semana ${idSemanaSeleccionada}');
+    
+    try {
+      // Obtener cuadrillas del cache (carga automáticamente si es necesario)
+      final cuadrillasFromCache = await _cuadrillasCache.getCuadrillas(
+        idSemanaSeleccionada!,
+        _loadCuadrillasBasicas,
+        _loadEmpleadosEnBackground,
+      );
+
+      // Actualizar las opciones de cuadrilla con los datos del cache
+      if (mounted) {
+        setState(() {
+          _optionsCuadrilla.clear();
+          _optionsCuadrilla.addAll(cuadrillasFromCache);
+        });
+        
+        print('📊 [CACHE] Cuadrillas cargadas desde cache: ${_optionsCuadrilla.length}');
+      }
+
+      // Escuchar actualizaciones del cache
+      _cuadrillasCache.cuadrillasStream.listen((cuadrillas) {
+        if (mounted) {
+          setState(() {
+            _optionsCuadrilla.clear();
+            _optionsCuadrilla.addAll(cuadrillas);
+          });
+          print('🔄 [CACHE] Cuadrillas actualizadas desde stream: ${cuadrillas.length}');
+        }
+      });
+
+    } catch (e) {
+      print('❌ Error al cargar cuadrillas desde cache: $e');
+      // Fallback a carga básica
+      await _cargarCuadrillasBasicasSinCache();
+    }
+  }
+
+  /// Carga cuadrillas básicas sin usar cache (fallback)
+  Future<void> _cargarCuadrillasBasicasSinCache() async {
     final cuadrillasBD = await obtenerCuadrillasHabilitadas();
     
-    // 🚀 OPTIMIZACIÓN: Cargar cuadrillas inmediatamente sin empleados para evitar la espera
     if (mounted) {
       setState(() {
         _optionsCuadrilla.clear();
-        // Añadir cuadrillas con listas vacías de empleados primero
         _optionsCuadrilla.addAll(cuadrillasBD.map((c) => {
           ...c,
           'empleados': <Map<String, dynamic>>[],
         }).toList());
       });
       
-      print('📊 Cargadas ${_optionsCuadrilla.length} cuadrillas básicas (sin empleados)');
-    }
-    
-    // 🎯 Si hay una semana activa, cargar empleados en background
-    if (semanaSeleccionada != null && idSemanaSeleccionada != null && cuadrillasBD.isNotEmpty) {
-      print('🔄 Cargando empleados de cuadrillas en background para semana ${idSemanaSeleccionada}');
-      
-      // 🔄 Mostrar loading overlay al usuario solo si hay muchas cuadrillas
-      if (mounted && cuadrillasBD.length > 10) {
-        CuadrillasLoadingOverlay.show(
-          context,
-          totalCuadrillas: cuadrillasBD.length,
-          cuadrillasProcessed: 0,
-          currentCuadrilla: 'Iniciando carga...',
-        );
-      }
-      
-      // Cargar empleados en background
-      _cargarEmpleadosEnBackground(cuadrillasBD);
-    } else {
-      print('ℹ️ No hay semana activa, cuadrillas cargadas sin empleados');
+      print('📊 Cargadas ${_optionsCuadrilla.length} cuadrillas básicas (sin cache)');
     }
   }
 
-  /// Carga los empleados de las cuadrillas en background sin bloquear la UI
-  Future<void> _cargarEmpleadosEnBackground(List<Map<String, dynamic>> cuadrillas) async {
-    int erroresConsecutivos = 0;
-    const int maxErroresPermitidos = 5;
-    const int batchSize = 3; // Procesar en lotes pequeños
+  /// Función para cargar cuadrillas básicas (usada por el cache)
+  Future<List<Map<String, dynamic>>> _loadCuadrillasBasicas() async {
+    print('🔄 [CACHE] Cargando cuadrillas básicas desde BD');
+    return await obtenerCuadrillasHabilitadas();
+  }
+
+  /// Función para cargar empleados en background (usada por el cache)
+  Future<void> _loadEmpleadosEnBackground(List<Map<String, dynamic>> cuadrillas) async {
+    print('🔄 [CACHE] Iniciando carga de empleados en background');
     
-    for (int batchStart = 0; batchStart < cuadrillas.length; batchStart += batchSize) {
-      final batchEnd = (batchStart + batchSize).clamp(0, cuadrillas.length);
-      final batch = cuadrillas.sublist(batchStart, batchEnd);
-      
-      // Procesar lote actual
-      final List<Future<void>> batchFutures = batch.asMap().entries.map((entry) async {
-        final realIndex = batchStart + entry.key;
-        final cuadrilla = entry.value;
-        
-        // Actualizar progreso en el loading si está visible
-        if (mounted && cuadrillas.length > 10) {
-          CuadrillasLoadingOverlay.hide();
-          CuadrillasLoadingOverlay.show(
-            context,
-            totalCuadrillas: cuadrillas.length,
-            cuadrillasProcessed: realIndex,
-            currentCuadrilla: cuadrilla['nombre'] ?? 'Sin nombre',
-          );
-        }
-        
-        try {
-          // Obtener empleados asignados a esta cuadrilla
-          final empleadosAsignados = await obtenerEmpleadosAsignadosCuadrilla(
-            cuadrilla['id'], 
-            idSemanaSeleccionada
-          );
-          
-          // Actualizar la cuadrilla correspondiente en _optionsCuadrilla
-          if (mounted && realIndex < _optionsCuadrilla.length) {
-            setState(() {
-              _optionsCuadrilla[realIndex]['empleados'] = empleadosAsignados;
-            });
-          }
-          
-          print('✅ Cuadrilla ${cuadrilla['nombre']}: ${empleadosAsignados.length} empleados cargados');
-          
-          // Resetear contador de errores consecutivos
-          erroresConsecutivos = 0;
-          
-        } catch (e) {
-          print('❌ Error cargando empleados para cuadrilla ${cuadrilla['nombre']}: $e');
-          
-          // Asegurar que la lista de empleados esté vacía en caso de error
-          if (mounted && realIndex < _optionsCuadrilla.length) {
-            setState(() {
-              _optionsCuadrilla[realIndex]['empleados'] = [];
-            });
-          }
-          
-          erroresConsecutivos++;
-          
-          // Si hay muchos errores consecutivos, detener el proceso
-          if (erroresConsecutivos >= maxErroresPermitidos) {
-            print('⚠️ Demasiados errores consecutivos. Deteniendo carga de empleados...');
-            throw Exception('Demasiados errores consecutivos');
-          }
-        }
-      }).toList();
-      
-      try {
-        // Esperar a que termine el lote actual
-        await Future.wait(batchFutures);
-        
-        // Pequeña pausa entre lotes para no sobrecargar el sistema
-        if (batchEnd < cuadrillas.length) {
-          await Future.delayed(const Duration(milliseconds: 100));
-        }
-        
-      } catch (e) {
-        print('❌ Error en lote de cuadrillas: $e');
-        // Si hay error en el lote, continúar con el siguiente lote
-        break;
+    _isCuadrillasLoadingInBackground = true;
+    
+    // 🎯 CAMBIO: Mostrar notificación solo si hay muchas cuadrillas (más de 20)
+    // Para pocas cuadrillas, solo mostrar un mensaje inicial sutil
+    if (mounted) {
+      if (cuadrillas.length > 20) {
+        CuadrillasLoadingOverlay.show(
+          context,
+          totalCuadrillas: cuadrillas.length,
+          cuadrillasProcessed: 0,
+          currentCuadrilla: 'Iniciando carga...',
+          showInBackground: true,
+        );
+      } else {
+        // Para pocas cuadrillas: mostrar SnackBar inicial discreto
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Cargando empleados de ${cuadrillas.length} cuadrillas...',
+                  style: const TextStyle(fontSize: 14),
+                ),
+              ],
+            ),
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            backgroundColor: AppColors.green.withOpacity(0.9),
+          ),
+        );
+        print('🔄 [CARGA LIGERA] Cargando ${cuadrillas.length} cuadrillas sin bloquear UI');
       }
     }
     
-    // Ocultar loading overlay
-    if (mounted) {
-      CuadrillasLoadingOverlay.hide();
+    int erroresConsecutivos = 0;
+    const int maxErroresPermitidos = 5;
+    const int batchSize = 3;
+    
+    try {
+      for (int batchStart = 0; batchStart < cuadrillas.length; batchStart += batchSize) {
+        // Verificar si el widget sigue montado
+        if (!mounted) break;
+        
+        final batchEnd = (batchStart + batchSize).clamp(0, cuadrillas.length);
+        final batch = cuadrillas.sublist(batchStart, batchEnd);
+        
+        // Procesar lote actual
+        final List<Future<void>> batchFutures = batch.asMap().entries.map((entry) async {
+          final realIndex = batchStart + entry.key;
+          final cuadrilla = entry.value;
+          
+          // Actualizar progreso
+          _cuadrillasCache.updateLoadingProgress(
+            cuadrillas.length, 
+            realIndex, 
+            cuadrilla['nombre'] ?? 'Sin nombre'
+          );
+          
+          // Actualizar progreso de manera no intrusiva
+          if (mounted) {
+            if (cuadrillas.length > 20) {
+              // Para muchas cuadrillas: usar overlay
+              CuadrillasLoadingOverlay.hide();
+              CuadrillasLoadingOverlay.show(
+                context,
+                totalCuadrillas: cuadrillas.length,
+                cuadrillasProcessed: realIndex,
+                currentCuadrilla: cuadrilla['nombre'] ?? 'Sin nombre',
+                showInBackground: true,
+              );
+            } else {
+              // Para pocas cuadrillas: usar SnackBar ocasional
+              _mostrarProgresoCarga(realIndex, cuadrillas.length, cuadrilla['nombre'] ?? 'Sin nombre');
+            }
+          }
+          
+          try {
+            final empleadosAsignados = await obtenerEmpleadosAsignadosCuadrilla(
+              cuadrilla['id'], 
+              idSemanaSeleccionada
+            );
+            
+            // Actualizar cuadrilla en el cache
+            cuadrillas[realIndex]['empleados'] = empleadosAsignados;
+            _cuadrillasCache.updateCuadrilla(realIndex, cuadrillas[realIndex]);
+            
+            print('✅ [CACHE] Cuadrilla ${cuadrilla['nombre']}: ${empleadosAsignados.length} empleados');
+            erroresConsecutivos = 0;
+            
+          } catch (e) {
+            print('❌ [CACHE] Error en cuadrilla ${cuadrilla['nombre']}: $e');
+            cuadrillas[realIndex]['empleados'] = [];
+            _cuadrillasCache.updateCuadrilla(realIndex, cuadrillas[realIndex]);
+            
+            erroresConsecutivos++;
+            if (erroresConsecutivos >= maxErroresPermitidos) {
+              throw Exception('Demasiados errores consecutivos');
+            }
+          }
+        }).toList();
+        
+        await Future.wait(batchFutures);
+        
+        // Pausa entre lotes
+        if (batchEnd < cuadrillas.length) {
+          await Future.delayed(const Duration(milliseconds: 100));
+        }
+      }
       
-      // Forzar actualización final
-      setState(() {
-        print('✅ [BACKGROUND] Carga de empleados completada');
-        final totalEmpleados = _optionsCuadrilla.fold<int>(0, 
+      print('✅ [CACHE] Carga de empleados completada');
+      
+    } catch (e) {
+      print('❌ [CACHE] Error en carga de empleados: $e');
+    } finally {
+      _isCuadrillasLoadingInBackground = false;
+      
+      // Ocultar loading overlay
+      if (mounted) {
+        CuadrillasLoadingOverlay.hide();
+        
+        // Mostrar notificación de completado
+        final totalEmpleados = cuadrillas.fold<int>(0, 
           (sum, c) => sum + ((c['empleados'] as List?)?.length ?? 0));
-        print('📊 Total empleados cargados: $totalEmpleados');
-      });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(
+                  Icons.check_circle,
+                  color: Colors.white,
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Empleados cargados: $totalEmpleados en ${cuadrillas.length} cuadrillas',
+                  style: const TextStyle(fontSize: 14),
+                ),
+              ],
+            ),
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            backgroundColor: Colors.green.shade600,
+          ),
+        );
+        
+        print('✅ [CACHE] Carga de empleados completada - Total: $totalEmpleados empleados');
+      }
     }
   }
 
@@ -844,6 +1091,9 @@ class _NominaScreenState extends State<NominaScreen>
             empleadosNomina = [];
             marcarCambiosGuardados(); // Usar el método del mixin
           });
+
+          // 🗑️ CACHE: Invalidar cache al cambiar de semana
+          _invalidarCacheCuadrillas();
 
           // 🎯 Si la última opción fue "mantener", copiar empleados a la nueva semana ANTES de recargar
           if (_ultimaOpcionCierre == 'mantener') {
@@ -1294,6 +1544,49 @@ class _NominaScreenState extends State<NominaScreen>
       'cuadrillaSeleccionada': 0,
     };
 
+    // 🆕 Marcar la semana como cerrada en la base de datos
+    if (idSemanaSeleccionada != null) {
+      print('🚀🚀🚀 [UI] INICIANDO CIERRE DE SEMANA $idSemanaSeleccionada DESDE LA INTERFAZ!!! 🚀🚀🚀');
+      print('🔍 [UI] Verificando idSemanaSeleccionada: $idSemanaSeleccionada (tipo: ${idSemanaSeleccionada.runtimeType})');
+      final cerradaExitosamente = await cerrarSemanaEnBD(idSemanaSeleccionada!);
+      print('🔄🔄🔄 [UI] RESULTADO DEL CIERRE: $cerradaExitosamente 🔄🔄🔄');
+      if (!cerradaExitosamente) {
+        print('❌❌❌ ERROR: NO SE PUDO MARCAR LA SEMANA COMO CERRADA EN BD ❌❌❌');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('❌ Error: No se pudo cerrar la semana en la base de datos'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
+        // ⛔ DETENER el proceso si falla el cierre en BD
+        return;
+      } else {
+        print('✅✅✅ SEMANA MARCADA COMO CERRADA EN BD EXITOSAMENTE ✅✅✅');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Semana cerrada exitosamente'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
+    } else {
+      print('⚠️⚠️⚠️ [UI] NO HAY idSemanaSeleccionada PARA CERRAR ⚠️⚠️⚠️');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('❌ Error: No hay semana seleccionada para cerrar'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
     if (!mounted || _isDisposed) return;
     setState(() {
       semanasCerradas.add(semanaCerrada);
@@ -1522,6 +1815,13 @@ class _NominaScreenState extends State<NominaScreen>
   /// ✨ Función para refresh manual de la tabla
   Future<void> _refreshTablaManual() async {
     try {
+      print('🔄🔄🔄 [REFRESH MANUAL] INICIANDO ACTUALIZACIÓN DE TABLA 🔄🔄🔄');
+      print('📋 Estado antes del refresh:');
+      print('   - idSemanaSeleccionada: $idSemanaSeleccionada');
+      print('   - cuadrilla seleccionada: ${_selectedCuadrilla['nombre']}');
+      print('   - empleadosFiltrados.length: ${empleadosFiltrados.length}');
+      print('   - _optionsCuadrilla.length: ${_optionsCuadrilla.length}');
+
       // Mostrar indicador de carga
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1545,53 +1845,85 @@ class _NominaScreenState extends State<NominaScreen>
         ),
       );
 
-      // ✅ 1. Recargar cuadrillas si hay semana seleccionada
+      // ✅ 1. Recargar cuadrillas desde BD si hay semana seleccionada
       if (idSemanaSeleccionada != null) {
+        print('🔄 [REFRESH] Recargando cuadrillas desde BD...');
         await _cargarCuadrillasSemana(idSemanaSeleccionada!);
+        print('🔄 [REFRESH] Recargando empleados de cuadrillas...');
         await _cargarEmpleadosDeCuadrillas();
+        print('✅ [REFRESH] Cuadrillas recargadas: ${_optionsCuadrilla.length}');
       }
       
       // ✅ 2. Recargar datos completos de nómina
+      print('🔄 [REFRESH] Recargando datos de nómina...');
       await cargarDatosNomina();
       
       // ✅ 3. Actualizar la cuadrilla seleccionada si existe
-      if (_selectedCuadrilla['nombre'] != null && mounted) {
+      if (_selectedCuadrilla['nombre'] != null && _selectedCuadrilla['nombre'] != '' && mounted) {
+        print('🔄 [REFRESH] Actualizando cuadrilla seleccionada: ${_selectedCuadrilla['nombre']}');
+        
         final cuadrillaActualizada = _optionsCuadrilla.firstWhere(
           (c) => c['nombre'] == _selectedCuadrilla['nombre'],
           orElse: () => {},
         );
         
         if (cuadrillaActualizada.isNotEmpty) {
+          print('✅ [REFRESH] Cuadrilla encontrada con ${cuadrillaActualizada['empleados']?.length ?? 0} empleados');
+          
           setState(() {
-            _selectedCuadrilla = cuadrillaActualizada;
-            cuadrillaSeleccionada = cuadrillaActualizada;
+            _selectedCuadrilla = Map<String, dynamic>.from(cuadrillaActualizada);
+            cuadrillaSeleccionada = Map<String, dynamic>.from(cuadrillaActualizada);
             empleadosEnCuadrilla = List<Map<String, dynamic>>.from(
               cuadrillaActualizada['empleados'] ?? []
             );
+            empleadosFiltrados = List<Map<String, dynamic>>.from(
+              cuadrillaActualizada['empleados'] ?? []
+            );
+            empleadosNomina = List<Map<String, dynamic>>.from(
+              cuadrillaActualizada['empleados'] ?? []
+            );
+            empleadosNominaTemp = List<Map<String, dynamic>>.from(
+              cuadrillaActualizada['empleados'] ?? []
+            );
           });
+          
+          print('✅ [REFRESH] empleadosFiltrados actualizado: ${empleadosFiltrados.length} empleados');
+        } else {
+          print('⚠️ [REFRESH] No se encontró la cuadrilla seleccionada: ${_selectedCuadrilla['nombre']}');
         }
       }
       
-      // ✅ 4. Recalcular totales
+      // ✅ 4. Recalcular totales para todos los empleados
+      print('🔄 [REFRESH] Recalculando totales...');
       for (var empleado in empleadosFiltrados) {
         _recalcularTotalesEmpleado(empleado);
       }
       
-      // ✅ 5. Guardar estado original
+      // ✅ 5. Actualizar estados de validación
+      if (mounted) {
+        _puedeCapturarDatos = _validarPuedeCapturarDatos();
+      }
+      
+      // ✅ 6. Guardar estado original
       if (mounted) {
         _saveOriginalData();
         marcarCambiosGuardados();
       }
       
-      // ✅ 6. Mostrar confirmación
+      // ✅ 7. Mostrar confirmación
       if (mounted) {
+        print('✅✅✅ [REFRESH MANUAL] COMPLETADO EXITOSAMENTE ✅✅✅');
+        print('📋 Estado después del refresh:');
+        print('   - empleadosFiltrados.length: ${empleadosFiltrados.length}');
+        print('   - cuadrilla seleccionada: ${_selectedCuadrilla['nombre']}');
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
               children: [
                 Icon(Icons.check_circle_rounded, color: Colors.white),
                 SizedBox(width: 8),
-                Text('Tabla actualizada exitosamente'),
+                Text('Tabla actualizada: ${empleadosFiltrados.length} empleados cargados'),
               ],
             ),
             backgroundColor: Colors.green.shade600,
@@ -1626,10 +1958,35 @@ class _NominaScreenState extends State<NominaScreen>
 
   void _mostrarSemanasCerradas() {
     if (!mounted || _isDisposed) return;
+    
+    print('\n🔵🔵🔵 [BOTÓN HISTORIAL] PRESIONADO 🔵🔵🔵');
+    print('🔍 [BOTÓN HISTORIAL] semanasCerradas.length en memoria: ${semanasCerradas.length}');
+    
+    // 🔍 DEBUG: Imprimir información antes de mostrar
+    for (int i = 0; i < semanasCerradas.length; i++) {
+      final semana = semanasCerradas[i];
+      print('  📋 Semana $i en memoria:');
+      print('    - ID: ${semana['id']}');
+      print('    - Fechas: ${semana['fechaInicio']} - ${semana['fechaFin']}');
+      print('    - Cuadrillas: ${(semana['cuadrillas'] as List).length}');
+      print('    - Total semana: \$${semana['totalSemana']}');
+      
+      final cuadrillas = semana['cuadrillas'] as List;
+      for (int j = 0; j < cuadrillas.length && j < 3; j++) { // Solo primeras 3 cuadrillas
+        final cuadrilla = cuadrillas[j];
+        print('      🔸 ${cuadrilla['nombre']}: ${cuadrilla['empleados']?.length ?? 0} empleados, Total: \$${cuadrilla['total']}');
+      }
+      if (cuadrillas.length > 3) {
+        print('      ... y ${cuadrillas.length - 3} cuadrillas más');
+      }
+    }
+    
     setState(() {
       showSemanasCerradas = true;
       semanaCerradaSeleccionada = null;
     });
+    
+    print('🔵🔵🔵 [BOTÓN HISTORIAL] ESTADO ACTUALIZADO 🔵🔵🔵\n');
   }
 
   void _showSupervisorLoginDialog() {

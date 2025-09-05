@@ -34,6 +34,7 @@ class DatabaseService {
 
   Future<void> connect() async {
     try {
+      print('🔌 Intentando conectar a PostgreSQL...');
       _connection = PostgreSQLConnection(
         'localhost',  // Host
         5432,
@@ -42,8 +43,10 @@ class DatabaseService {
         password: 'admin',
       );
       await _connection.open();
+      print('✅ Conexión a PostgreSQL establecida exitosamente');
     } catch (e) {
       print('❌ Error al conectar con PostgreSQL: $e');
+      print('🔍 Detalles del error: ${e.runtimeType}');
       rethrow;
     }
   }
@@ -128,6 +131,215 @@ Future<List<Map<String, dynamic>>> obtenerEmpleadosHabilitados() async {
   }
 }
 
+/// Obtiene las semanas cerradas para mostrar en el historial
+Future<List<Map<String, dynamic>>> obtenerSemanasCerradas() async {
+  final db = DatabaseService();
+  
+  try {
+    await db.connect();
+
+    final results = await db.connection.query('''
+      SELECT 
+        s.id_semana,
+        s.fecha_inicio,
+        s.fecha_fin,
+        s.creado_en
+      FROM semanas_nomina s
+      WHERE s.esta_cerrada = true
+      ORDER BY s.fecha_inicio DESC;
+    ''');
+
+    print('🔍 [DEBUG] Encontradas ${results.length} semanas cerradas en BD');
+
+    List<Map<String, dynamic>> semanasCerradas = [];
+
+    for (var row in results) {
+      final semanaId = row[0];
+      final fechaInicio = row[1];
+      final fechaFin = row[2];
+      
+      print('🔍 [DEBUG] Procesando semana ID: $semanaId, fechas: $fechaInicio - $fechaFin');
+      
+      // Obtener todas las cuadrillas con datos de esta semana
+      final cuadrillasInfo = await obtenerCuadrillasDatosCompletos(semanaId);
+      
+      print('🔍 [DEBUG] Cuadrillas obtenidas para semana $semanaId: ${cuadrillasInfo.length}');
+      
+      // Calcular total de la semana
+      final totalSemana = cuadrillasInfo.fold<double>(
+        0.0,
+        (sum, cuadrilla) => sum + (cuadrilla['total'] as double),
+      );
+      
+      print('🔍 [DEBUG] Total calculado para semana $semanaId: \$${totalSemana}');
+
+      semanasCerradas.add({
+        'id': semanaId,
+        'fechaInicio': fechaInicio,
+        'fechaFin': fechaFin,
+        'cuadrillas': cuadrillasInfo,
+        'totalSemana': totalSemana,
+        'cuadrillaSeleccionada': 0,
+      });
+    }
+
+    await db.close();
+    print('🔍 [DEBUG] Procesamiento completado, retornando ${semanasCerradas.length} semanas');
+    return semanasCerradas;
+  } catch (e) {
+    print('❌ Error al obtener semanas cerradas: $e');
+    print('Stack trace: ${StackTrace.current}');
+    await db.close();
+    return [];
+  }
+}
+
+/// Obtiene datos completos de cuadrillas para una semana cerrada
+Future<List<Map<String, dynamic>>> obtenerCuadrillasDatosCompletos(int semanaId) async {
+  final db = DatabaseService();
+  
+  try {
+    await db.connect();
+    
+    print('🔍🔍🔍 [HISTORIAL DEBUG] INICIANDO obtenerCuadrillasDatosCompletos para semana ID: $semanaId');
+
+    // PRIMERO: Verificar si hay datos de nómina para esta semana
+    final verificarNomina = await db.connection.query('''
+      SELECT COUNT(*) as total_registros
+      FROM nomina_empleados_semanal
+      WHERE id_semana = @semanaId;
+    ''', substitutionValues: {'semanaId': semanaId});
+    
+    final totalRegistros = verificarNomina.isNotEmpty ? verificarNomina.first[0] : 0;
+    print('🔍🔍🔍 [HISTORIAL DEBUG] Total registros en nomina_empleados_semanal para semana $semanaId: $totalRegistros');
+    
+    if (totalRegistros == 0) {
+      print('❌❌❌ [HISTORIAL DEBUG] No hay datos de nómina para semana $semanaId - RETORNANDO LISTA VACÍA');
+      await db.close();
+      return [];
+    }
+
+    // Mostrar algunos registros para debug
+    final ejemploRegistros = await db.connection.query('''
+      SELECT id_nomina, id_empleado, id_cuadrilla, total, total_neto
+      FROM nomina_empleados_semanal
+      WHERE id_semana = @semanaId
+      LIMIT 3;
+    ''', substitutionValues: {'semanaId': semanaId});
+    
+    print('🔍🔍🔍 [HISTORIAL DEBUG] Ejemplo de registros encontrados:');
+    for (var reg in ejemploRegistros) {
+      print('   - ID Nómina: ${reg[0]}, Empleado: ${reg[1]}, Cuadrilla: ${reg[2]}, Total: ${reg[3]}, Neto: ${reg[4]}');
+    }
+
+    // Obtener cuadrillas que tienen empleados en esta semana
+    final cuadrillasResult = await db.connection.query('''
+      SELECT DISTINCT c.id_cuadrilla, c.nombre
+      FROM cuadrillas c
+      JOIN nomina_empleados_semanal nes ON c.id_cuadrilla = nes.id_cuadrilla
+      WHERE nes.id_semana = @semanaId
+      ORDER BY c.nombre;
+    ''', substitutionValues: {'semanaId': semanaId});
+    
+    print('🔍🔍🔍 [HISTORIAL DEBUG] Encontradas ${cuadrillasResult.length} cuadrillas con empleados para semana $semanaId');
+
+    List<Map<String, dynamic>> cuadrillasInfo = [];
+
+    for (var cuadrillaRow in cuadrillasResult) {
+      final cuadrillaId = cuadrillaRow[0];
+      final cuadrillaNombre = cuadrillaRow[1];
+      
+      print('🔍 [DEBUG] Procesando cuadrilla: $cuadrillaNombre (ID: $cuadrillaId)');
+
+      // Obtener empleados de esta cuadrilla
+      final empleadosResult = await db.connection.query('''
+        SELECT 
+          e.codigo,                                                     -- [0]
+          CONCAT(e.nombre, ' ', e.apellido_paterno, ' ', e.apellido_materno) AS nombre_completo, -- [1]
+          e.id_empleado,                                               -- [2]
+          n.dia_1, n.dia_2, n.dia_3, n.dia_4, n.dia_5, n.dia_6, n.dia_7, -- [3-9]
+          n.total, n.debe, n.subtotal, n.comedor, n.total_neto        -- [10-14]
+        FROM nomina_empleados_semanal n
+        JOIN empleados e ON e.id_empleado = n.id_empleado
+        WHERE n.id_semana = @semanaId AND n.id_cuadrilla = @cuadrillaId;
+      ''', substitutionValues: {
+        'semanaId': semanaId,
+        'cuadrillaId': cuadrillaId,
+      });
+      
+      print('🔍 [DEBUG] Encontrados ${empleadosResult.length} empleados en cuadrilla $cuadrillaNombre');
+
+      List<Map<String, dynamic>> empleadosConTablas = [];
+      double totalCuadrilla = 0.0;
+
+      for (var empRow in empleadosResult) {
+        // Conversiones seguras de todos los valores
+        final totalNeto = _parseDouble(empRow[14]); // total_neto
+        final total = _parseDouble(empRow[10]); // total
+        final debe = _parseDouble(empRow[11]); // debe
+        final subtotal = _parseDouble(empRow[12]); // subtotal
+        final comedor = empRow[13]; // comedor (puede ser boolean o número)
+        
+        print('🔍 [DEBUG] Empleado ${empRow[1]}: total_neto=$totalNeto, total=$total, debe=$debe');
+        print('🔍 [DEBUG] Días individuales: D1=${_parseDouble(empRow[3])}, D2=${_parseDouble(empRow[4])}, D3=${_parseDouble(empRow[5])}, D4=${_parseDouble(empRow[6])}, D5=${_parseDouble(empRow[7])}, D6=${_parseDouble(empRow[8])}, D7=${_parseDouble(empRow[9])}');
+        
+        final empleadoData = {
+          'codigo': empRow[0],
+          'nombre': empRow[1],
+          'id': empRow[2],
+          // Formatear los días como espera el widget: dia_X_s para salarios
+          'dia_0_s': _parseDouble(empRow[3]),  // dia_1
+          'dia_1_s': _parseDouble(empRow[4]),  // dia_2
+          'dia_2_s': _parseDouble(empRow[5]),  // dia_3
+          'dia_3_s': _parseDouble(empRow[6]),  // dia_4
+          'dia_4_s': _parseDouble(empRow[7]),  // dia_5
+          'dia_5_s': _parseDouble(empRow[8]),  // dia_6
+          'dia_6_s': _parseDouble(empRow[9]),  // dia_7
+          'total': total,
+          'debe': debe,
+          'subtotal': subtotal,
+          'comedor': comedor,
+          'tabla_principal': {
+            'dias': [
+              _parseDouble(empRow[3]), // dia_1
+              _parseDouble(empRow[4]), // dia_2
+              _parseDouble(empRow[5]), // dia_3
+              _parseDouble(empRow[6]), // dia_4
+              _parseDouble(empRow[7]), // dia_5
+              _parseDouble(empRow[8]), // dia_6
+              _parseDouble(empRow[9])  // dia_7
+            ],
+            'total': total,
+            'debe': debe,
+            'comedor': _parseDouble(comedor), // Convertir comedor a double
+            'neto': totalNeto,
+          },
+        };
+
+        empleadosConTablas.add(empleadoData);
+        totalCuadrilla += totalNeto;
+      }
+      
+      print('🔍 [DEBUG] Total cuadrilla $cuadrillaNombre: \$${totalCuadrilla}');
+
+      cuadrillasInfo.add({
+        'nombre': cuadrillaNombre,
+        'empleados': empleadosConTablas,
+        'total': totalCuadrilla,
+      });
+    }
+
+    await db.close();
+    print('🔍 [DEBUG] Retornando ${cuadrillasInfo.length} cuadrillas con datos completos');
+    return cuadrillasInfo;
+  } catch (e) {
+    print('❌ Error al obtener datos completos de cuadrillas: $e');
+    print('Stack trace: ${StackTrace.current}');
+    await db.close();
+    return [];
+  }
+}
+
 /// Obtiene los empleados asignados a una cuadrilla específica
 Future<List<Map<String, dynamic>>> obtenerEmpleadosAsignadosCuadrilla(
   int cuadrillaId, 
@@ -144,18 +356,17 @@ Future<List<Map<String, dynamic>>> obtenerEmpleadosAsignadosCuadrilla(
     if (semanaId != null) {
       results = await db.connection.query('''
         SELECT DISTINCT e.id_empleado, e.nombre, e.apellido_paterno, e.apellido_materno,
-               nes.id as nomina_id
+               nes.id_nomina as nomina_id
         FROM empleados e
         INNER JOIN nomina_empleados_semanal nes ON e.id_empleado = nes.id_empleado
-        WHERE nes.id_cuadrilla = @cuadrillaId AND nes.id_semana = @semanaId AND e.activo = true
+        WHERE nes.id_cuadrilla = @cuadrillaId AND nes.id_semana = @semanaId
         ORDER BY e.nombre, e.apellido_paterno
       ''', substitutionValues: {'cuadrillaId': cuadrillaId, 'semanaId': semanaId});
     } else {
-      // Si no hay semana específica, obtener todos los empleados activos
+      // Si no hay semana específica, obtener todos los empleados
       results = await db.connection.query('''
         SELECT id_empleado, nombre, apellido_paterno, apellido_materno
         FROM empleados 
-        WHERE activo = true
         ORDER BY nombre, apellido_paterno
       ''');
     }
@@ -496,4 +707,194 @@ Future<Map<String, dynamic>> descargarBackup(String rutaArchivo, String nombreAr
       'error': 'Error al descargar archivo: $e',
     };
   }
+}
+
+/// Marca una semana como cerrada en la base de datos
+Future<bool> cerrarSemanaEnBD(int idSemana) async {
+  print('🔥🔥🔥 [CERRAR SEMANA] ¡¡¡FUNCIÓN CERRAR SEMANA INICIADA!!! 🔥🔥🔥');
+  print('📋 [CERRAR SEMANA] Parámetro recibido - idSemana: $idSemana (tipo: ${idSemana.runtimeType})');
+  
+  final db = DatabaseService();
+  
+  try {
+    print('🚀 [CERRAR SEMANA] Iniciando cierre de semana $idSemana...');
+    
+    print('🔌 [CERRAR SEMANA] Conectando a la base de datos...');
+    await db.connect();
+    print('✅ [CERRAR SEMANA] Conexión establecida exitosamente');
+
+    print('🔄 Iniciando proceso de cierre para semana $idSemana');
+
+    // 1. VERIFICAR si ya está cerrada
+    print('🔍 [CERRAR SEMANA] Verificando si la semana ya está cerrada...');
+    final verificarCerrada = await db.connection.query('''
+      SELECT esta_cerrada FROM semanas_nomina WHERE id_semana = @idSemana;
+    ''', substitutionValues: {'idSemana': idSemana});
+    print('🔍 [CERRAR SEMANA] Query ejecutada, resultados: ${verificarCerrada.length}');
+
+    if (verificarCerrada.isNotEmpty && verificarCerrada.first[0] == true) {
+      print('⚠️ La semana $idSemana ya está cerrada');
+      await db.close();
+      return true;
+    }
+    print('✅ [CERRAR SEMANA] La semana $idSemana está abierta, continuando...');
+
+    // 2. VERIFICAR QUE HAY DATOS DE NÓMINA para preservar
+    print('🔍 [CERRAR SEMANA] Verificando datos de nómina existentes...');
+    final verificarDatos = await db.connection.query('''
+      SELECT COUNT(*) as total_registros,
+             COUNT(DISTINCT id_cuadrilla) as total_cuadrillas,
+             SUM(total_neto) as total_dinero
+      FROM nomina_empleados_semanal
+      WHERE id_semana = @idSemana;
+    ''', substitutionValues: {'idSemana': idSemana});
+    print('🔍 [CERRAR SEMANA] Query de datos ejecutada, resultados: ${verificarDatos.length}');
+
+    if (verificarDatos.isEmpty || _parseInt(verificarDatos.first[0]) == 0) {
+      print('⚠️ No hay datos de nómina para preservar en semana $idSemana');
+      // Aun así, marcamos la semana como cerrada
+    } else {
+      final totalRegistros = _parseInt(verificarDatos.first[0]);
+      final totalCuadrillas = _parseInt(verificarDatos.first[1]);
+      final totalDinero = _parseDouble(verificarDatos.first[2]);
+      
+      print('📊 Datos a preservar para semana $idSemana:');
+      print('   • Registros de empleados: $totalRegistros');
+      print('   • Cuadrillas: $totalCuadrillas');
+      print('   • Total en dinero: \$${totalDinero}');
+    }
+
+    // 3. MARCAR LA SEMANA COMO CERRADA
+    print('🔄 [CERRAR SEMANA] Ejecutando UPDATE para cerrar semana...');
+    
+    // Iniciar transacción explícita
+    print('🔄 [CERRAR SEMANA] Iniciando transacción...');
+    await db.connection.execute('BEGIN;');
+    
+    try {
+      print('🔄 [CERRAR SEMANA] Ejecutando UPDATE con parámetros:');
+      print('   - idSemana: $idSemana (tipo: ${idSemana.runtimeType})');
+      
+      final updateResult = await db.connection.execute('''
+        UPDATE semanas_nomina
+        SET esta_cerrada = true,
+            fecha_autorizacion = CURRENT_TIMESTAMP,
+            autorizado_por = 'sistema'
+        WHERE id_semana = @idSemana;
+      ''', substitutionValues: {'idSemana': idSemana});
+      
+      print('✅ [CERRAR SEMANA] UPDATE ejecutado exitosamente, filas afectadas: $updateResult');
+      
+      // Verificar inmediatamente después del UPDATE
+      final verificarInmediato = await db.connection.query('''
+        SELECT esta_cerrada, fecha_autorizacion, autorizado_por FROM semanas_nomina WHERE id_semana = @idSemana;
+      ''', substitutionValues: {'idSemana': idSemana});
+      
+      if (verificarInmediato.isNotEmpty) {
+        final estaCerrada = verificarInmediato.first[0];
+        final fechaAuth = verificarInmediato.first[1];
+        final autorizado = verificarInmediato.first[2];
+        print('🔍 [CERRAR SEMANA] Verificación INMEDIATA después del UPDATE:');
+        print('   - esta_cerrada: $estaCerrada');
+        print('   - fecha_autorizacion: $fechaAuth');  
+        print('   - autorizado_por: $autorizado');
+      }
+      
+      // Confirmar transacción
+      await db.connection.execute('COMMIT;');
+      print('✅ [CERRAR SEMANA] Transacción confirmada con COMMIT');
+      
+    } catch (updateError) {
+      print('❌ [CERRAR SEMANA] Error en UPDATE: $updateError');
+      print('❌ [CERRAR SEMANA] Tipo de error: ${updateError.runtimeType}');
+      await db.connection.execute('ROLLBACK;');
+      print('🔄 [CERRAR SEMANA] ROLLBACK completado debido al error');
+      rethrow;
+    }
+
+    // 4. VERIFICAR que se marcó correctamente
+    print('🔍 [CERRAR SEMANA] Verificando que el UPDATE fue exitoso...');
+    final verificarResultado = await db.connection.query('''
+      SELECT esta_cerrada, fecha_autorizacion, autorizado_por FROM semanas_nomina WHERE id_semana = @idSemana;
+    ''', substitutionValues: {'idSemana': idSemana});
+    print('🔍 [CERRAR SEMANA] Query de verificación ejecutada, resultados: ${verificarResultado.length}');
+    
+    if (verificarResultado.isNotEmpty) {
+      final estaCerradaValor = verificarResultado.first[0];
+      final fechaAutorizacion = verificarResultado.first[1];
+      final autorizadoPor = verificarResultado.first[2];
+      print('🔍 [CERRAR SEMANA] Valores obtenidos después del UPDATE:');
+      print('   - esta_cerrada: $estaCerradaValor (tipo: ${estaCerradaValor.runtimeType})');
+      print('   - fecha_autorizacion: $fechaAutorizacion');
+      print('   - autorizado_por: $autorizadoPor');
+      
+      // Verificar cada campo individualmente
+      if (estaCerradaValor != true) {
+        print('❌ [CERRAR SEMANA] FALLA: esta_cerrada no es true, es: $estaCerradaValor');
+      }
+      if (fechaAutorizacion == null) {
+        print('❌ [CERRAR SEMANA] FALLA: fecha_autorizacion es null');
+      }
+      if (autorizadoPor == null || autorizadoPor != 'sistema') {
+        print('❌ [CERRAR SEMANA] FALLA: autorizado_por es: $autorizadoPor (esperado: "sistema")');
+      }
+    } else {
+      print('❌ [CERRAR SEMANA] No se encontraron resultados en la verificación');
+    }
+
+    final exitoso = verificarResultado.isNotEmpty && verificarResultado.first[0] == true;
+
+    if (exitoso) {
+      print('✅ Semana $idSemana cerrada exitosamente');
+      print('📋 Los datos de nómina se mantienen en nomina_empleados_semanal');
+    } else {
+      print('❌ Error al marcar semana $idSemana como cerrada');
+      print('❌ [DEBUG] Valor de esta_cerrada después del UPDATE: ${verificarResultado.isNotEmpty ? verificarResultado.first[0] : 'SIN RESULTADOS'}');
+    }
+
+    print('🔄 [CERRAR SEMANA] Cerrando conexión a BD...');
+    await db.close();
+    print('✅ [CERRAR SEMANA] Proceso completado, retornando: $exitoso');
+    return exitoso;
+
+  } catch (e) {
+    print('❌ [CERRAR SEMANA] ERROR CRÍTICO al cerrar semana en BD: $e');
+    print('❌ [CERRAR SEMANA] Tipo de error: ${e.runtimeType}');
+    print('❌ [CERRAR SEMANA] Stack trace: ${StackTrace.current}');
+    try {
+      await db.close();
+      print('🔄 [CERRAR SEMANA] Conexión cerrada después del error');
+    } catch (closeError) {
+      print('❌ [CERRAR SEMANA] Error adicional al cerrar conexión: $closeError');
+    }
+    return false;
+  }
+}
+
+/// Helper function para convertir de manera segura cualquier tipo a double
+double _parseDouble(dynamic value) {
+  if (value == null) return 0.0;
+  if (value is double) return value;
+  if (value is int) return value.toDouble();
+  if (value is num) return value.toDouble();
+  if (value is String) {
+    final parsed = double.tryParse(value);
+    return parsed ?? 0.0;
+  }
+  if (value is bool) return value ? 1.0 : 0.0;
+  return 0.0;
+}
+
+/// Helper function para convertir de manera segura cualquier tipo a int
+int _parseInt(dynamic value) {
+  if (value == null) return 0;
+  if (value is int) return value;
+  if (value is double) return value.toInt();
+  if (value is num) return value.toInt();
+  if (value is String) {
+    final parsed = int.tryParse(value);
+    return parsed ?? 0;
+  }
+  if (value is bool) return value ? 1 : 0;
+  return 0;
 }

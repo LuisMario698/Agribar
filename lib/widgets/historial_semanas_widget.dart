@@ -162,10 +162,32 @@ class _HistorialSemanasWidgetState extends State<HistorialSemanasWidget> with Si
                           itemCount: widget.semanasCerradas.length,
                           itemBuilder: (context, index) {
                             final semana = widget.semanasCerradas[index];
-                            final fechaInicio = semana['fechaInicio'] as DateTime;
-                            final fechaFin = semana['fechaFin'] as DateTime;
-                            final cuadrillas = List<Map<String, dynamic>>.from(semana['cuadrillas']);
-                            final cuadrillaSeleccionada = semana['cuadrillaSeleccionada'] as int;
+                            
+                            // Conversión segura de fechas
+                            DateTime fechaInicio;
+                            DateTime fechaFin;
+                            
+                            try {
+                              if (semana['fechaInicio'] is DateTime) {
+                                fechaInicio = semana['fechaInicio'] as DateTime;
+                              } else {
+                                fechaInicio = DateTime.parse(semana['fechaInicio'].toString());
+                              }
+                              
+                              if (semana['fechaFin'] is DateTime) {
+                                fechaFin = semana['fechaFin'] as DateTime;
+                              } else {
+                                fechaFin = DateTime.parse(semana['fechaFin'].toString());
+                              }
+                            } catch (e) {
+                              print('Error al parsear fechas: $e');
+                              fechaInicio = DateTime.now();
+                              fechaFin = DateTime.now();
+                            }
+                            
+                            final cuadrillas = List<Map<String, dynamic>>.from(semana['cuadrillas'] ?? []);
+                            final cuadrillaSeleccionada = (semana['cuadrillaSeleccionada'] as int? ?? 0)
+                              .clamp(0, cuadrillas.isEmpty ? 0 : cuadrillas.length - 1);
                             final isExpanded = semanaCerradaSeleccionada == index;
                             
                             return Card(
@@ -260,7 +282,7 @@ class _HistorialSemanasWidgetState extends State<HistorialSemanasWidget> with Si
                                                     ),
                                                     const SizedBox(height: 8),
                                                     DropdownButtonFormField<int>(
-                                                      value: cuadrillaSeleccionada,
+                                                      value: cuadrillas.isEmpty ? 0 : (cuadrillaSeleccionada < cuadrillas.length ? cuadrillaSeleccionada : 0),
                                                       decoration: InputDecoration(
                                                         prefixIcon: Icon(Icons.groups, color: AppColors.greenDark),
                                                         border: OutlineInputBorder(
@@ -278,20 +300,32 @@ class _HistorialSemanasWidgetState extends State<HistorialSemanasWidget> with Si
                                                         fillColor: Colors.white,
                                                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                                                       ),
-                                                      items: cuadrillas.asMap().entries.map((entry) {
-                                                        return DropdownMenuItem(
-                                                          value: entry.key,
-                                                          child: Text(
-                                                            entry.value['nombre'],
-                                                            style: const TextStyle(fontSize: 15),
-                                                          ),
-                                                        );
-                                                      }).toList(),
-                                                      onChanged: (value) {
-                                                        if (value != null) {
-                                                          widget.onCuadrillaSelected(index, value);
-                                                        }
-                                                      },
+                                                      items: cuadrillas.isEmpty 
+                                                        ? [
+                                                            const DropdownMenuItem(
+                                                              value: 0,
+                                                              child: Text(
+                                                                'Sin cuadrillas',
+                                                                style: TextStyle(fontSize: 15, color: Colors.grey),
+                                                              ),
+                                                            )
+                                                          ]
+                                                        : cuadrillas.asMap().entries.map((entry) {
+                                                            return DropdownMenuItem(
+                                                              value: entry.key,
+                                                              child: Text(
+                                                                entry.value['nombre'] ?? 'Sin nombre',
+                                                                style: const TextStyle(fontSize: 15),
+                                                              ),
+                                                            );
+                                                          }).toList(),
+                                                      onChanged: cuadrillas.isEmpty 
+                                                        ? null 
+                                                        : (value) {
+                                                            if (value != null) {
+                                                              widget.onCuadrillaSelected(index, value);
+                                                            }
+                                                          },
                                                     ),
                                                   ],
                                                 ),
@@ -305,7 +339,9 @@ class _HistorialSemanasWidgetState extends State<HistorialSemanasWidget> with Si
                                                     Expanded(
                                                       child: IndicatorCard(
                                                         title: 'Total Acumulado',
-                                                        value: _formatCurrency(cuadrillas[cuadrillaSeleccionada]['total'] as double),
+                                                        value: cuadrillas.isNotEmpty && cuadrillaSeleccionada < cuadrillas.length 
+                                                          ? _formatCurrency(cuadrillas[cuadrillaSeleccionada]['total'] as double? ?? 0.0)
+                                                          : _formatCurrency(0.0),
                                                         icon: Icons.payments,
                                                       ),
                                                     ),
@@ -313,7 +349,7 @@ class _HistorialSemanasWidgetState extends State<HistorialSemanasWidget> with Si
                                                     Expanded(
                                                       child: IndicatorCard(
                                                         title: 'Total Semana',
-                                                        value: _formatCurrency(semana['totalSemana'] as double),
+                                                        value: _formatCurrency(semana['totalSemana'] as double? ?? 0.0),
                                                         icon: Icons.calendar_today,
                                                       ),
                                                     ),
@@ -402,7 +438,8 @@ class _HistorialSemanasWidgetState extends State<HistorialSemanasWidget> with Si
                                                           rows: cuadrillas.map((cuadrilla) {
                                                             final empleadosCount = cuadrilla['empleados']?.length ?? 0;
                                                             final total = cuadrilla['total'] as double? ?? 0.0;
-                                                            final isSelected = cuadrillas.indexOf(cuadrilla) == cuadrillaSeleccionada;
+                                                            final currentIndex = cuadrillas.indexOf(cuadrilla);
+                                                            final isSelected = currentIndex == cuadrillaSeleccionada && currentIndex < cuadrillas.length;
 
                                                             return DataRow(
                                                               color: MaterialStateProperty.resolveWith<Color?>(
@@ -507,14 +544,38 @@ class _HistorialSemanasWidgetState extends State<HistorialSemanasWidget> with Si
                                                       ),                                                      const SizedBox(height: 8),
                                                       Padding(
                                                         padding: const EdgeInsets.all(16),
-                                                        child: NominaTablaEditable(
-                                                          empleados: cuadrillas[cuadrillaSeleccionada]['empleados'],
-                                                          readOnly: true,
-                                                          semanaSeleccionada: DateTimeRange(
-                                                            start: fechaInicio,
-                                                            end: fechaFin,
-                                                          ),
-                                                        ),
+                                                        child: cuadrillas.isEmpty || cuadrillaSeleccionada >= cuadrillas.length
+                                                          ? Container(
+                                                              padding: const EdgeInsets.all(24),
+                                                              child: Center(
+                                                                child: Column(
+                                                                  mainAxisSize: MainAxisSize.min,
+                                                                  children: [
+                                                                    Icon(
+                                                                      Icons.error_outline,
+                                                                      size: 48,
+                                                                      color: Colors.grey.shade400,
+                                                                    ),
+                                                                    const SizedBox(height: 16),
+                                                                    Text(
+                                                                      'No hay datos de empleados',
+                                                                      style: TextStyle(
+                                                                        fontSize: 16,
+                                                                        color: Colors.grey.shade600,
+                                                                      ),
+                                                                    ),
+                                                                  ],
+                                                                ),
+                                                              ),
+                                                            )
+                                                          : NominaTablaEditable(
+                                                              empleados: cuadrillas[cuadrillaSeleccionada]['empleados'] ?? [],
+                                                              readOnly: true,
+                                                              semanaSeleccionada: DateTimeRange(
+                                                                start: fechaInicio,
+                                                                end: fechaFin,
+                                                              ),
+                                                            ),
                                                       ),
                                                     ],
                                                   ),

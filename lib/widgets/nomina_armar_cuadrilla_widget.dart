@@ -66,10 +66,15 @@ class _NominaArmarCuadrillaWidgetState extends State<NominaArmarCuadrillaWidget>
   @override
   void didUpdateWidget(NominaArmarCuadrillaWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.selectedCuadrilla != widget.selectedCuadrilla ||
-        oldWidget.empleadosEnCuadrilla != widget.empleadosEnCuadrilla ||
-        oldWidget.todosLosEmpleados != widget.todosLosEmpleados) {
+    // Solo reinicializar si la cuadrilla cambió Y no hay modificaciones pendientes
+    if (oldWidget.selectedCuadrilla != widget.selectedCuadrilla && !cuadrillaModificada) {
       _inicializarDatos();
+    }
+    // Actualizar la lista de empleados disponibles sin tocar los empleados en cuadrilla
+    if (oldWidget.todosLosEmpleados != widget.todosLosEmpleados) {
+      setState(() {
+        empleadosDisponiblesFiltrados = List.from(widget.todosLosEmpleados);
+      });
     }
   }
 
