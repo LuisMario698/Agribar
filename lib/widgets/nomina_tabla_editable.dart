@@ -85,11 +85,12 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
       
       print('✅ Actividades cargadas exitosamente:');
       print('  Total actividades: ${_actividadesMap.length}');
-      print('  Mapeo clave->ID: ${_claveAIdMap.length} entradas');
+      print('  Mapeo clave->nombre: ${_claveANombreMap.length} entradas');
       print('  Contenido del mapa clave->nombre:');
       _claveANombreMap.forEach((clave, nombre) {
-        print('    • Clave: $clave -> Nombre: $nombre');
+        print('    • Clave: "$clave" -> Nombre: "$nombre"');
       });
+      print('  ═══════════════════════════════════════════════════════════════');
     } catch (e, stackTrace) {
       print('❌ Error al cargar actividades: $e');
       print('Stack trace: $stackTrace');
@@ -138,12 +139,12 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     }
   }
 
-  /// Obtiene el nombre de una actividad por su ID
-  String _obtenerNombreActividad(String? id) {
-    if (id == null || id.isEmpty || id == '0') {
+  /// Obtiene el nombre de una actividad por su clave
+  String _obtenerNombreActividad(String? clave) {
+    if (clave == null || clave.isEmpty || clave == '0') {
       return '';
     }
-    return _actividadesMap[id] ?? '';
+    return _claveANombreMap[clave] ?? '';
   }
   
   @override
@@ -637,12 +638,16 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
       empleado[campo] = valorEntero; // Guardar como entero, no como string
       print('  Campo $campo actualizado: $valorLimpio -> $valorEntero');
     } else if (campo.contains('dia_') && campo.endsWith('_id')) {
-      // Para campos de ID de actividad - 🔧 CORREGIDO: usar "0" en lugar de null
+      // Para campos de clave de actividad - guardar la clave tal como está
       empleado[campo] = valor.isEmpty ? '0' : valor;
       final nombre = _obtenerNombreActividad(valor);
       print('  Campo actividad actualizado:');
-      print('    ID: $valor');
-      print('    Nombre encontrado: $nombre');
+      print('    Clave: "$valor"');
+      print('    Nombre encontrado: "$nombre"');
+      print('    ¿Existe en mapa?: ${_claveANombreMap.containsKey(valor)}');
+      if (!_claveANombreMap.containsKey(valor) && valor != '0' && valor.isNotEmpty) {
+        print('    ⚠️ CLAVE NO ENCONTRADA - Claves disponibles: ${_claveANombreMap.keys.take(10).join(', ')}...');
+      }
     } else if (campo.contains('dia_') && campo.endsWith('_campo')) {
       // Para el campo "campo" - 🔧 CORREGIDO: usar "0" en lugar de null
       empleado[campo] = valor.isEmpty ? '0' : valor;
@@ -1243,20 +1248,19 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
       );
     }
 
-    // Usar 'dia_X_id' para el ID de actividad y obtener solo el nombre
-    final actividadId = empleado['dia_${diaIndex}_id']?.toString();
-    final nombreActividad = _actividadesMap[actividadId] ?? '';
+    // Usar 'dia_X_id' para obtener la clave de actividad ingresada por el usuario
+    final actividadClave = empleado['dia_${diaIndex}_id']?.toString();
+    final nombreActividad = _claveANombreMap[actividadClave] ?? '';
     String actividadNombre;
     
-    if (actividadId == null || actividadId.isEmpty || actividadId == '0') {
+    if (actividadClave == null || actividadClave.isEmpty || actividadClave == '0') {
       actividadNombre = 'actividad';
     } else if (nombreActividad.isEmpty) {
-      // Si el ID no se encuentra en el mapa, mostrar "no existe"
+      // Si la clave no se encuentra en el mapa, mostrar "no existe"
       actividadNombre = 'no existe';
     } else {
-      // Extraer solo el nombre sin la clave
-      final partes = nombreActividad.split(' - ');
-      actividadNombre = partes.length > 1 ? partes[1] : nombreActividad;
+      // Mostrar directamente el nombre de la actividad
+      actividadNombre = nombreActividad;
     }
     
     // Usar 'dia_X_campo' para el ID de campo y obtener solo el nombre
@@ -1276,9 +1280,9 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     }
     
     print('📅 Día $diaIndex - Empleado $empleadoIndex:');
-    print('  ID Actividad: $actividadId -> Nombre: $actividadNombre');
+    print('  Clave Actividad: $actividadClave -> Nombre: $actividadNombre');
     print('  ID Campo: $campoId -> Nombre: $campoNombre');
-    print('  Mapas cargados - Actividades: ${_actividadesMap.length}, Campos: ${_camposMap.length}');
+    print('  Mapas cargados - Actividades: ${_claveANombreMap.length}, Campos: ${_camposMap.length}');
 
     // Modo expandido: ID, Salario y campo adicional con labels
     return DataCell(
@@ -1405,8 +1409,8 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     // 🔒 Solo editable en tabla expandida o si readOnly está desactivado
     final esEditable = widget.isExpanded && !widget.readOnly;
     
-    // Determinar si es un campo de texto (campo) vs numérico
-    final esCampoTexto = campo.contains('_campo');
+    // Determinar si es un campo de texto (campo o actividad ID)
+    final esCampoTexto = campo.contains('_campo') || campo.contains('_id');
     
     if (!esEditable) {
       return Container(
@@ -1502,8 +1506,8 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
       );
     }
 
-    // Determinar si es un campo de texto
-    final esCampoTexto = campo.contains('_campo');
+    // Determinar si es un campo de texto (campo o actividad ID)
+    final esCampoTexto = campo.contains('_campo') || campo.contains('_id');
 
     // Convertir el valor según el tipo de campo
     final valorMostrar = _convertirAEntero(valor).toString();
@@ -1726,12 +1730,19 @@ class _CeldaEditableConNavegacionState extends State<_CeldaEditableConNavegacion
         controller: _controller,
         focusNode: _focusNode,
         textAlign: TextAlign.center,
-        keyboardType: TextInputType.number,
+        keyboardType: widget.esCampoTexto ? TextInputType.text : TextInputType.number,
         textInputAction: TextInputAction.next, // Esto permite manejar Enter
-        inputFormatters: [
-          FilteringTextInputFormatter.digitsOnly,
-              LengthLimitingTextInputFormatter(10),
-            ],
+        inputFormatters: widget.esCampoTexto
+            ? [
+                // Para campos de texto (claves): permitir letras, números y algunos símbolos
+                FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9\-_]')),
+                LengthLimitingTextInputFormatter(15),
+              ]
+            : [
+                // Para campos numéricos: solo dígitos
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(10),
+              ],
         style: TextStyle(
           fontSize: widget.esPequena ? 13 : (widget.esExpandida ? 16 : 13),
           fontWeight: FontWeight.w600,
