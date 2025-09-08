@@ -760,33 +760,38 @@ class _NominaScreenState extends State<NominaScreen>
       await db.connect();
 
       //  Función auxiliar para obtener valores numéricos seguros
+      // 🔧 CORREGIDO: Envía 0 para valores vacíos, pero maneja correctamente los tipos
       int _getSafeIntValue(dynamic value) {
         if (value == null) return 0;
         if (value is int) return value;
         if (value is double) return value.round();
         if (value is num) return value.round();
         if (value is String) {
-          final parsed = num.tryParse(value);
+          final trimmed = value.trim();
+          if (trimmed.isEmpty) return 0; // String vacío = 0
+          final parsed = num.tryParse(trimmed);
           return parsed?.round() ?? 0;
         }
         return 0;
       }
 
       // Función auxiliar para obtener valores de texto seguros
+      // 🔧 CORREGIDO: Para campos de rancho, retornar "0" si está vacío
       String _getSafeStringValue(dynamic value) {
-        if (value == null) return '';
-        return value.toString();
+        if (value == null) return '0'; // NULL = "0"
+        final stringValue = value.toString().trim();
+        return stringValue.isEmpty ? '0' : stringValue; // String vacío = "0"
       }
 
       for (int i = 0; i < empleadosFiltrados.length; i++) {
         final empleado = empleadosFiltrados[i];
         final idEmpleado = empleado['id'];
         
-        // ✅ Inicializar campos por defecto si no existen
+        // ✅ Inicializar campos por defecto si no existen - 🔧 CORREGIDO: usar "0" para campos
         for (int day = 0; day < 7; day++) {
-          empleado['dia_${day}_id'] ??= 0;
-          empleado['dia_${day}_s'] ??= 0;
-          empleado['dia_${day}_campo'] ??= '';
+          empleado['dia_${day}_id'] ??= '0'; // 🔧 String "0" para actividades
+          empleado['dia_${day}_s'] ??= 0;    // Entero 0 para sueldos
+          empleado['dia_${day}_campo'] ??= '0'; // 🔧 String "0" para campos/ranchos
         }
         empleado['total'] ??= 0;
         empleado['debe'] ??= 0;

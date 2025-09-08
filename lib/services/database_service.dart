@@ -709,8 +709,8 @@ Future<Map<String, dynamic>> descargarBackup(String rutaArchivo, String nombreAr
   }
 }
 
-/// Marca una semana como cerrada en la base de datos
-Future<bool> cerrarSemanaEnBD(int idSemana, {String? autorizadoPor}) async {
+/// Marca una semana como cerrada en la base de datos y guarda los datos en historial
+Future<bool> cerrarSemanaEnBD(int idSemana, {String? autorizadoPor, List<Map<String, dynamic>>? datosNomina, bool mantenerCuadrillas = true}) async {
   print('🔥🔥🔥 [CERRAR SEMANA] ¡¡¡FUNCIÓN CERRAR SEMANA INICIADA!!! 🔥🔥🔥');
   print('📋 [CERRAR SEMANA] Parámetro recibido - idSemana: $idSemana (tipo: ${idSemana.runtimeType})');
   print('👤 [CERRAR SEMANA] Usuario autorizado: ${autorizadoPor ?? 'NO PROPORCIONADO - ERROR'}');
@@ -859,8 +859,115 @@ Future<bool> cerrarSemanaEnBD(int idSemana, {String? autorizadoPor}) async {
     final exitoso = verificarResultado.isNotEmpty && verificarResultado.first[0] == true;
 
     if (exitoso) {
-      print('✅ Semana $idSemana cerrada exitosamente');
-      print('📋 Los datos de nómina se mantienen en nomina_empleados_semanal');
+      print('✅ Semana $idSemana cerrada exitosamente en semanas_nomina');
+      
+      // 5. COPIAR DATOS DE SEMANAL A HISTORIAL
+      print('� [CERRAR SEMANA] Copiando datos de nomina_empleados_semanal a nomina_empleados_historial...');
+      
+      try {
+        if (datosNomina != null && datosNomina.isNotEmpty) {
+          // PASO 1: Eliminar datos existentes
+          print('🔄 [HISTORIAL] Eliminando registros existentes para semana $idSemana...');
+          await db.connection.execute('''
+            DELETE FROM nomina_empleados_historial WHERE id_semana = $idSemana;
+          ''');
+          
+          // PASO 2: Insertar los datos de nómina directamente
+          print('🔄 [HISTORIAL] Insertando ${datosNomina.length} registros en historial...');
+          print('🔍 [HISTORIAL DEBUG] Primer registro a insertar: ${datosNomina.first}');
+          
+          int registrosInsertados = 0;
+          for (var registro in datosNomina) {
+            try {
+              await db.connection.execute('''
+                INSERT INTO nomina_empleados_historial (
+                  id_empleado, id_semana, id_cuadrilla, 
+                  dia_1, dia_2, dia_3, dia_4, dia_5, dia_6, dia_7,
+                  act_1, act_2, act_3, act_4, act_5, act_6, act_7,
+                  campo_1, campo_2, campo_3, campo_4, campo_5, campo_6, campo_7,
+                  total, debe, subtotal, comedor, fecha_cierre, usuario_cierre
+                ) VALUES (
+                  @idEmpleado, @idSemana, @idCuadrilla,
+                  @dia1, @dia2, @dia3, @dia4, @dia5, @dia6, @dia7,
+                  @act1, @act2, @act3, @act4, @act5, @act6, @act7,
+                  @campo1, @campo2, @campo3, @campo4, @campo5, @campo6, @campo7,
+                  @total, @debe, @subtotal, @comedor, CURRENT_TIMESTAMP, @usuarioCierre
+                );
+              ''', substitutionValues: {
+                'idEmpleado': registro['id_empleado'],
+                'idSemana': idSemana,
+                'idCuadrilla': registro['id_cuadrilla'],
+                // Días (convertir null a 0)
+                'dia1': _parseDouble(registro['dia_1']).round(),
+                'dia2': _parseDouble(registro['dia_2']).round(),
+                'dia3': _parseDouble(registro['dia_3']).round(),
+                'dia4': _parseDouble(registro['dia_4']).round(),
+                'dia5': _parseDouble(registro['dia_5']).round(),
+                'dia6': _parseDouble(registro['dia_6']).round(),
+                'dia7': _parseDouble(registro['dia_7']).round(),  // ¡AGREGADO DIA_7!
+                // Actividades (convertir null a 0)
+                'act1': _parseInt(registro['act_1'] ?? 0),
+                'act2': _parseInt(registro['act_2'] ?? 0),
+                'act3': _parseInt(registro['act_3'] ?? 0),
+                'act4': _parseInt(registro['act_4'] ?? 0),
+                'act5': _parseInt(registro['act_5'] ?? 0),
+                'act6': _parseInt(registro['act_6'] ?? 0),
+                'act7': _parseInt(registro['act_7'] ?? 0),  // ¡AGREGADO ACT_7!
+                // Campos (convertir null a "0")
+                'campo1': registro['campo_1']?.toString() ?? "0",
+                'campo2': registro['campo_2']?.toString() ?? "0",
+                'campo3': registro['campo_3']?.toString() ?? "0",
+                'campo4': registro['campo_4']?.toString() ?? "0",
+                'campo5': registro['campo_5']?.toString() ?? "0",
+                'campo6': registro['campo_6']?.toString() ?? "0",
+                'campo7': registro['campo_7']?.toString() ?? "0",  // ¡AGREGADO CAMPO_7!
+                // Totales
+                'total': _parseDouble(registro['total']).round(),
+                'debe': _parseDouble(registro['debe']).round(),
+                'subtotal': _parseDouble(registro['subtotal']).round(),
+                'comedor': _parseDouble(registro['comedor']).round(),
+                'usuarioCierre': autorizadoPor,
+              });
+              registrosInsertados++;
+            } catch (insertError) {
+              print('❌ [HISTORIAL] Error al insertar registro ${registro['id_empleado']}: $insertError');
+              print('❌ [HISTORIAL] Registro problemático: $registro');
+            }
+          }
+          
+          // VERIFICAR que los datos se insertaron
+          final verificacion = await db.connection.query('''
+            SELECT COUNT(*) FROM nomina_empleados_historial WHERE id_semana = $idSemana;
+          ''');
+          print('✅ [HISTORIAL] ¡DATOS GUARDADOS! $registrosInsertados/${datosNomina.length} registros insertados');
+          print('✅ [HISTORIAL] VERIFICACIÓN: ${verificacion.first[0]} registros en historial para semana $idSemana');
+        } else {
+          print('⚠️ [HISTORIAL] No se proporcionaron datos de nómina para guardar en historial');
+        }
+        print('📋 Los datos de la semana $idSemana ya están disponibles para reportes');
+        
+        // 6. LIMPIAR O MANTENER CUADRILLAS SEGÚN ELECCIÓN
+        if (!mantenerCuadrillas) {
+          print('🔄 [LIMPIAR] Eliminando datos de nomina_empleados_semanal para la siguiente semana...');
+          try {
+            await db.connection.execute('''
+              DELETE FROM nomina_empleados_semanal WHERE id_semana = $idSemana;
+            ''');
+            print('✅ [LIMPIAR] Datos eliminados, cuadrillas reseteadas para la siguiente semana');
+          } catch (limpiarError) {
+            print('❌ [LIMPIAR] Error al limpiar datos: $limpiarError');
+          }
+        } else {
+          print('📋 [MANTENER] Manteniendo cuadrillas actuales para la siguiente semana');
+        }
+        
+      } catch (historialError) {
+        print('❌❌❌ [HISTORIAL] ERROR CRÍTICO al copiar a historial: $historialError');
+        print('❌ [HISTORIAL] Tipo de error: ${historialError.runtimeType}');
+        print('❌ [HISTORIAL] Stack trace: ${StackTrace.current}');
+        // No cancelar el cierre, solo reportar el error
+      }
+      
     } else {
       print('❌ Error al marcar semana $idSemana como cerrada');
       print('❌ [DEBUG] Valor de esta_cerrada después del UPDATE: ${verificarResultado.isNotEmpty ? verificarResultado.first[0] : 'SIN RESULTADOS'}');

@@ -1,7 +1,7 @@
 import '../services/database_service.dart';
 
 class ReportesGastosService {
-  /// Obtiene el reporte general de gastos por actividad para una semana específica (versión mejorada)
+  /// Obtiene el reporte general de gastos por actividad para una semana específica (SIMPLIFICADO)
   Future<List<Map<String, dynamic>>> obtenerReporteGeneralPorSemana(
     int semanaId,
   ) async {
@@ -9,73 +9,241 @@ class ReportesGastosService {
     await db.connect();
     
     try {
-      final result = await db.connection.query('''
-        SELECT 
-          act.nombre as actividad_nombre,
-          act.clave as actividad_clave,
-          SUM(a.pago) as total_pagado,
-          COUNT(*) as registros_totales,
-          COUNT(DISTINCT n.id_empleado) as empleados_unicos,
-          COUNT(DISTINCT n.id_cuadrilla) as cuadrillas_unicas,
-          AVG(a.pago) as promedio_pago,
-          MIN(a.pago) as pago_minimo,
-          MAX(a.pago) as pago_maximo,
-          r.nombre as rancho_nombre,
-          sn.fecha_inicio,
-          sn.fecha_fin,
-          sn.autorizado_por,
-          COUNT(CASE WHEN a.pago > 0 THEN 1 END) as registros_con_pago,
-          COUNT(CASE WHEN a.pago = 0 THEN 1 END) as registros_sin_pago,
-          STRING_AGG(DISTINCT c.nombre, ', ') as cuadrillas_nombres,
-          ROUND((COUNT(CASE WHEN a.pago > 0 THEN 1 END) * 100.0 / COUNT(*)), 1) as eficiencia_porcentaje,
-          ROUND((SUM(a.pago) / COUNT(DISTINCT n.id_empleado)), 2) as productividad_por_empleado,
-          ROUND((COUNT(*) / NULLIF(COUNT(DISTINCT n.id_cuadrilla), 0)), 1) as carga_por_cuadrilla
-        FROM semanas_nomina sn
-        CROSS JOIN nomina_empleados_historial n
-        CROSS JOIN LATERAL (
-          VALUES 
-            (n.act_1, COALESCE(n.dia_1,0), n.campo_1),
-            (n.act_2, COALESCE(n.dia_2,0), n.campo_2),
-            (n.act_3, COALESCE(n.dia_3,0), n.campo_3),
-            (n.act_4, COALESCE(n.dia_4,0), n.campo_4),
-            (n.act_5, COALESCE(n.dia_5,0), n.campo_5),
-            (n.act_6, COALESCE(n.dia_6,0), n.campo_6),
-            (n.act_7, COALESCE(n.dia_7,0), n.campo_7)
-        ) AS a(act_id, pago, rancho_id)
-        LEFT JOIN actividades act ON act.id_actividad = a.act_id
-        LEFT JOIN ranchos r ON r.id_rancho = a.rancho_id
-        LEFT JOIN cuadrillas c ON c.id_cuadrilla = n.id_cuadrilla
-        WHERE n.id_semana = sn.id_semana
-          AND a.act_id IS NOT NULL 
-          AND a.act_id <> 0
-          AND sn.id_semana = @semanaId
-        GROUP BY act.nombre, act.clave, r.nombre, sn.fecha_inicio, sn.fecha_fin, sn.autorizado_por
-        ORDER BY total_pagado DESC
-      ''', substitutionValues: {
-        'semanaId': semanaId,
-      });
+      print('📊 [REPORTES SIMPLE] Generando reporte para semana $semanaId...');
+      
+      // 🎯 LÓGICA MUY SIMPLE: Intentar primero semanal, luego historial
+      List<Map<String, dynamic>> result = [];
+      
+      // Intentar con tabla semanal primero
+      try {
+        print('🔍 [REPORTES] Intentando tabla semanal...');
+        
+        // 🎯 CONSULTA SIMPLE: Descomponer los datos día por día
+        final resultSemanal = await db.connection.query('''
+          WITH actividades_expandidas AS (
+            -- Expandir datos de cada empleado día por día
+            SELECT 
+              n.id_empleado,
+              n.id_cuadrilla,
+              1 as dia_num,
+              n.act_1 as id_actividad,
+              COALESCE(n.dia_1, 0) as pago,
+              n.campo_1 as id_rancho,
+              s.fecha_inicio,
+              s.fecha_fin,
+              s.autorizado_por
+            FROM nomina_empleados_semanal n
+            JOIN semanas_nomina s ON s.id_semana = n.id_semana
+            WHERE n.id_semana = @semanaId AND n.act_1 IS NOT NULL AND n.act_1 > 0
+            
+            UNION ALL
+            
+            SELECT 
+              n.id_empleado,
+              n.id_cuadrilla,
+              2 as dia_num,
+              n.act_2 as id_actividad,
+              COALESCE(n.dia_2, 0) as pago,
+              n.campo_2 as id_rancho,
+              s.fecha_inicio,
+              s.fecha_fin,
+              s.autorizado_por
+            FROM nomina_empleados_semanal n
+            JOIN semanas_nomina s ON s.id_semana = n.id_semana
+            WHERE n.id_semana = @semanaId AND n.act_2 IS NOT NULL AND n.act_2 > 0
+            
+            UNION ALL
+            
+            SELECT 
+              n.id_empleado,
+              n.id_cuadrilla,
+              3 as dia_num,
+              n.act_3 as id_actividad,
+              COALESCE(n.dia_3, 0) as pago,
+              n.campo_3 as id_rancho,
+              s.fecha_inicio,
+              s.fecha_fin,
+              s.autorizado_por
+            FROM nomina_empleados_semanal n
+            JOIN semanas_nomina s ON s.id_semana = n.id_semana
+            WHERE n.id_semana = @semanaId AND n.act_3 IS NOT NULL AND n.act_3 > 0
+            
+            UNION ALL
+            
+            SELECT 
+              n.id_empleado,
+              n.id_cuadrilla,
+              4 as dia_num,
+              n.act_4 as id_actividad,
+              COALESCE(n.dia_4, 0) as pago,
+              n.campo_4 as id_rancho,
+              s.fecha_inicio,
+              s.fecha_fin,
+              s.autorizado_por
+            FROM nomina_empleados_semanal n
+            JOIN semanas_nomina s ON s.id_semana = n.id_semana
+            WHERE n.id_semana = @semanaId AND n.act_4 IS NOT NULL AND n.act_4 > 0
+            
+            UNION ALL
+            
+            SELECT 
+              n.id_empleado,
+              n.id_cuadrilla,
+              5 as dia_num,
+              n.act_5 as id_actividad,
+              COALESCE(n.dia_5, 0) as pago,
+              n.campo_5 as id_rancho,
+              s.fecha_inicio,
+              s.fecha_fin,
+              s.autorizado_por
+            FROM nomina_empleados_semanal n
+            JOIN semanas_nomina s ON s.id_semana = n.id_semana
+            WHERE n.id_semana = @semanaId AND n.act_5 IS NOT NULL AND n.act_5 > 0
+            
+            UNION ALL
+            
+            SELECT 
+              n.id_empleado,
+              n.id_cuadrilla,
+              6 as dia_num,
+              n.act_6 as id_actividad,
+              COALESCE(n.dia_6, 0) as pago,
+              n.campo_6 as id_rancho,
+              s.fecha_inicio,
+              s.fecha_fin,
+              s.autorizado_por
+            FROM nomina_empleados_semanal n
+            JOIN semanas_nomina s ON s.id_semana = n.id_semana
+            WHERE n.id_semana = @semanaId AND n.act_6 IS NOT NULL AND n.act_6 > 0
+            
+            UNION ALL
+            
+            SELECT 
+              n.id_empleado,
+              n.id_cuadrilla,
+              7 as dia_num,
+              n.act_7 as id_actividad,
+              COALESCE(n.dia_7, 0) as pago,
+              n.campo_7 as id_rancho,
+              s.fecha_inicio,
+              s.fecha_fin,
+              s.autorizado_por
+            FROM nomina_empleados_semanal n
+            JOIN semanas_nomina s ON s.id_semana = n.id_semana
+            WHERE n.id_semana = @semanaId AND n.act_7 IS NOT NULL AND n.act_7 > 0
+          )
+          SELECT 
+            COALESCE(a.nombre, 'Sin nombre') as actividad_nombre,
+            a.clave as actividad_clave,
+            SUM(ae.pago) as total_pagado,
+            COUNT(*) as registros_totales,
+            COUNT(DISTINCT ae.id_empleado) as empleados_unicos,
+            COUNT(DISTINCT ae.id_cuadrilla) as cuadrillas_unicas,
+            AVG(ae.pago) as promedio_pago,
+            MIN(ae.pago) as pago_minimo,
+            MAX(ae.pago) as pago_maximo,
+            COALESCE(r.nombre, 'Sin rancho') as rancho_nombre,
+            ae.fecha_inicio,
+            ae.fecha_fin,
+            ae.autorizado_por
+          FROM actividades_expandidas ae
+          LEFT JOIN actividades a ON a.id_actividad = ae.id_actividad
+          LEFT JOIN ranchos r ON r.id_rancho = ae.id_rancho
+          GROUP BY a.nombre, a.clave, r.nombre, ae.fecha_inicio, ae.fecha_fin, ae.autorizado_por
+          ORDER BY total_pagado DESC
+        ''', substitutionValues: {'semanaId': semanaId});
 
-      return result.map((row) => {
-        'actividad_nombre': row[0] as String,
-        'actividad_clave': row[1] as String?,
-        'total_pagado': double.tryParse(row[2].toString()) ?? 0.0,
-        'registros_totales': row[3] as int,
-        'empleados_unicos': row[4] as int,
-        'cuadrillas_unicas': row[5] as int,
-        'promedio_pago': double.tryParse(row[6].toString()) ?? 0.0,
-        'pago_minimo': double.tryParse(row[7].toString()) ?? 0.0,
-        'pago_maximo': double.tryParse(row[8].toString()) ?? 0.0,
-        'rancho_nombre': row[9] as String?,
-        'fecha_inicio': row[10] as DateTime?,
-        'fecha_fin': row[11] as DateTime?,
-        'autorizado_por': row[12] as String?,
-        'registros_con_pago': row[13] as int,
-        'registros_sin_pago': row[14] as int,
-        'cuadrillas_nombres': row[15] as String?,
-        'eficiencia_porcentaje': double.tryParse(row[16].toString()) ?? 0.0,
-        'productividad_por_empleado': double.tryParse(row[17].toString()) ?? 0.0,
-        'carga_por_cuadrilla': double.tryParse(row[18].toString()) ?? 0.0,
-      }).toList();
+        print('🔍 [REPORTES] Resultados en tabla semanal: ${resultSemanal.length}');
+
+        if (resultSemanal.isNotEmpty) {
+          print('✅ [REPORTES] Usando datos de tabla semanal');
+          result = resultSemanal.map((row) => {
+            'actividad_nombre': row[0] as String,
+            'actividad_clave': row[1] as String?,
+            'total_pagado': double.tryParse(row[2].toString()) ?? 0.0,
+            'registros_totales': row[3] as int,
+            'empleados_unicos': row[4] as int,
+            'cuadrillas_unicas': row[5] as int,
+            'promedio_pago': double.tryParse(row[6].toString()) ?? 0.0,
+            'pago_minimo': double.tryParse(row[7].toString()) ?? 0.0,
+            'pago_maximo': double.tryParse(row[8].toString()) ?? 0.0,
+            'rancho_nombre': row[9] as String?,
+            'fecha_inicio': row[10] as DateTime?,
+            'fecha_fin': row[11] as DateTime?,
+            'autorizado_por': row[12] as String?,
+          }).toList();
+          
+          return result;
+        } else {
+          print('⚠️ [REPORTES] Sin resultados en tabla semanal, intentando historial...');
+        }
+      } catch (e) {
+        print('⚠️ [REPORTES] Error en tabla semanal: $e');
+      }
+      
+      // Si no hay datos en semanal, intentar con historial
+      try {
+        print('🔍 [REPORTES] Intentando tabla historial...');
+        final resultHistorial = await db.connection.query('''
+          SELECT 
+            a.nombre as actividad_nombre,
+            a.clave as actividad_clave,
+            SUM(COALESCE(h.dia_1,0) + COALESCE(h.dia_2,0) + COALESCE(h.dia_3,0) + 
+                COALESCE(h.dia_4,0) + COALESCE(h.dia_5,0) + COALESCE(h.dia_6,0) + COALESCE(h.dia_7,0)) as total_pagado,
+            COUNT(*) as registros_totales,
+            COUNT(DISTINCT h.id_empleado) as empleados_unicos,
+            COUNT(DISTINCT h.id_cuadrilla) as cuadrillas_unicas,
+            AVG(COALESCE(h.dia_1,0) + COALESCE(h.dia_2,0) + COALESCE(h.dia_3,0) + 
+                COALESCE(h.dia_4,0) + COALESCE(h.dia_5,0) + COALESCE(h.dia_6,0) + COALESCE(h.dia_7,0)) as promedio_pago,
+            0 as pago_minimo,
+            0 as pago_maximo,
+            'Múltiples' as rancho_nombre,
+            s.fecha_inicio,
+            s.fecha_fin,
+            s.autorizado_por
+          FROM nomina_empleados_historial h
+          JOIN semanas_nomina s ON s.id_semana = h.id_semana
+          LEFT JOIN actividades a ON (a.id_actividad IN (h.act_1, h.act_2, h.act_3, h.act_4, h.act_5, h.act_6, h.act_7))
+          WHERE h.id_semana = @semanaId
+          AND a.nombre IS NOT NULL
+          AND (
+            (h.act_1 = a.id_actividad AND COALESCE(h.dia_1,0) > 0) OR
+            (h.act_2 = a.id_actividad AND COALESCE(h.dia_2,0) > 0) OR
+            (h.act_3 = a.id_actividad AND COALESCE(h.dia_3,0) > 0) OR
+            (h.act_4 = a.id_actividad AND COALESCE(h.dia_4,0) > 0) OR
+            (h.act_5 = a.id_actividad AND COALESCE(h.dia_5,0) > 0) OR
+            (h.act_6 = a.id_actividad AND COALESCE(h.dia_6,0) > 0) OR
+            (h.act_7 = a.id_actividad AND COALESCE(h.dia_7,0) > 0)
+          )
+          GROUP BY a.nombre, a.clave, s.fecha_inicio, s.fecha_fin, s.autorizado_por
+          HAVING SUM(COALESCE(h.dia_1,0) + COALESCE(h.dia_2,0) + COALESCE(h.dia_3,0) + 
+                     COALESCE(h.dia_4,0) + COALESCE(h.dia_5,0) + COALESCE(h.dia_6,0) + COALESCE(h.dia_7,0)) > 0
+          ORDER BY total_pagado DESC
+        ''', substitutionValues: {'semanaId': semanaId});
+
+        print('✅ [REPORTES] Datos encontrados en tabla historial: ${resultHistorial.length}');
+        result = resultHistorial.map((row) => {
+          'actividad_nombre': row[0] as String,
+          'actividad_clave': row[1] as String?,
+          'total_pagado': double.tryParse(row[2].toString()) ?? 0.0,
+          'registros_totales': row[3] as int,
+          'empleados_unicos': row[4] as int,
+          'cuadrillas_unicas': row[5] as int,
+          'promedio_pago': double.tryParse(row[6].toString()) ?? 0.0,
+          'pago_minimo': double.tryParse(row[7].toString()) ?? 0.0,
+          'pago_maximo': double.tryParse(row[8].toString()) ?? 0.0,
+          'rancho_nombre': row[9] as String?,
+          'fecha_inicio': row[10] as DateTime?,
+          'fecha_fin': row[11] as DateTime?,
+          'autorizado_por': row[12] as String?,
+        }).toList();
+        
+      } catch (e) {
+        print('⚠️ [REPORTES] Error en tabla historial: $e');
+      }
+      
+      print('📊 [REPORTES] Total resultados: ${result.length}');
+      return result;
     } catch (e) {
       print('Error al obtener reporte general: $e');
       return [];
@@ -110,7 +278,7 @@ class ReportesGastosService {
           ROUND((COUNT(CASE WHEN a.pago > 0 THEN 1 END) * 100.0 / COUNT(*)), 1) as eficiencia_porcentaje,
           ROUND((SUM(a.pago) / COUNT(DISTINCT n.id_empleado)), 2) as productividad_por_empleado
         FROM semanas_nomina sn
-        CROSS JOIN nomina_empleados_historial n
+        CROSS JOIN nomina_empleados_semanal n
         CROSS JOIN LATERAL (
           VALUES 
             (n.act_1, COALESCE(n.dia_1,0), n.campo_1),
@@ -183,7 +351,7 @@ class ReportesGastosService {
           ROUND((COUNT(CASE WHEN a.pago > 0 THEN 1 END) * 100.0 / COUNT(*)), 1) as eficiencia_porcentaje,
           STRING_AGG(DISTINCT r.nombre, ', ') as ranchos_trabajados
         FROM semanas_nomina sn
-        CROSS JOIN nomina_empleados_historial n
+        CROSS JOIN nomina_empleados_semanal n
         CROSS JOIN LATERAL (
           VALUES 
             (n.act_1, COALESCE(n.dia_1,0), n.campo_1),
@@ -251,7 +419,7 @@ class ReportesGastosService {
           AVG(a.pago) as promedio_pago,
           COUNT(CASE WHEN a.pago > 0 THEN 1 END) as registros_con_pago
         FROM semanas_nomina sn
-        CROSS JOIN nomina_empleados_historial n
+        CROSS JOIN nomina_empleados_semanal n
         CROSS JOIN LATERAL (
           VALUES 
             (n.act_1, COALESCE(n.dia_1,0), n.campo_1),
@@ -294,12 +462,15 @@ class ReportesGastosService {
     }
   }
 
-  /// Obtiene todas las semanas cerradas disponibles para reportes
+  /// Obtiene todas las semanas cerradas disponibles para reportes (FILTRA POR ACTIVIDADES VÁLIDAS)
   Future<List<Map<String, dynamic>>> obtenerSemanasDisponibles() async {
     final db = DatabaseService();
     await db.connect();
     
     try {
+      print('📊 [REPORTES FILTRO] Obteniendo semanas con actividades válidas...');
+      
+      // 🎯 NUEVA LÓGICA: Solo semanas con actividades válidas (no NULL, no 0)
       final result = await db.connection.query('''
         SELECT DISTINCT 
           s.id_semana,
@@ -307,82 +478,99 @@ class ReportesGastosService {
           s.fecha_fin,
           s.esta_cerrada,
           s.autorizado_por,
-          s.fecha_autorizacion,
-          COUNT(n.id) as registros_nomina
+          s.fecha_autorizacion
         FROM semanas_nomina s
-        LEFT JOIN nomina_empleados_historial n ON n.id_semana = s.id_semana
-        GROUP BY s.id_semana, s.fecha_inicio, s.fecha_fin, s.esta_cerrada, s.autorizado_por, s.fecha_autorizacion
-        ORDER BY s.fecha_inicio DESC
+        WHERE s.esta_cerrada = true
+        AND (
+          -- Verificar en tabla semanal
+          EXISTS (
+            SELECT 1 FROM nomina_empleados_semanal n 
+            WHERE n.id_semana = s.id_semana 
+            AND (
+              (n.act_1 IS NOT NULL AND n.act_1 > 0) OR
+              (n.act_2 IS NOT NULL AND n.act_2 > 0) OR
+              (n.act_3 IS NOT NULL AND n.act_3 > 0) OR
+              (n.act_4 IS NOT NULL AND n.act_4 > 0) OR
+              (n.act_5 IS NOT NULL AND n.act_5 > 0) OR
+              (n.act_6 IS NOT NULL AND n.act_6 > 0) OR
+              (n.act_7 IS NOT NULL AND n.act_7 > 0)
+            )
+          )
+          OR
+          -- Verificar en tabla historial
+          EXISTS (
+            SELECT 1 FROM nomina_empleados_historial h 
+            WHERE h.id_semana = s.id_semana 
+            AND (
+              (h.act_1 IS NOT NULL AND h.act_1 > 0) OR
+              (h.act_2 IS NOT NULL AND h.act_2 > 0) OR
+              (h.act_3 IS NOT NULL AND h.act_3 > 0) OR
+              (h.act_4 IS NOT NULL AND h.act_4 > 0) OR
+              (h.act_5 IS NOT NULL AND h.act_5 > 0) OR
+              (h.act_6 IS NOT NULL AND h.act_6 > 0) OR
+              (h.act_7 IS NOT NULL AND h.act_7 > 0)
+            )
+          )
+        )
+        ORDER BY s.id_semana DESC
       ''');
 
-      return result.map((row) => {
-        'id': row[0] as int,
-        'fecha_inicio': row[1] as DateTime,
-        'fecha_fin': row[2] as DateTime,
-        'cerrada': row[3] as bool,
-        'autorizado_por': row[4] as String?,
-        'fecha_autorizacion': row[5] as DateTime?,
-        'registros_nomina': row[6] as int,
-        'nombre': '${_formatearFecha(row[1] as DateTime)} - ${_formatearFecha(row[2] as DateTime)}${row[3] as bool ? ' (Cerrada)' : ' (Abierta)'}${row[6] as int == 0 ? ' - Sin datos' : ''}'
-      }).toList();
-    } catch (e) {
-      print('Error al obtener semanas: $e');
-      return [];
-    } finally {
-      await db.close();
-    }
-  }
-
-  /// Obtiene semanas con filtros específicos
-  Future<List<Map<String, dynamic>>> obtenerSemanasConFiltros({
-    bool? soloCerradas,
-    bool incluirSinDatos = true,
-  }) async {
-    final db = DatabaseService();
-    await db.connect();
-    
-    try {
-      String whereClause = '';
-      if (soloCerradas != null) {
-        whereClause = 'WHERE s.esta_cerrada = $soloCerradas';
-      }
+      print('📊 [REPORTES] Semanas con actividades válidas: ${result.length}');
       
-      if (!incluirSinDatos) {
-        if (whereClause.isEmpty) {
-          whereClause = 'WHERE COUNT(n.id) > 0';
-        } else {
-          whereClause += ' AND COUNT(n.id) > 0';
+      List<Map<String, dynamic>> semanasDisponibles = [];
+      
+      for (var row in result) {
+        final semanaId = row[0] as int;
+        final fechaInicio = row[1] as DateTime;
+        final fechaFin = row[2] as DateTime;
+        
+        // Verificar adicionalmente que tenga actividades válidas con nombres
+        try {
+          final verificarActividades = await db.connection.query('''
+            SELECT COUNT(DISTINCT a.id_actividad)
+            FROM (
+              SELECT unnest(ARRAY[n.act_1, n.act_2, n.act_3, n.act_4, n.act_5, n.act_6, n.act_7]) as id_actividad
+              FROM nomina_empleados_semanal n
+              WHERE n.id_semana = @semanaId
+              
+              UNION
+              
+              SELECT unnest(ARRAY[h.act_1, h.act_2, h.act_3, h.act_4, h.act_5, h.act_6, h.act_7]) as id_actividad
+              FROM nomina_empleados_historial h
+              WHERE h.id_semana = @semanaId
+            ) actividades_todas
+            JOIN actividades a ON a.id_actividad = actividades_todas.id_actividad
+            WHERE actividades_todas.id_actividad IS NOT NULL 
+            AND actividades_todas.id_actividad > 0
+            AND a.nombre IS NOT NULL
+          ''', substitutionValues: {'semanaId': semanaId});
+          
+          final actividadesValidas = verificarActividades.first[0] as int;
+          
+          if (actividadesValidas > 0) {
+            semanasDisponibles.add({
+              'id': semanaId,
+              'fecha_inicio': fechaInicio,
+              'fecha_fin': fechaFin,
+              'cerrada': row[3] as bool,
+              'autorizado_por': row[4] as String?,
+              'fecha_autorizacion': row[5] as DateTime?,
+              'nombre': '${_formatearFecha(fechaInicio)} - ${_formatearFecha(fechaFin)}'
+            });
+            print('✅ [REPORTES] Semana $semanaId incluida ($actividadesValidas actividades válidas)');
+          } else {
+            print('⚠️ [REPORTES] Semana $semanaId excluida (sin actividades válidas)');
+          }
+        } catch (e) {
+          print('⚠️ [REPORTES] Error verificando semana $semanaId: $e');
         }
       }
-
-      final result = await db.connection.query('''
-        SELECT DISTINCT 
-          s.id_semana,
-          s.fecha_inicio,
-          s.fecha_fin,
-          s.esta_cerrada,
-          s.autorizado_por,
-          s.fecha_autorizacion,
-          COUNT(n.id) as registros_nomina
-        FROM semanas_nomina s
-        LEFT JOIN nomina_empleados_historial n ON n.id_semana = s.id_semana
-        GROUP BY s.id_semana, s.fecha_inicio, s.fecha_fin, s.esta_cerrada, s.autorizado_por, s.fecha_autorizacion
-        $whereClause
-        ORDER BY s.fecha_inicio DESC
-      ''');
-
-      return result.map((row) => {
-        'id': row[0] as int,
-        'fecha_inicio': row[1] as DateTime,
-        'fecha_fin': row[2] as DateTime,
-        'cerrada': row[3] as bool,
-        'autorizado_por': row[4] as String?,
-        'fecha_autorizacion': row[5] as DateTime?,
-        'registros_nomina': row[6] as int,
-        'nombre': '${_formatearFecha(row[1] as DateTime)} - ${_formatearFecha(row[2] as DateTime)}${row[3] as bool ? ' (Cerrada)' : ' (Abierta)'}${row[6] as int == 0 ? ' - Sin datos' : ''}'
-      }).toList();
+      
+      print('📊 [REPORTES] Total semanas disponibles para reportes: ${semanasDisponibles.length}');
+      return semanasDisponibles;
+      
     } catch (e) {
-      print('Error al obtener semanas con filtros: $e');
+      print('Error al obtener semanas: $e');
       return [];
     } finally {
       await db.close();
@@ -483,7 +671,7 @@ class ReportesGastosService {
           r.nombre as rancho_nombre,
           s.autorizado_por
         FROM semanas_nomina s
-        INNER JOIN nomina_empleados_historial n ON n.id_semana = s.id_semana
+        INNER JOIN nomina_empleados_semanal n ON n.id_semana = s.id_semana
         CROSS JOIN LATERAL (
           VALUES
             (n.act_1, COALESCE(n.dia_1,0), n.campo_1),
@@ -541,7 +729,7 @@ class ReportesGastosService {
           COUNT(DISTINCT n.id_empleado) as total_empleados,
           COUNT(DISTINCT n.cuadrilla) as total_cuadrillas
         FROM semanas_nomina s
-        LEFT JOIN nomina_empleados_historial n ON n.id_semana = s.id_semana
+        LEFT JOIN nomina_empleados_semanal n ON n.id_semana = s.id_semana
         WHERE s.esta_cerrada = true
         GROUP BY s.id_semana, s.fecha_inicio, s.fecha_fin, s.autorizado_por
         ORDER BY s.fecha_inicio DESC
@@ -584,7 +772,7 @@ class ReportesGastosService {
           AVG(a.pago) as promedio_ganancia,
           r.id_rancho
         FROM semanas_nomina sn
-        CROSS JOIN nomina_empleados_historial n
+        CROSS JOIN nomina_empleados_semanal n
         CROSS JOIN LATERAL (
           VALUES 
             (n.act_1, COALESCE(n.dia_1,0), n.campo_1),

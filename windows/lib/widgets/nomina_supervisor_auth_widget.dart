@@ -109,19 +109,19 @@ Future<void> respaldarYLimpiarNominaUltimaSemana(String usuario) async {
       '''
       INSERT INTO nomina_empleados_historial (
         id_empleado, id_semana, id_cuadrilla,
-        dia_1, dia_2, dia_3, dia_4, dia_5, dia_6,
+        dia_1, dia_2, dia_3, dia_4, dia_5, dia_6, dia_7,
+        act_1, act_2, act_3, act_4, act_5, act_6, act_7,
+        campo_1, campo_2, campo_3, campo_4, campo_5, campo_6, campo_7,
         total, debe, subtotal, comedor, total_neto,
-        fecha_cierre, usuario_cierre,
-        dia_7,
-        act_1, act_2, act_3, act_4, act_5, act_6, act_7
+        fecha_cierre, usuario_cierre
       )
       SELECT
         id_empleado, id_semana, id_cuadrilla,
-        dia_1, dia_2, dia_3, dia_4, dia_5, dia_6,
-        total, debe, subtotal, comedor, total_neto,
-        NOW(), @usuario,
-        dia_7,
-        act_1, act_2, act_3, act_4, act_5, act_6, act_7
+        COALESCE(dia_1, 0), COALESCE(dia_2, 0), COALESCE(dia_3, 0), COALESCE(dia_4, 0), COALESCE(dia_5, 0), COALESCE(dia_6, 0), COALESCE(dia_7, 0),
+        COALESCE(act_1, 0), COALESCE(act_2, 0), COALESCE(act_3, 0), COALESCE(act_4, 0), COALESCE(act_5, 0), COALESCE(act_6, 0), COALESCE(act_7, 0),
+        COALESCE(campo_1, '0'), COALESCE(campo_2, '0'), COALESCE(campo_3, '0'), COALESCE(campo_4, '0'), COALESCE(campo_5, '0'), COALESCE(campo_6, '0'), COALESCE(campo_7, '0'),
+        COALESCE(total, 0), COALESCE(debe, 0), COALESCE(subtotal, 0), COALESCE(comedor, 0), COALESCE(total_neto, 0),
+        NOW(), @usuario
       FROM nomina_empleados_semanal
       WHERE id_semana = @id_semana;
       ''',

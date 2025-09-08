@@ -616,15 +616,15 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
       empleado[campo] = valorEntero; // Guardar como entero, no como string
       print('  Campo $campo actualizado: $valorLimpio -> $valorEntero');
     } else if (campo.contains('dia_') && campo.endsWith('_id')) {
-      // Para campos de ID de actividad
-      empleado[campo] = valor.isEmpty ? null : valor;
+      // Para campos de ID de actividad - 🔧 CORREGIDO: usar "0" en lugar de null
+      empleado[campo] = valor.isEmpty ? '0' : valor;
       final nombre = _obtenerNombreActividad(valor);
       print('  Campo actividad actualizado:');
       print('    ID: $valor');
       print('    Nombre encontrado: $nombre');
     } else if (campo.contains('dia_') && campo.endsWith('_campo')) {
-      // Para el campo "campo", guardar como string
-      empleado[campo] = valor.isEmpty ? null : valor; // Guardamos null si está vacío
+      // Para el campo "campo" - 🔧 CORREGIDO: usar "0" en lugar de null
+      empleado[campo] = valor.isEmpty ? '0' : valor;
       final nombreCampo = _camposMap[valor] ?? '';
       print('  Campo rancho actualizado:');
       print('    ID: $valor');

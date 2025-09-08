@@ -129,6 +129,9 @@ class _NominaScreenState extends State<NominaScreen>
   // 🎯 Variable para forzar actualización de indicadores
   int _indicatorsUpdateKey = 0;
   
+  // 🚫 Variable para controlar actualizaciones del total semanal
+  bool _puedeActualizarTotal = false;
+  
   // 📋 Cache de cuadrillas para evitar recargas innecesarias
   final CuadrillasCache _cuadrillasCache = CuadrillasCache();
   bool _isCuadrillasLoadingInBackground = false;
@@ -170,6 +173,13 @@ class _NominaScreenState extends State<NominaScreen>
     
     // 🆕 Cargar semanas cerradas desde la base de datos
     _cargarSemanasCerradas();
+  }
+
+  /// Helper method para llamadas seguras a setState
+  void _safeSetState(VoidCallback callback) {
+    if (mounted && !_isDisposed) {
+      setState(callback);
+    }
   }
 
   @override
@@ -496,7 +506,7 @@ class _NominaScreenState extends State<NominaScreen>
   
   /// Muestra mensaje guía cuando no se cumple el flujo
   void _mostrarMensajeGuia(String mensaje, {IconData icon = Icons.info_outline, String? accionSugerida}) {
-    if (_mostrandoMensajeGuia) return;
+    if (_mostrandoMensajeGuia || !mounted || _isDisposed) return;
     
     setState(() {
       _mostrandoMensajeGuia = true;
@@ -1163,33 +1173,38 @@ class _NominaScreenState extends State<NominaScreen>
       await db.connect();
 
       //  Función auxiliar para obtener valores numéricos seguros
+      // 🔧 CORREGIDO: Envía 0 para valores vacíos, pero maneja correctamente los tipos
       int _getSafeIntValue(dynamic value) {
         if (value == null) return 0;
         if (value is int) return value;
         if (value is double) return value.round();
         if (value is num) return value.round();
         if (value is String) {
-          final parsed = num.tryParse(value);
+          final trimmed = value.trim();
+          if (trimmed.isEmpty) return 0; // String vacío = 0
+          final parsed = num.tryParse(trimmed);
           return parsed?.round() ?? 0;
         }
         return 0;
       }
 
       // Función auxiliar para obtener valores de texto seguros
+      // 🔧 CORREGIDO: Para campos de rancho, retornar "0" si está vacío
       String _getSafeStringValue(dynamic value) {
-        if (value == null) return '';
-        return value.toString();
+        if (value == null) return '0'; // NULL = "0"
+        final stringValue = value.toString().trim();
+        return stringValue.isEmpty ? '0' : stringValue; // String vacío = "0"
       }
 
       for (int i = 0; i < empleadosFiltrados.length; i++) {
         final empleado = empleadosFiltrados[i];
         final idEmpleado = empleado['id'];
         
-        // ✅ Inicializar campos por defecto si no existen
+        // ✅ Inicializar campos por defecto si no existen - 🔧 CORREGIDO: usar "0" para campos
         for (int day = 0; day < 7; day++) {
-          empleado['dia_${day}_id'] ??= 0;
-          empleado['dia_${day}_s'] ??= 0;
-          empleado['dia_${day}_campo'] ??= '';
+          empleado['dia_${day}_id'] ??= '0'; // 🔧 String "0" para actividades
+          empleado['dia_${day}_s'] ??= 0;    // Entero 0 para sueldos
+          empleado['dia_${day}_campo'] ??= '0'; // 🔧 String "0" para campos/ranchos
         }
         empleado['total'] ??= 0;
         empleado['debe'] ??= 0;
@@ -1422,28 +1437,28 @@ class _NominaScreenState extends State<NominaScreen>
             'codigo': empleadoBasico[1]?.toString() ?? '',
             'nombre': empleadoBasico[2]?.toString() ?? '',
             'id': empleadoBasico[0]?.toString() ?? '',
-            // Mapear de BD a formato de tabla (ahora incluye campo)
+            // Mapear de BD a formato de tabla (ahora incluye campo) - 🔧 CORREGIDO: usar "0" para campos vacíos
             'dia_0_s': nominaData[0]?.toString() ?? '0', // dia_1 BD → dia_0_s tabla
             'dia_0_id': nominaData[1]?.toString() ?? '0', // act_1 BD → dia_0_id tabla
-            'dia_0_campo': nominaData[2]?.toString() ?? '', // campo_1 BD → dia_0_campo tabla
+            'dia_0_campo': nominaData[2]?.toString() ?? '0', // campo_1 BD → dia_0_campo tabla
             'dia_1_s': nominaData[3]?.toString() ?? '0', // dia_2 BD → dia_1_s tabla
             'dia_1_id': nominaData[4]?.toString() ?? '0', // act_2 BD → dia_1_id tabla
-            'dia_1_campo': nominaData[5]?.toString() ?? '', // campo_2 BD → dia_1_campo tabla
+            'dia_1_campo': nominaData[5]?.toString() ?? '0', // campo_2 BD → dia_1_campo tabla
             'dia_2_s': nominaData[6]?.toString() ?? '0', // dia_3 BD → dia_2_s tabla
             'dia_2_id': nominaData[7]?.toString() ?? '0', // act_3 BD → dia_2_id tabla
-            'dia_2_campo': nominaData[8]?.toString() ?? '', // campo_3 BD → dia_2_campo tabla
+            'dia_2_campo': nominaData[8]?.toString() ?? '0', // campo_3 BD → dia_2_campo tabla
             'dia_3_s': nominaData[9]?.toString() ?? '0', // dia_4 BD → dia_3_s tabla
             'dia_3_id': nominaData[10]?.toString() ?? '0', // act_4 BD → dia_3_id tabla
-            'dia_3_campo': nominaData[11]?.toString() ?? '', // campo_4 BD → dia_3_campo tabla
+            'dia_3_campo': nominaData[11]?.toString() ?? '0', // campo_4 BD → dia_3_campo tabla
             'dia_4_s': nominaData[12]?.toString() ?? '0', // dia_5 BD → dia_4_s tabla
             'dia_4_id': nominaData[13]?.toString() ?? '0', // act_5 BD → dia_4_id tabla
-            'dia_4_campo': nominaData[14]?.toString() ?? '', // campo_5 BD → dia_4_campo tabla
+            'dia_4_campo': nominaData[14]?.toString() ?? '0', // campo_5 BD → dia_4_campo tabla
             'dia_5_s': nominaData[15]?.toString() ?? '0', // dia_6 BD → dia_5_s tabla
             'dia_5_id': nominaData[16]?.toString() ?? '0', // act_6 BD → dia_5_id tabla
-            'dia_5_campo': nominaData[17]?.toString() ?? '', // campo_6 BD → dia_5_campo tabla
+            'dia_5_campo': nominaData[17]?.toString() ?? '0', // campo_6 BD → dia_5_campo tabla
             'dia_6_s': nominaData[18]?.toString() ?? '0', // dia_7 BD → dia_6_s tabla
             'dia_6_id': nominaData[19]?.toString() ?? '0', // act_7 BD → dia_6_id tabla
-            'dia_6_campo': nominaData[20]?.toString() ?? '', // campo_7 BD → dia_6_campo tabla
+            'dia_6_campo': nominaData[20]?.toString() ?? '0', // campo_7 BD → dia_6_campo tabla
             'total': nominaData[21]?.toString() ?? '0',
             'debe': nominaData[22]?.toString() ?? '0',
             'subtotal': nominaData[23]?.toString() ?? '0',
@@ -1457,14 +1472,14 @@ class _NominaScreenState extends State<NominaScreen>
             'codigo': empleadoBasico[1]?.toString() ?? '',
             'nombre': empleadoBasico[2]?.toString() ?? '',
             'id': empleadoBasico[0]?.toString() ?? '',
-            // Valores por defecto para empleado nuevo (incluye campo)
-            'dia_0_s': '0', 'dia_0_id': '0', 'dia_0_campo': '',
-            'dia_1_s': '0', 'dia_1_id': '0', 'dia_1_campo': '',
-            'dia_2_s': '0', 'dia_2_id': '0', 'dia_2_campo': '',
-            'dia_3_s': '0', 'dia_3_id': '0', 'dia_3_campo': '',
-            'dia_4_s': '0', 'dia_4_id': '0', 'dia_4_campo': '',
-            'dia_5_s': '0', 'dia_5_id': '0', 'dia_5_campo': '',
-            'dia_6_s': '0', 'dia_6_id': '0', 'dia_6_campo': '',
+            // Valores por defecto para empleado nuevo - 🔧 CORREGIDO: usar "0" para campos vacíos
+            'dia_0_s': '0', 'dia_0_id': '0', 'dia_0_campo': '0',
+            'dia_1_s': '0', 'dia_1_id': '0', 'dia_1_campo': '0',
+            'dia_2_s': '0', 'dia_2_id': '0', 'dia_2_campo': '0',
+            'dia_3_s': '0', 'dia_3_id': '0', 'dia_3_campo': '0',
+            'dia_4_s': '0', 'dia_4_id': '0', 'dia_4_campo': '0',
+            'dia_5_s': '0', 'dia_5_id': '0', 'dia_5_campo': '0',
+            'dia_6_s': '0', 'dia_6_id': '0', 'dia_6_campo': '0',
             'total': '0',
             'debe': '0',
             'subtotal': '0',
@@ -1488,7 +1503,110 @@ class _NominaScreenState extends State<NominaScreen>
   Future<void> _cerrarSemanaActual({String opcion = 'resetear', String? usuarioAutorizado}) async {
     if (_startDate == null || _endDate == null) return;
 
-    // 🔄 Guardar la opción seleccionada para uso futuro
+    // � INSERTAR DATOS DIRECTAMENTE EN HISTORIAL AL CERRAR SEMANA
+    print('🔥 [HISTORIAL] INSERTANDO DATOS DIRECTAMENTE EN nomina_empleados_historial...');
+    
+    if (idSemanaSeleccionada != null) {
+      final db = DatabaseService();
+      try {
+        await db.connect();
+        
+        // Obtener TODOS los datos de nomina_empleados_semanal para esta semana
+        final datosParaHistorial = await db.connection.query('''
+          SELECT id_empleado, id_semana, id_cuadrilla, 
+                 dia_1, dia_2, dia_3, dia_4, dia_5, dia_6, dia_7,
+                 act_1, act_2, act_3, act_4, act_5, act_6, act_7,
+                 campo_1, campo_2, campo_3, campo_4, campo_5, campo_6, campo_7,
+                 total, debe, subtotal, comedor
+          FROM nomina_empleados_semanal 
+          WHERE id_semana = @idSemana
+        ''', substitutionValues: {'idSemana': idSemanaSeleccionada});
+        
+        print('🔥 [HISTORIAL] Encontrados ${datosParaHistorial.length} registros en nomina_empleados_semanal');
+        
+        if (datosParaHistorial.isNotEmpty) {
+          // Borrar datos existentes en historial para esta semana
+          await db.connection.execute('DELETE FROM nomina_empleados_historial WHERE id_semana = @idSemana',
+              substitutionValues: {'idSemana': idSemanaSeleccionada});
+          
+          // Insertar cada registro directamente en historial
+          int insertados = 0;
+          for (var row in datosParaHistorial) {
+            try {
+              await db.connection.execute('''
+                INSERT INTO nomina_empleados_historial (
+                  id_empleado, id_semana, id_cuadrilla, 
+                  dia_1, dia_2, dia_3, dia_4, dia_5, dia_6, dia_7,
+                  act_1, act_2, act_3, act_4, act_5, act_6, act_7,
+                  campo_1, campo_2, campo_3, campo_4, campo_5, campo_6, campo_7,
+                  total, debe, subtotal, comedor, fecha_cierre, usuario_cierre
+                ) VALUES (
+                  @idEmpleado, @idSemana, @idCuadrilla, 
+                  @dia1, @dia2, @dia3, @dia4, @dia5, @dia6, @dia7,
+                  @act1, @act2, @act3, @act4, @act5, @act6, @act7,
+                  @campo1, @campo2, @campo3, @campo4, @campo5, @campo6, @campo7,
+                  @total, @debe, @subtotal, @comedor, CURRENT_TIMESTAMP, @usuario
+                )
+              ''', substitutionValues: {
+                'idEmpleado': row[0],
+                'idSemana': row[1],
+                'idCuadrilla': row[2],
+                // Días (índices 3-9)
+                'dia1': row[3] ?? 0,
+                'dia2': row[4] ?? 0,
+                'dia3': row[5] ?? 0,
+                'dia4': row[6] ?? 0,
+                'dia5': row[7] ?? 0,
+                'dia6': row[8] ?? 0,
+                'dia7': row[9] ?? 0,  // ¡AGREGADO DIA_7!
+                // Actividades (índices 10-16)
+                'act1': row[10] ?? 0,
+                'act2': row[11] ?? 0,
+                'act3': row[12] ?? 0,
+                'act4': row[13] ?? 0,
+                'act5': row[14] ?? 0,
+                'act6': row[15] ?? 0,
+                'act7': row[16] ?? 0,  // ¡AGREGADO ACT_7!
+                // Campos (índices 17-23)
+                'campo1': row[17]?.toString() ?? "0",
+                'campo2': row[18]?.toString() ?? "0",
+                'campo3': row[19]?.toString() ?? "0",
+                'campo4': row[20]?.toString() ?? "0",
+                'campo5': row[21]?.toString() ?? "0",
+                'campo6': row[22]?.toString() ?? "0",
+                'campo7': row[23]?.toString() ?? "0",  // ¡AGREGADO CAMPO_7!
+                // Totales (índices 24-27)
+                'total': row[24] ?? 0,
+                'debe': row[25] ?? 0,
+                'subtotal': row[26] ?? 0,
+                'comedor': row[27] ?? 0,
+                'usuario': usuarioAutorizado ?? 'Sistema',
+              });
+              insertados++;
+            } catch (e) {
+              print('❌ Error al insertar registro en historial: $e');
+            }
+          }
+          
+          // Verificar que se guardaron
+          final verificacion = await db.connection.query(
+              'SELECT COUNT(*) FROM nomina_empleados_historial WHERE id_semana = @idSemana',
+              substitutionValues: {'idSemana': idSemanaSeleccionada});
+          
+          print('🔥 [HISTORIAL] ✅ INSERTADOS: $insertados registros');
+          print('🔥 [HISTORIAL] ✅ VERIFICADO: ${verificacion.first[0]} registros en historial');
+          
+        } else {
+          print('⚠️ [HISTORIAL] No hay datos en nomina_empleados_semanal para semana $idSemanaSeleccionada');
+        }
+        
+        await db.close();
+      } catch (e) {
+        print('❌ [HISTORIAL] ERROR CRÍTICO: $e');
+      }
+    }
+
+    // �🔄 Guardar la opción seleccionada para uso futuro
     _ultimaOpcionCierre = opcion;
 
     // Crear una lista de todas las cuadrillas con sus empleados y datos completos
@@ -1549,7 +1667,20 @@ class _NominaScreenState extends State<NominaScreen>
       print('🚀🚀🚀 [UI] INICIANDO CIERRE DE SEMANA $idSemanaSeleccionada DESDE LA INTERFAZ!!! 🚀🚀🚀');
       print('🔍 [UI] Verificando idSemanaSeleccionada: $idSemanaSeleccionada (tipo: ${idSemanaSeleccionada.runtimeType})');
       print('👤 [UI] Usuario autorizado: $usuarioAutorizado');
-      final cerradaExitosamente = await cerrarSemanaEnBD(idSemanaSeleccionada!, autorizadoPor: usuarioAutorizado);
+      
+      // Obtener datos actuales de nómina para enviar al historial
+      final datosNomina = await _obtenerDatosNominaSemanal(idSemanaSeleccionada!);
+      print('📊 [UI] Datos de nómina obtenidos: ${datosNomina?.length ?? 0} registros');
+      
+      // Determinar si mantener cuadrillas según la opción elegida
+      final mantenerCuadrillas = (opcion == 'mantener');
+      
+      final cerradaExitosamente = await cerrarSemanaEnBD(
+        idSemanaSeleccionada!, 
+        autorizadoPor: usuarioAutorizado,
+        datosNomina: datosNomina,
+        mantenerCuadrillas: mantenerCuadrillas
+      );
       print('🔄🔄🔄 [UI] RESULTADO DEL CIERRE: $cerradaExitosamente 🔄🔄🔄');
       if (!cerradaExitosamente) {
         print('❌❌❌ ERROR: NO SE PUDO MARCAR LA SEMANA COMO CERRADA EN BD ❌❌❌');
@@ -1875,6 +2006,10 @@ class _NominaScreenState extends State<NominaScreen>
       if (mounted) {
         _saveOriginalData();
         marcarCambiosGuardados();
+        
+        // 🔄 Habilitar actualización del total semanal para refresh manual
+        _puedeActualizarTotal = true;
+        _actualizarTotalSemana();
       }
       
       // ✅ 6. Mostrar confirmación
@@ -1942,6 +2077,8 @@ class _NominaScreenState extends State<NominaScreen>
         print('      ... y ${cuadrillas.length - 3} cuadrillas más');
       }
     }
+    
+    if (!mounted || _isDisposed) return;
     
     setState(() {
       showSemanasCerradas = true;
@@ -2249,6 +2386,9 @@ class _NominaScreenState extends State<NominaScreen>
       if (mounted) {
         _saveOriginalData();
         marcarCambiosGuardados(); // ✅ Marcar como guardado
+        
+        // 🔄 Habilitar actualización del total semanal
+        _puedeActualizarTotal = true;
         
         // 🔄 Forzar actualización del Total semana después del guardado
         _actualizarTotalSemana();
@@ -2791,6 +2931,8 @@ class _NominaScreenState extends State<NominaScreen>
 
   /// Actualiza el estado de cambios cuando se modifica un campo
   void _onFieldChanged(int index, String key, dynamic value) {
+    if (!mounted || _isDisposed) return;
+    
     setState(() {
       if (index < empleadosFiltrados.length) {
         // 🔧 Convertir valores numéricos a enteros para mantener tipos correctos
@@ -2881,13 +3023,22 @@ class _NominaScreenState extends State<NominaScreen>
       return;
     }
     
+    // Solo actualizar el total cuando se permite (después de guardar)
+    if (!_puedeActualizarTotal) {
+      print('⚠️ [CALCULO TOTAL SEMANAL] Actualización no permitida (no se ha guardado), cancelando');
+      return;
+    }
+    
     // Forzar reconstrucción del widget de indicadores incrementando la key
     // Esto causará que el NominaIndicatorsRow se reconstruya y recalcule automáticamente el total
-    setState(() {
+    _safeSetState(() {
       _indicatorsUpdateKey++;
     });
     
     print('🔄 [CALCULO TOTAL SEMANAL] Forzando recálculo del total semanal - Key: $_indicatorsUpdateKey');
+    
+    // Resetear la bandera después de la actualización
+    _puedeActualizarTotal = false;
   }
 
   @override
@@ -3705,6 +3856,172 @@ class _NominaScreenState extends State<NominaScreen>
           _isGuardando = false;
         });
       }
+    }
+  }
+
+  /// Guarda los datos actuales directamente en nomina_empleados_historial
+  Future<void> _guardarEnHistorial(String? usuarioAutorizado) async {
+    if (idSemanaSeleccionada == null) return;
+    
+    print('🔥 [HISTORIAL] GUARDANDO DATOS DIRECTAMENTE EN nomina_empleados_historial...');
+    
+    final db = DatabaseService();
+    try {
+      await db.connect();
+      
+      // Borrar datos existentes en historial para esta semana
+      await db.connection.execute('DELETE FROM nomina_empleados_historial WHERE id_semana = @idSemana',
+          substitutionValues: {'idSemana': idSemanaSeleccionada});
+      
+      int insertados = 0;
+      
+      // Procesar TODAS las cuadrillas con sus empleados (igual que se hace para semanal)
+      for (var cuadrilla in _optionsCuadrilla) {
+        List<Map<String, dynamic>> empleadosParaProcesar = [];
+
+        // Si es la cuadrilla actual, usar empleadosFiltrados
+        if (cuadrilla['nombre'] == _selectedCuadrilla['nombre']) {
+          empleadosParaProcesar = empleadosFiltrados;
+        } else {
+          // Para otras cuadrillas, usar sus empleados
+          empleadosParaProcesar = List<Map<String, dynamic>>.from(
+            cuadrilla['empleados'] ?? [],
+          );
+        }
+
+        print('🔥 [HISTORIAL] Procesando cuadrilla ${cuadrilla['nombre']}: ${empleadosParaProcesar.length} empleados');
+
+        // Insertar cada empleado de esta cuadrilla en historial
+        for (var empleado in empleadosParaProcesar) {
+          final idEmpleado = empleado['id_empleado'];
+          final idCuadrilla = cuadrilla['id'];
+
+          try {
+            await db.connection.execute('''
+              INSERT INTO nomina_empleados_historial (
+                id_empleado, id_semana, id_cuadrilla,
+                dia_1, dia_2, dia_3, dia_4, dia_5, dia_6, dia_7,
+                total, debe, subtotal, comedor, total_neto,
+                act_1, act_2, act_3, act_4, act_5, act_6, act_7,
+                campo_1, campo_2, campo_3, campo_4, campo_5, campo_6, campo_7,
+                fecha_cierre, usuario_cierre
+              ) VALUES (
+                @idEmp, @idSemana, @idCuadrilla,
+                @d1, @d2, @d3, @d4, @d5, @d6, @d7,
+                @total, @debe, @subtotal, @comedor, @neto,
+                @a1, @a2, @a3, @a4, @a5, @a6, @a7,
+                @c1, @c2, @c3, @c4, @c5, @c6, @c7,
+                CURRENT_TIMESTAMP, @usuario
+              )
+            ''', substitutionValues: {
+              'idEmp': idEmpleado,
+              'idSemana': idSemanaSeleccionada,
+              'idCuadrilla': idCuadrilla,
+              'd1': empleado['dia_0_s'] ?? 0,
+              'd2': empleado['dia_1_s'] ?? 0,
+              'd3': empleado['dia_2_s'] ?? 0,
+              'd4': empleado['dia_3_s'] ?? 0,
+              'd5': empleado['dia_4_s'] ?? 0,
+              'd6': empleado['dia_5_s'] ?? 0,
+              'd7': empleado['dia_6_s'] ?? 0,
+              'total': empleado['total'] ?? 0,
+              'debe': empleado['debe'] ?? 0,
+              'subtotal': empleado['subtotal'] ?? 0,
+              'comedor': empleado['comedor'] ?? 0,
+              'neto': empleado['totalNeto'] ?? 0,
+              'a1': empleado['dia_0_id'] ?? 0,
+              'a2': empleado['dia_1_id'] ?? 0,
+              'a3': empleado['dia_2_id'] ?? 0,
+              'a4': empleado['dia_3_id'] ?? 0,
+              'a5': empleado['dia_4_id'] ?? 0,
+              'a6': empleado['dia_5_id'] ?? 0,
+              'a7': empleado['dia_6_id'] ?? 0,
+              'c1': empleado['dia_0_campo'] ?? '0',
+              'c2': empleado['dia_1_campo'] ?? '0',
+              'c3': empleado['dia_2_campo'] ?? '0',
+              'c4': empleado['dia_3_campo'] ?? '0',
+              'c5': empleado['dia_4_campo'] ?? '0',
+              'c6': empleado['dia_5_campo'] ?? '0',
+              'c7': empleado['dia_6_campo'] ?? '0',
+              'usuario': usuarioAutorizado ?? 'Sistema',
+            });
+            insertados++;
+          } catch (e) {
+            print('❌ Error al insertar empleado ${empleado['nombre']} en historial: $e');
+          }
+        }
+      }
+      
+      // Verificar que se guardaron
+      final verificacion = await db.connection.query(
+          'SELECT COUNT(*) FROM nomina_empleados_historial WHERE id_semana = @idSemana',
+          substitutionValues: {'idSemana': idSemanaSeleccionada});
+      
+      print('🔥 [HISTORIAL] ✅ INSERTADOS: $insertados empleados');
+      print('🔥 [HISTORIAL] ✅ VERIFICADO: ${verificacion.first[0]} registros en historial');
+      
+      await db.close();
+    } catch (e) {
+      print('❌ [HISTORIAL] ERROR CRÍTICO: $e');
+    }
+  }
+
+  /// Obtiene los datos actuales de nomina_empleados_semanal para una semana específica
+  Future<List<Map<String, dynamic>>?> _obtenerDatosNominaSemanal(int idSemana) async {
+    final db = DatabaseService();
+    try {
+      await db.connect();
+      
+      // DEBUG: Primero verificar si hay datos
+      final conteo = await db.connection.query('''
+        SELECT COUNT(*) FROM nomina_empleados_semanal WHERE id_semana = @idSemana
+      ''', substitutionValues: {'idSemana': idSemana});
+      
+      print('🔍 [DEBUG] Registros en nomina_empleados_semanal para semana $idSemana: ${conteo.first[0]}');
+      
+      // Si no hay datos, buscar en cualquier semana para debug
+      if (conteo.first[0] == 0) {
+        final cualquierDato = await db.connection.query('''
+          SELECT COUNT(*), MAX(id_semana) FROM nomina_empleados_semanal
+        ''');
+        print('🔍 [DEBUG] Total registros en nomina_empleados_semanal: ${cualquierDato.first[0]}, última semana: ${cualquierDato.first[1]}');
+      }
+      
+      final resultados = await db.connection.query('''
+        SELECT 
+          id_empleado, id_semana, id_cuadrilla, dia_1, dia_2, dia_3, dia_4, dia_5, dia_6,
+          total, debe, subtotal, comedor
+        FROM nomina_empleados_semanal 
+        WHERE id_semana = @idSemana
+      ''', substitutionValues: {'idSemana': idSemana});
+      
+      final datos = resultados.map((row) => {
+        'id_empleado': row[0],
+        'id_semana': row[1], 
+        'id_cuadrilla': row[2],
+        'dia_1': row[3],
+        'dia_2': row[4],
+        'dia_3': row[5],
+        'dia_4': row[6],
+        'dia_5': row[7],
+        'dia_6': row[8],
+        'total': row[9],
+        'debe': row[10],
+        'subtotal': row[11],
+        'comedor': row[12],
+      }).toList();
+      
+      print('🔍 [DEBUG] Datos obtenidos: ${datos.length} registros');
+      if (datos.isNotEmpty) {
+        print('🔍 [DEBUG] Primer registro: ${datos.first}');
+      }
+      
+      return datos;
+    } catch (e) {
+      print('❌ Error al obtener datos de nómina semanal: $e');
+      return null;
+    } finally {
+      await db.close();
     }
   }
 
