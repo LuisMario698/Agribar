@@ -26,6 +26,14 @@ class NominaTablaEditable extends StatefulWidget {
 
   @override
   State<NominaTablaEditable> createState() => _NominaTablaEditableState();
+
+  /// Método estático para validar una tabla desde un GlobalKey genérico
+  static Map<String, dynamic>? validarTablaDesdeKey(GlobalKey? key) {
+    if (key?.currentState != null && key!.currentState is _NominaTablaEditableState) {
+      return (key.currentState as _NominaTablaEditableState).validarTabla();
+    }
+    return null;
+  }
 }
 
 class _NominaTablaEditableState extends State<NominaTablaEditable> {
@@ -618,6 +626,28 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     return 0;
   }
 
+  /// Convierte cualquier valor a double de forma segura (para campos con decimales)
+  double _convertirADouble(dynamic valor) {
+    if (valor == null) return 0.0;
+    if (valor is double) return valor;
+    if (valor is int) return valor.toDouble();
+    if (valor is bool) return valor ? 400.0 : 0.0; // Para comedor
+    if (valor is String) {
+      // Intentar parsearlo como double directamente
+      final doubleValue = double.tryParse(valor);
+      if (doubleValue != null) {
+        return doubleValue;
+      }
+      // Si no es un decimal válido, intentar como entero
+      final intValue = int.tryParse(valor);
+      if (intValue != null) {
+        return intValue.toDouble();
+      }
+      return 0.0;
+    }
+    return 0.0;
+  }
+
   /// Maneja cambios en los campos editables
   void _manejarCambio(int index, String campo, String valor) {
     if (widget.readOnly || index >= widget.empleados.length) return;
@@ -724,7 +754,8 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
       
       // Obtener valores del día anterior y asegurar que sean del tipo correcto
       final actividadAnterior = empleado['dia_${diaAnterior}_id']?.toString() ?? '';
-      final sueldoAnterior = _convertirAEntero(empleado['dia_${diaAnterior}_s']);
+      final sueldoAnteriorOriginal = empleado['dia_${diaAnterior}_s']; // Mantener valor original para preservar decimales
+      final sueldoAnteriorCheck = _convertirADouble(sueldoAnteriorOriginal); // Solo para verificar si > 0
       final campoAnterior = empleado['dia_${diaAnterior}_campo']?.toString() ?? '';
       
       print('  🔍 Valores originales del día $diaAnterior:');
@@ -734,18 +765,18 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
       
       // Solo duplicar si hay datos en el día anterior
       bool hayDatosAnterior = actividadAnterior.isNotEmpty ||
-                             sueldoAnterior > 0 ||
+                             sueldoAnteriorCheck > 0 ||
                              campoAnterior.isNotEmpty;
       
       if (hayDatosAnterior) {
         print('  📋 Duplicando datos de $nombre:');
         print('    actividad: $actividadAnterior -> dia_${diaActual}_id');
-        print('    sueldo: $sueldoAnterior -> dia_${diaActual}_s');
+        print('    sueldo: $sueldoAnteriorOriginal -> dia_${diaActual}_s');
         print('    campo: $campoAnterior -> dia_${diaActual}_campo');
         
         // Usar _manejarCambio para asegurar el tipo correcto de datos
         _manejarCambio(empleadoIndex, 'dia_${diaActual}_id', actividadAnterior);
-        _manejarCambio(empleadoIndex, 'dia_${diaActual}_s', sueldoAnterior.toString());
+        _manejarCambio(empleadoIndex, 'dia_${diaActual}_s', sueldoAnteriorOriginal?.toString() ?? '0');
         _manejarCambio(empleadoIndex, 'dia_${diaActual}_campo', campoAnterior);
         
         print('  ✅ Valores copiados al día $diaActual:');
@@ -808,7 +839,7 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     
     for (final empleado in widget.empleados) {
       final actividadDia = empleado['dia_${dia}_id']?.toString() ?? '';
-      final sueldoDia = _convertirAEntero(empleado['dia_${dia}_s']);
+      final sueldoDia = _convertirADouble(empleado['dia_${dia}_s']);
       final campoDia = empleado['dia_${dia}_campo']?.toString() ?? '';
       
       if (actividadDia.isNotEmpty || sueldoDia > 0 || campoDia.isNotEmpty) {
@@ -819,15 +850,138 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     return false;
   }
 
+  /// Valida que todos los campos requeridos estén correctamente asignados
+  /// Retorna un mapa con el resultado de la validación
+  /// 
+  /// REGLAS DE VALIDACIÓN:
+  /// 1. Si sueldo > 0 → DEBE tener actividad Y rancho
+  /// 2. Si sueldo = 0 → NO validar nada (día no trabajado)
+  /// 3. Si tiene actividad → DEBE tener sueldo > 0 Y rancho
+  /// 4. Si tiene rancho → DEBE tener sueldo > 0 Y actividad
+  /// 5. El sueldo NO es obligatorio por sí solo
+  Map<String, dynamic> validarTabla() {
+    List<String> errores = [];
+    int diasConDatos = 0;
+    int diasValidados = 0;
+    
+    final numeroDias = _numeroDias;
+    
+    print('🔍 Iniciando validación de tabla de nóminas...');
+    print('  Número de días a validar: $numeroDias');
+    print('  Número de empleados: ${widget.empleados.length}');
+    print('📋 REGLAS DE VALIDACIÓN:');
+    print('  1. Si sueldo > 0 → DEBE tener actividad Y rancho');
+    print('  2. Si sueldo = 0 → NO validar nada (día no trabajado)');
+    print('  3. Si tiene actividad → DEBE tener sueldo > 0 Y rancho');
+    print('  4. Si tiene rancho → DEBE tener sueldo > 0 Y actividad');
+    print('  5. El sueldo NO es obligatorio por sí solo');
+    
+    // Iterar por cada día
+    for (int dia = 0; dia < numeroDias; dia++) {
+      bool hayDatosEnEsteDiv = false;
+      List<String> erroresDia = [];
+      
+      // Revisar cada empleado en este día
+      for (int empleadoIndex = 0; empleadoIndex < widget.empleados.length; empleadoIndex++) {
+        final empleado = widget.empleados[empleadoIndex];
+        final nombreEmpleado = empleado['nombre'] ?? 'Empleado ${empleadoIndex + 1}';
+        
+        // Obtener valores del día
+        final actividadId = empleado['dia_${dia}_id']?.toString() ?? '';
+        final sueldo = _convertirADouble(empleado['dia_${dia}_s']);
+        final rancho = empleado['dia_${dia}_campo']?.toString() ?? '';
+        
+        // 🔍 DEBUG: Mostrar valores para depuración
+        if (actividadId.isNotEmpty || sueldo != 0.0 || rancho.isNotEmpty) {
+          print('🔍 DEBUG - $nombreEmpleado Día ${dia + 1}: sueldo=$sueldo (${sueldo.runtimeType}), actividad="$actividadId", rancho="$rancho"');
+        }
+        
+        // Verificar si hay datos en este día para este empleado
+        bool empleadoTieneDatos = actividadId.isNotEmpty || sueldo > 0.0 || rancho.isNotEmpty;
+        
+        if (empleadoTieneDatos) {
+          hayDatosEnEsteDiv = true;
+          
+          // 📋 REGLA 1: Si sueldo > 0 → DEBE tener actividad Y rancho
+          if (sueldo > 0.0) {
+            print('🔍 REGLA 1 - $nombreEmpleado Día ${dia + 1}: Sueldo > 0 (\$${sueldo.toStringAsFixed(2)}), verificando actividad y rancho...');
+            if (actividadId.isEmpty) {
+              erroresDia.add('⚠️ $nombreEmpleado - Día ${dia + 1}: Falta asignar actividad (sueldo: \$${sueldo.toStringAsFixed(2)})');
+            }
+            if (rancho.isEmpty) {
+              erroresDia.add('⚠️ $nombreEmpleado - Día ${dia + 1}: Falta asignar rancho (sueldo: \$${sueldo.toStringAsFixed(2)})');
+            }
+          } else {
+            // 📋 REGLA 2: Si sueldo = 0 → NO validar actividad ni rancho
+            print('✅ REGLA 2 - $nombreEmpleado Día ${dia + 1}: Sueldo es 0 (\$${sueldo.toStringAsFixed(2)}), NO se requiere actividad ni rancho');
+          }
+          
+          // 📋 REGLA 3: Si tiene actividad → DEBE tener sueldo > 0 Y rancho
+          if (actividadId.isNotEmpty && sueldo <= 0.0) {
+            print('🔍 REGLA 3a - $nombreEmpleado Día ${dia + 1}: Tiene actividad pero sueldo es 0');
+            erroresDia.add('⚠️ $nombreEmpleado - Día ${dia + 1}: Falta asignar sueldo (actividad asignada: $actividadId)');
+          }
+          if (actividadId.isNotEmpty && rancho.isEmpty) {
+            print('🔍 REGLA 3a+ - $nombreEmpleado Día ${dia + 1}: Tiene actividad pero falta rancho');
+            erroresDia.add('⚠️ $nombreEmpleado - Día ${dia + 1}: Falta asignar rancho (actividad asignada: $actividadId)');
+          }
+          
+          // 📋 REGLA 3: Si tiene rancho → DEBE tener sueldo > 0 Y actividad
+          if (rancho.isNotEmpty && sueldo <= 0.0) {
+            print('🔍 REGLA 3b - $nombreEmpleado Día ${dia + 1}: Tiene rancho pero sueldo es 0');
+            erroresDia.add('⚠️ $nombreEmpleado - Día ${dia + 1}: Falta asignar sueldo (rancho asignado: $rancho)');
+          }
+          if (rancho.isNotEmpty && actividadId.isEmpty) {
+            print('🔍 REGLA 3b+ - $nombreEmpleado Día ${dia + 1}: Tiene rancho pero falta actividad');
+            erroresDia.add('⚠️ $nombreEmpleado - Día ${dia + 1}: Falta asignar actividad (rancho asignado: $rancho)');
+          }
+          
+          // ℹ️ REGLA 4: El sueldo NO es obligatorio por sí solo
+        }
+      }
+      
+      if (hayDatosEnEsteDiv) {
+        diasConDatos++;
+        if (erroresDia.isEmpty) {
+          diasValidados++;
+          print('✅ Día ${dia + 1}: Validado correctamente');
+        } else {
+          print('❌ Día ${dia + 1}: Encontrados ${erroresDia.length} errores');
+          errores.addAll(erroresDia);
+        }
+      } else {
+        print('⏭️ Día ${dia + 1}: Sin datos, omitiendo validación');
+      }
+    }
+    
+    final esValido = errores.isEmpty;
+    
+    print('📊 Resumen de validación:');
+    print('  Días con datos: $diasConDatos');
+    print('  Días validados correctamente: $diasValidados');
+    print('  Errores encontrados: ${errores.length}');
+    print('  Estado: ${esValido ? "✅ VÁLIDO" : "❌ INVÁLIDO"}');
+    
+    return {
+      'valido': esValido,
+      'errores': errores,
+      'diasConDatos': diasConDatos,
+      'diasValidados': diasValidados,
+      'resumen': esValido 
+        ? 'Tabla validada correctamente. $diasValidados días procesados sin errores.'
+        : 'Se encontraron ${errores.length} errores en $diasConDatos días con datos. Revise la tabla de nóminas.'
+    };
+  }
+
   /// Formatea un valor como moneda
   String _formatearMoneda(dynamic valor) {
-    final entero = _convertirAEntero(valor);
+    final decimal = _convertirADouble(valor);
     // 🔧 DEBUG: Mostrar conversión de valores para debug
-    if (entero != 0) {
-      print('💰 [${widget.isExpanded ? 'EXPANDIDA' : 'PRINCIPAL'}] _formatearMoneda: $valor (${valor.runtimeType}) -> \$${NumberFormat('#,##0', 'es_ES').format(entero)}');
+    if (decimal != 0) {
+      print('💰 [${widget.isExpanded ? 'EXPANDIDA' : 'PRINCIPAL'}] _formatearMoneda: $valor (${valor.runtimeType}) -> \$${NumberFormat('#,##0.00', 'es_ES').format(decimal)}');
     }
-    // Formatear como entero sin decimales
-    return '\$${NumberFormat('#,##0', 'es_ES').format(entero)}';
+    // Formatear con 2 decimales
+    return '\$${NumberFormat('#,##0.00', 'es_ES').format(decimal)}';
   }
 
   /// Construye las columnas de la tabla
@@ -1427,7 +1581,7 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
         child: Text(
           esCampoTexto 
             ? (valor?.toString() ?? '') 
-            : (mostrarMoneda ? _formatearMoneda(valor) : (_convertirAEntero(valor).toString())),
+            : (mostrarMoneda ? _formatearMoneda(valor) : (valor?.toString() ?? '0')),
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: widget.isExpanded ? 14 : 12,
@@ -1441,7 +1595,7 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     // Preparar valor para mostrar según el tipo de campo
     final valorMostrar = esCampoTexto 
       ? (valor?.toString() == '0' ? '' : valor?.toString() ?? '') 
-      : _convertirAEntero(valor).toString();
+      : (valor?.toString() == '0' ? '' : valor?.toString() ?? '');
     
     // Crear clave única para el FocusNode
     final claveFocus = '${empleadoIndex}_${campo}';
@@ -1494,7 +1648,7 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
             ],
           ),
           child: Text(
-            mostrarMoneda ? _formatearMoneda(valor) : (_convertirAEntero(valor).toString()),
+            mostrarMoneda ? _formatearMoneda(valor) : (valor?.toString() ?? '0'),
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: widget.isExpanded ? 15 : 13,
@@ -1510,7 +1664,7 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     final esCampoTexto = campo.contains('_campo') || campo.contains('_id');
 
     // Convertir el valor según el tipo de campo
-    final valorMostrar = _convertirAEntero(valor).toString();
+    final valorMostrar = valor?.toString() ?? '';
     
     // Crear clave única para el FocusNode
     final claveFocus = '${empleadoIndex}_${campo}';
@@ -1730,7 +1884,7 @@ class _CeldaEditableConNavegacionState extends State<_CeldaEditableConNavegacion
         controller: _controller,
         focusNode: _focusNode,
         textAlign: TextAlign.center,
-        keyboardType: widget.esCampoTexto ? TextInputType.text : TextInputType.number,
+        keyboardType: widget.esCampoTexto ? TextInputType.text : TextInputType.numberWithOptions(decimal: true),
         textInputAction: TextInputAction.next, // Esto permite manejar Enter
         inputFormatters: widget.esCampoTexto
             ? [
@@ -1739,8 +1893,31 @@ class _CeldaEditableConNavegacionState extends State<_CeldaEditableConNavegacion
                 LengthLimitingTextInputFormatter(15),
               ]
             : [
-                // Para campos numéricos: solo dígitos
-                FilteringTextInputFormatter.digitsOnly,
+                // Para campos numéricos: dígitos y punto decimal
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                // Limitar a solo un punto decimal y máximo 2 decimales
+                TextInputFormatter.withFunction((oldValue, newValue) {
+                  // Contar cuántos puntos hay
+                  final pointCount = '.'.allMatches(newValue.text).length;
+                  if (pointCount > 1) {
+                    return oldValue;
+                  }
+                  
+                  // Si hay un punto, verificar que no tenga más de 2 decimales
+                  if (pointCount == 1) {
+                    final parts = newValue.text.split('.');
+                    if (parts.length == 2 && parts[1].length > 2) {
+                      // Truncar a 2 decimales
+                      final truncated = '${parts[0]}.${parts[1].substring(0, 2)}';
+                      return TextEditingValue(
+                        text: truncated,
+                        selection: TextSelection.collapsed(offset: truncated.length),
+                      );
+                    }
+                  }
+                  
+                  return newValue;
+                }),
                 LengthLimitingTextInputFormatter(10),
               ],
         style: TextStyle(
@@ -1832,3 +2009,71 @@ class _CeldaEditableConNavegacionState extends State<_CeldaEditableConNavegacion
     );
   }
 }
+
+/*
+  📋 EJEMPLO DE USO DE LA VALIDACIÓN DE TABLA:
+
+  // 1. Crear un GlobalKey para la tabla
+  final GlobalKey<_NominaTablaEditableState> _tablaKey = GlobalKey<_NominaTablaEditableState>();
+
+  // 2. Asignar la key al widget NominaTablaEditable
+  NominaTablaEditable(
+    key: _tablaKey,
+    empleados: empleados,
+    // ... otros parámetros
+  )
+
+  // 3. Validar antes de guardar
+  void _guardarCambios() {
+    final validacion = NominaTablaEditable.validarTablaDesdeKey(_tablaKey);
+    
+    if (validacion != null && validacion['valido'] == true) {
+      // ✅ Validación exitosa - proceder a guardar
+      print('✅ ${validacion['resumen']}');
+      _procederConGuardado();
+    } else if (validacion != null) {
+      // ❌ Hay errores - mostrar mensaje
+      final errores = validacion['errores'] as List<String>;
+      _mostrarDialogoErrores(validacion['resumen'], errores);
+    } else {
+      // ⚠️ No se pudo validar
+      _mostrarError('No se pudo validar la tabla');
+    }
+  }
+
+  void _mostrarDialogoErrores(String resumen, List<String> errores) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('⚠️ Errores en la Tabla de Nóminas'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(resumen),
+            SizedBox(height: 16),
+            Text('Errores encontrados:', style: TextStyle(fontWeight: FontWeight.bold)),
+            SizedBox(height: 8),
+            Container(
+              height: 200,
+              width: double.maxFinite,
+              child: ListView.builder(
+                itemCount: errores.length,
+                itemBuilder: (context, index) => Padding(
+                  padding: EdgeInsets.symmetric(vertical: 2),
+                  child: Text('• ${errores[index]}', style: TextStyle(fontSize: 12)),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text('Entendido'),
+          ),
+        ],
+      ),
+    );
+  }
+*/

@@ -1390,17 +1390,19 @@ class _ReportesGastosWidgetState extends State<ReportesGastosWidget> {
             // Header de la tabla
             
             // Contenido de la tabla
-            Container(
-              padding: const EdgeInsets.all(16),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  return SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        minWidth: constraints.maxWidth,
-                      ),
-                      child: DataTable(
+            Expanded(
+              child: SingleChildScrollView(
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minWidth: constraints.maxWidth,
+                          ),
+                          child: DataTable(
                         headingRowColor: MaterialStateProperty.all(AppColors.green.withOpacity(0.1)),
                         dataRowHeight: 56,
                         headingRowHeight: 48,
@@ -1412,10 +1414,12 @@ class _ReportesGastosWidgetState extends State<ReportesGastosWidget> {
                         ),
                         columns: _buildColumns(),
                         rows: _datosReporte.map((item) => _buildDataRow(item)).toList(),
-                      ),
-                    ),
-                  );
-                },
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
               ),
             ),
           ],
@@ -2381,8 +2385,8 @@ class _ReportesGastosWidgetState extends State<ReportesGastosWidget> {
             child: LayoutBuilder(
               builder: (context, constraints) {
                 return SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: ConstrainedBox(
+                      scrollDirection: Axis.horizontal,
+                      child: ConstrainedBox(
                     constraints: BoxConstraints(
                       minWidth: constraints.maxWidth,
                       maxWidth: math.max(constraints.maxWidth, 700),

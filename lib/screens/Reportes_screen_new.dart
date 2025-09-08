@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart';
 import '../services/reportes_service.dart';
 
 /// Pantalla de reportes con filtros de rancho y fechas
@@ -588,12 +587,15 @@ class _ReportesScreenState extends State<ReportesScreen>
           SizedBox(height: 16),
           
           // Tabla de datos
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              headingRowColor: MaterialStateProperty.all(Color(0xFFF8F8F8)),
-              columns: [
-                DataColumn(label: Text('Rancho', style: TextStyle(fontWeight: FontWeight.bold))),
+          Container(
+            height: 400, // Altura fija para permitir scroll vertical
+            child: SingleChildScrollView(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: DataTable(
+                  headingRowColor: MaterialStateProperty.all(Color(0xFFF8F8F8)),
+                  columns: [
+                    DataColumn(label: Text('Rancho', style: TextStyle(fontWeight: FontWeight.bold))),
                 DataColumn(label: Text('Actividad', style: TextStyle(fontWeight: FontWeight.bold))),
                 DataColumn(label: Text('Días', style: TextStyle(fontWeight: FontWeight.bold))),
                 DataColumn(label: Text('Empleados', style: TextStyle(fontWeight: FontWeight.bold))),
@@ -610,6 +612,8 @@ class _ReportesScreenState extends State<ReportesScreen>
                   DataCell(Text('\$${_formatearNumero(dato['gasto_promedio'] ?? 0.0)}')),
                 ],
               )).toList(),
+                ),
+              ),
             ),
           ),
         ],
@@ -676,12 +680,15 @@ class _ReportesScreenState extends State<ReportesScreen>
           SizedBox(height: 16),
           
           // Tabla de datos
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              headingRowColor: MaterialStateProperty.all(Color(0xFFF8F8F8)),
-              columns: [
-                DataColumn(label: Text('Actividad', style: TextStyle(fontWeight: FontWeight.bold))),
+          Container(
+            height: 400, // Altura fija para permitir scroll vertical
+            child: SingleChildScrollView(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: DataTable(
+                  headingRowColor: MaterialStateProperty.all(Color(0xFFF8F8F8)),
+                  columns: [
+                    DataColumn(label: Text('Actividad', style: TextStyle(fontWeight: FontWeight.bold))),
                 DataColumn(label: Text('Días', style: TextStyle(fontWeight: FontWeight.bold))),
                 DataColumn(label: Text('Empleados', style: TextStyle(fontWeight: FontWeight.bold))),
                 DataColumn(label: Text('Cuadrillas', style: TextStyle(fontWeight: FontWeight.bold))),
@@ -700,6 +707,8 @@ class _ReportesScreenState extends State<ReportesScreen>
                   DataCell(Text('\$${_formatearNumero(dato['gasto_minimo'] ?? 0.0)} - \$${_formatearNumero(dato['gasto_maximo'] ?? 0.0)}')),
                 ],
               )).toList(),
+                ),
+              ),
             ),
           ),
         ],
@@ -749,12 +758,15 @@ class _ReportesScreenState extends State<ReportesScreen>
           SizedBox(height: 16),
           
           // Tabla de datos
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              headingRowColor: MaterialStateProperty.all(Color(0xFFF8F8F8)),
-              columns: [
-                DataColumn(label: Text('Fecha', style: TextStyle(fontWeight: FontWeight.bold))),
+          Container(
+            height: 400, // Altura fija para permitir scroll vertical
+            child: SingleChildScrollView(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: DataTable(
+                  headingRowColor: MaterialStateProperty.all(Color(0xFFF8F8F8)),
+                  columns: [
+                    DataColumn(label: Text('Fecha', style: TextStyle(fontWeight: FontWeight.bold))),
                 DataColumn(label: Text('Rancho', style: TextStyle(fontWeight: FontWeight.bold))),
                 DataColumn(label: Text('Cuadrilla', style: TextStyle(fontWeight: FontWeight.bold))),
                 DataColumn(label: Text('Empleados', style: TextStyle(fontWeight: FontWeight.bold))),
@@ -771,6 +783,8 @@ class _ReportesScreenState extends State<ReportesScreen>
                   DataCell(Text('\$${_formatearNumero(dato['gasto_promedio_empleado'] ?? 0.0)}')),
                 ],
               )).toList(),
+                ),
+              ),
             ),
           ),
         ],

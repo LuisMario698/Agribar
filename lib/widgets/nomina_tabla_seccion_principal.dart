@@ -14,6 +14,7 @@ class NominaTablaSeccionPrincipal extends StatelessWidget {
   final List<Map<String, dynamic>> empleadosNomina;
   final VoidCallback? onRefreshTabla; // ✨ Nuevo callback para refresh manual
   final Map<String, Function>? funcionesConversionActividad; // 🔑 Funciones de conversión de actividad
+  final GlobalKey? tablaKey; // 🔑 Key para validación externa
 
   const NominaTablaSeccionPrincipal({
     super.key,
@@ -25,6 +26,7 @@ class NominaTablaSeccionPrincipal extends StatelessWidget {
     required this.onMostrarSemanasCerradas,
     this.onRefreshTabla, // ✨ Callback opcional para refresh
     this.funcionesConversionActividad, // 🔑 Funciones de conversión de actividad
+    this.tablaKey, // 🔑 Key opcional para validación
   });
 
   void _showFullscreenTable(BuildContext context) {
@@ -142,7 +144,7 @@ class NominaTablaSeccionPrincipal extends StatelessWidget {
                     ],
                   ),
                   child: NominaTablaEditable(
-                    key: ValueKey('table_${empleadosFiltrados.length}_${empleadosFiltrados.hashCode}'), // Forzar reconstrucción
+                    key: tablaKey ?? ValueKey('table_${empleadosFiltrados.length}_${empleadosFiltrados.hashCode}'), // Usar tablaKey si está disponible
                     empleados: empleadosFiltrados, // ✅ Usar empleadosFiltrados (misma fuente que tabla expandida)
                     semanaSeleccionada: startDate != null && endDate != null
                         ? DateTimeRange(start: startDate!, end: endDate!)

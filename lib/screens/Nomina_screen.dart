@@ -19,6 +19,7 @@ import '../widgets/nomina_week_selection_card.dart';
 import '../widgets/nomina_cuadrilla_selection_card.dart';
 import '../widgets/nomina_indicators_row.dart';
 import '../widgets/nomina_tabla_seccion_principal.dart';
+import '../widgets/nomina_tabla_editable.dart';
 import '../widgets/nomina_resumen_cuadrillas_dialog.dart';
 import '../widgets/nomina_export_section.dart';
 import '../widgets/nomina_flow_indicator.dart';
@@ -128,6 +129,9 @@ class _NominaScreenState extends State<NominaScreen>
   
   // 🎯 Variable para forzar actualización de indicadores
   int _indicatorsUpdateKey = 0;
+
+  // 🔑 GlobalKey para validación de la tabla de nómina
+  final GlobalKey _tablaKey = GlobalKey();
   
   // 🚫 Variable para controlar actualizaciones del total semanal
   bool _puedeActualizarTotal = false;
@@ -1544,25 +1548,25 @@ class _NominaScreenState extends State<NominaScreen>
             'id': empleadoBasico[0]?.toString() ?? '',
             // Mapear de BD a formato de tabla (ahora incluye campo) - 🔧 CORREGIDO: usar "0" para campos vacíos
             'dia_0_s': nominaData[0]?.toString() ?? '0', // dia_1 BD → dia_0_s tabla
-            'dia_0_id': nominaData[1]?.toString() ?? '0', // act_1 BD → dia_0_id tabla
+            'dia_0_id': _convertirIdAClave(int.tryParse(nominaData[1]?.toString() ?? '0') ?? 0), // act_1 BD → dia_0_id tabla (convertir ID a clave)
             'dia_0_campo': nominaData[2]?.toString() ?? '0', // campo_1 BD → dia_0_campo tabla
             'dia_1_s': nominaData[3]?.toString() ?? '0', // dia_2 BD → dia_1_s tabla
-            'dia_1_id': nominaData[4]?.toString() ?? '0', // act_2 BD → dia_1_id tabla
+            'dia_1_id': _convertirIdAClave(int.tryParse(nominaData[4]?.toString() ?? '0') ?? 0), // act_2 BD → dia_1_id tabla (convertir ID a clave)
             'dia_1_campo': nominaData[5]?.toString() ?? '0', // campo_2 BD → dia_1_campo tabla
             'dia_2_s': nominaData[6]?.toString() ?? '0', // dia_3 BD → dia_2_s tabla
-            'dia_2_id': nominaData[7]?.toString() ?? '0', // act_3 BD → dia_2_id tabla
+            'dia_2_id': _convertirIdAClave(int.tryParse(nominaData[7]?.toString() ?? '0') ?? 0), // act_3 BD → dia_2_id tabla (convertir ID a clave)
             'dia_2_campo': nominaData[8]?.toString() ?? '0', // campo_3 BD → dia_2_campo tabla
             'dia_3_s': nominaData[9]?.toString() ?? '0', // dia_4 BD → dia_3_s tabla
-            'dia_3_id': nominaData[10]?.toString() ?? '0', // act_4 BD → dia_3_id tabla
+            'dia_3_id': _convertirIdAClave(int.tryParse(nominaData[10]?.toString() ?? '0') ?? 0), // act_4 BD → dia_3_id tabla (convertir ID a clave)
             'dia_3_campo': nominaData[11]?.toString() ?? '0', // campo_4 BD → dia_3_campo tabla
             'dia_4_s': nominaData[12]?.toString() ?? '0', // dia_5 BD → dia_4_s tabla
-            'dia_4_id': nominaData[13]?.toString() ?? '0', // act_5 BD → dia_4_id tabla
+            'dia_4_id': _convertirIdAClave(int.tryParse(nominaData[13]?.toString() ?? '0') ?? 0), // act_5 BD → dia_4_id tabla (convertir ID a clave)
             'dia_4_campo': nominaData[14]?.toString() ?? '0', // campo_5 BD → dia_4_campo tabla
             'dia_5_s': nominaData[15]?.toString() ?? '0', // dia_6 BD → dia_5_s tabla
-            'dia_5_id': nominaData[16]?.toString() ?? '0', // act_6 BD → dia_5_id tabla
+            'dia_5_id': _convertirIdAClave(int.tryParse(nominaData[16]?.toString() ?? '0') ?? 0), // act_6 BD → dia_5_id tabla (convertir ID a clave)
             'dia_5_campo': nominaData[17]?.toString() ?? '0', // campo_6 BD → dia_5_campo tabla
             'dia_6_s': nominaData[18]?.toString() ?? '0', // dia_7 BD → dia_6_s tabla
-            'dia_6_id': nominaData[19]?.toString() ?? '0', // act_7 BD → dia_6_id tabla
+            'dia_6_id': _convertirIdAClave(int.tryParse(nominaData[19]?.toString() ?? '0') ?? 0), // act_7 BD → dia_6_id tabla (convertir ID a clave)
             'dia_6_campo': nominaData[20]?.toString() ?? '0', // campo_7 BD → dia_6_campo tabla
             'total': nominaData[21]?.toString() ?? '0',
             'debe': nominaData[22]?.toString() ?? '0',
@@ -2432,15 +2436,74 @@ class _NominaScreenState extends State<NominaScreen>
       return;
     }
     
+    // 🔍 Validación de datos de la tabla antes de proceder
+    final validacion = NominaTablaEditable.validarTablaDesdeKey(_tablaKey);
+    
+    if (validacion != null && validacion['valido'] == false) {
+      // ❌ Hay errores en la tabla - mostrar mensaje de error
+      final errores = validacion['errores'] as List<String>;
+      final resumen = validacion['resumen'] as String;
+      
+      await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.warning, color: Colors.orange),
+              SizedBox(width: 8),
+              Text('⚠️ Errores en la Tabla de Nóminas'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(resumen, style: TextStyle(fontWeight: FontWeight.bold)),
+              SizedBox(height: 16),
+              Text('Errores encontrados:', style: TextStyle(fontWeight: FontWeight.bold)),
+              SizedBox(height: 8),
+              Container(
+                height: 200,
+                width: double.maxFinite,
+                child: ListView.builder(
+                  itemCount: errores.length,
+                  itemBuilder: (context, index) => Padding(
+                    padding: EdgeInsets.symmetric(vertical: 2),
+                    child: Text('• ${errores[index]}', style: TextStyle(fontSize: 12)),
+                  ),
+                ),
+              ),
+              SizedBox(height: 16),
+              Text(
+                'Por favor, revisa y completa todos los campos marcados antes de guardar.',
+                style: TextStyle(fontSize: 13, fontStyle: FontStyle.italic),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('Entendido', style: TextStyle(color: Colors.blue)),
+            ),
+          ],
+        ),
+      );
+      return; // Detener el guardado hasta que se corrijan los errores
+    }
+    
     // 🔧 Validación adicional de datos antes de guardar
     bool hayDatosValidos = false;
     bool hayCambiosPendientes = _detectUnsavedChanges();
     
     for (final emp in empleadosFiltrados) {
-      // Verificar si tiene al menos un día trabajado
+      // Verificar si tiene al menos un día con datos (sueldo, actividad o rancho)
       for (int day = 0; day < 7; day++) {
-        final diasTrabajados = int.tryParse(emp['dia_${day}_s']?.toString() ?? '0') ?? 0;
-        if (diasTrabajados > 0) {
+        final sueldo = double.tryParse(emp['dia_${day}_s']?.toString() ?? '0') ?? 0;
+        final actividad = emp['dia_${day}_id']?.toString() ?? '';
+        final rancho = emp['dia_${day}_campo']?.toString() ?? '';
+        
+        // Hay datos válidos si tiene cualquiera de estos campos llenos
+        if (sueldo > 0 || actividad.isNotEmpty || rancho.isNotEmpty) {
           hayDatosValidos = true;
           break;
         }
@@ -2462,8 +2525,8 @@ class _NominaScreenState extends State<NominaScreen>
             ],
           ),
           content: Text(
-            'No se han detectado días trabajados en ningún empleado.\n\n'
-            'Primero captura algunos datos en la tabla antes de guardar.'
+            'No se han detectado datos en ningún empleado.\n\n'
+            'Primero captura algunos datos (sueldo, actividad o rancho) en la tabla antes de guardar.'
           ),
           actions: [
             ElevatedButton(
@@ -3343,6 +3406,7 @@ class _NominaScreenState extends State<NominaScreen>
                         onMostrarSemanasCerradas: _mostrarSemanasCerradas,
                         onRefreshTabla: _refreshTablaManual, // ✨ Callback para refresh manual
                         funcionesConversionActividad: funcionesConversionActividad, // 🔑 Funciones de conversión de actividad
+                        tablaKey: _tablaKey, // 🔑 Key para validación
                       ),
                     ), // Export section
                     const SizedBox(height: 24),
