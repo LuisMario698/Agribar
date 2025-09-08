@@ -13,6 +13,7 @@ class NominaTablaSeccionPrincipal extends StatelessWidget {
   final VoidCallback onMostrarSemanasCerradas;
   final List<Map<String, dynamic>> empleadosNomina;
   final VoidCallback? onRefreshTabla; // ✨ Nuevo callback para refresh manual
+  final Map<String, Function>? funcionesConversionActividad; // 🔑 Funciones de conversión de actividad
 
   const NominaTablaSeccionPrincipal({
     super.key,
@@ -23,6 +24,7 @@ class NominaTablaSeccionPrincipal extends StatelessWidget {
     required this.empleadosNomina, 
     required this.onMostrarSemanasCerradas,
     this.onRefreshTabla, // ✨ Callback opcional para refresh
+    this.funcionesConversionActividad, // 🔑 Funciones de conversión de actividad
   });
 
   void _showFullscreenTable(BuildContext context) {
@@ -42,6 +44,7 @@ class NominaTablaSeccionPrincipal extends StatelessWidget {
           onClose: () => Navigator.of(context).pop(),
           horizontalController: modalHorizontal,
           verticalController: modalVertical,
+          funcionesConversionActividad: funcionesConversionActividad, // 🔑 Funciones de conversión de actividad
         );
       },
     );
@@ -146,6 +149,7 @@ class NominaTablaSeccionPrincipal extends StatelessWidget {
                         : null,
                     onChanged: onTableChange,
                     isExpanded: false,
+                    funcionesConversionActividad: funcionesConversionActividad, // 🔑 Funciones de conversión de actividad
                   ),
                 ),
               ),
