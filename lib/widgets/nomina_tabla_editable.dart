@@ -97,20 +97,7 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
   }
 
   // 🔑 Funciones auxiliares que usan las funciones del widget padre
-  
-  /// Valida si una clave de actividad es válida
-  bool _esClaveActividadValida(String clave) {
-    if (widget.funcionesConversionActividad == null) return true; // Si no hay funciones, permitir
-    final funcion = widget.funcionesConversionActividad!['esClaveActividadValida'] as bool Function(String)?;
-    return funcion?.call(clave) ?? true;
-  }
-  
-  /// Obtiene el nombre de una actividad por su clave
-  String _obtenerNombrePorClave(String clave) {
-    if (widget.funcionesConversionActividad == null) return '';
-    final funcion = widget.funcionesConversionActividad!['obtenerNombrePorClave'] as String Function(String)?;
-    return funcion?.call(clave) ?? '';
-  }
+  // (Funciones removidas por no estar en uso)
   
 
 
@@ -151,11 +138,12 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     }
   }
 
-  /// Obtiene el ID para guardar en BD a partir de una clave
-  int _obtenerIdParaGuardar(String clave) {
-    if (widget.funcionesConversionActividad == null) return int.tryParse(clave) ?? 0;
-    final funcion = widget.funcionesConversionActividad!['obtenerIdParaGuardar'] as int Function(String)?;
-    return funcion?.call(clave) ?? int.tryParse(clave) ?? 0;
+  /// Obtiene el nombre de una actividad por su ID
+  String _obtenerNombreActividad(String? id) {
+    if (id == null || id.isEmpty || id == '0') {
+      return '';
+    }
+    return _actividadesMap[id] ?? '';
   }
   
   @override
