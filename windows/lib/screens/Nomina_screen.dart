@@ -959,12 +959,13 @@ class _NominaScreenState extends State<NominaScreen>
 
     try {
       // 🔧 PASO 1: Obtener TODOS los empleados asignados a la cuadrilla (desde guardarEmpleadosCuadrillaSemana)
-      // ✨ ORDENADOS por id_nomina para preservar el orden original de armado de cuadrilla
+      // ✨ ORDENADOS por el primer id_nomina de cada empleado para preservar el orden original
       final empleadosAsignadosResult = await db.connection.query('''
-        SELECT ecs.id_empleado, ecs.id_nomina
+        SELECT ecs.id_empleado, MIN(ecs.id_nomina) as primer_id_nomina
         FROM nomina_empleados_semanal ecs
         WHERE ecs.id_semana = @semanaId AND ecs.id_cuadrilla = @cuadrillaId
-        ORDER BY ecs.id_nomina;
+        GROUP BY ecs.id_empleado
+        ORDER BY MIN(ecs.id_nomina);
       ''', substitutionValues: {'semanaId': semanaId, 'cuadrillaId': cuadrillaId});
 
       if (empleadosAsignadosResult.isEmpty) {

@@ -1615,7 +1615,7 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     // Preparar valor para mostrar según el tipo de campo
     final valorMostrar = esCampoTexto 
       ? (valor?.toString() == '0' ? '' : valor?.toString() ?? '') 
-      : (_formatearNumero(valor) == '0' ? '' : _formatearNumero(valor));
+      : (valor?.toString() == '0' ? '' : valor?.toString() ?? '');
     
     // Crear clave única para el FocusNode
     final claveFocus = '${empleadoIndex}_${campo}';
@@ -1684,9 +1684,7 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     final esCampoTexto = campo.contains('_campo') || campo.contains('_id');
 
     // Convertir el valor según el tipo de campo
-    final valorMostrar = esCampoTexto 
-      ? (valor?.toString() ?? '')
-      : (_formatearNumero(valor) == '0' ? '' : _formatearNumero(valor));
+    final valorMostrar = valor?.toString() ?? '';
     
     // Crear clave única para el FocusNode
     final claveFocus = '${empleadoIndex}_${campo}';

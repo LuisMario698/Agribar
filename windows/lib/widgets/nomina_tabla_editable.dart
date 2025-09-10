@@ -804,12 +804,6 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     return '\$${NumberFormat('#,##0', 'es_ES').format(entero)}';
   }
 
-  /// Formatea un valor numérico sin símbolo de moneda
-  String _formatearNumero(dynamic valor) {
-    final entero = _convertirAEntero(valor);
-    return entero.toString();
-  }
-
   /// Construye las columnas de la tabla
   List<DataColumn> _construirColumnas() {
     final anchoExpandido = widget.isExpanded;
@@ -1411,7 +1405,7 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
         child: Text(
           esCampoTexto 
             ? (valor?.toString() ?? '') 
-            : (mostrarMoneda ? _formatearMoneda(valor) : _formatearNumero(valor)),
+            : (mostrarMoneda ? _formatearMoneda(valor) : (_convertirAEntero(valor).toString())),
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: widget.isExpanded ? 14 : 12,
@@ -1478,7 +1472,7 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
             ],
           ),
           child: Text(
-            mostrarMoneda ? _formatearMoneda(valor) : _formatearNumero(valor),
+            mostrarMoneda ? _formatearMoneda(valor) : (_convertirAEntero(valor).toString()),
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: widget.isExpanded ? 15 : 13,
