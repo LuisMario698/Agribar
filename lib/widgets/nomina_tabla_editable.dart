@@ -904,16 +904,16 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
           
           // 📋 REGLA 1: Si sueldo > 0 → DEBE tener actividad Y rancho
           if (sueldo > 0.0) {
-            print('🔍 REGLA 1 - $nombreEmpleado Día ${dia + 1}: Sueldo > 0 (\$${sueldo.toStringAsFixed(2)}), verificando actividad y rancho...');
+            print('🔍 REGLA 1 - $nombreEmpleado Día ${dia + 1}: Sueldo > 0 (\$${sueldo.toInt()}), verificando actividad y rancho...');
             if (actividadId.isEmpty) {
-              erroresDia.add('⚠️ $nombreEmpleado - Día ${dia + 1}: Falta asignar actividad (sueldo: \$${sueldo.toStringAsFixed(2)})');
+              erroresDia.add('⚠️ $nombreEmpleado - Día ${dia + 1}: Falta asignar actividad (sueldo: \$${sueldo.toInt()})');
             }
             if (rancho.isEmpty) {
-              erroresDia.add('⚠️ $nombreEmpleado - Día ${dia + 1}: Falta asignar rancho (sueldo: \$${sueldo.toStringAsFixed(2)})');
+              erroresDia.add('⚠️ $nombreEmpleado - Día ${dia + 1}: Falta asignar rancho (sueldo: \$${sueldo.toInt()})');
             }
           } else {
             // 📋 REGLA 2: Si sueldo = 0 → NO validar actividad ni rancho
-            print('✅ REGLA 2 - $nombreEmpleado Día ${dia + 1}: Sueldo es 0 (\$${sueldo.toStringAsFixed(2)}), NO se requiere actividad ni rancho');
+            print('✅ REGLA 2 - $nombreEmpleado Día ${dia + 1}: Sueldo es 0 (\$${sueldo.toInt()}), NO se requiere actividad ni rancho');
           }
           
           // 📋 REGLA 3: Si tiene actividad → DEBE tener sueldo > 0 Y rancho
@@ -976,12 +976,32 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
   /// Formatea un valor como moneda
   String _formatearMoneda(dynamic valor) {
     final decimal = _convertirADouble(valor);
-    // 🔧 DEBUG: Mostrar conversión de valores para debug
-    if (decimal != 0) {
-      print('💰 [${widget.isExpanded ? 'EXPANDIDA' : 'PRINCIPAL'}] _formatearMoneda: $valor (${valor.runtimeType}) -> \$${NumberFormat('#,##0.00', 'es_ES').format(decimal)}');
+    // Para valores enteros (como días trabajados), no mostrar decimales
+    if (decimal == decimal.toInt()) {
+      final entero = decimal.toInt();
+      if (entero != 0) {
+        print('💰 [${widget.isExpanded ? 'EXPANDIDA' : 'PRINCIPAL'}] _formatearMoneda: $valor (${valor.runtimeType}) -> \$${NumberFormat('#,##0', 'es_ES').format(entero)}');
+      }
+      return '\$${NumberFormat('#,##0', 'es_ES').format(entero)}';
+    } else {
+      // Para valores con decimales, mostrar 2 decimales
+      if (decimal != 0) {
+        print('💰 [${widget.isExpanded ? 'EXPANDIDA' : 'PRINCIPAL'}] _formatearMoneda: $valor (${valor.runtimeType}) -> \$${NumberFormat('#,##0.00', 'es_ES').format(decimal)}');
+      }
+      return '\$${NumberFormat('#,##0.00', 'es_ES').format(decimal)}';
     }
-    // Formatear con 2 decimales
-    return '\$${NumberFormat('#,##0.00', 'es_ES').format(decimal)}';
+  }
+
+  /// Formatea un valor numérico sin símbolo de moneda
+  String _formatearNumero(dynamic valor) {
+    final decimal = _convertirADouble(valor);
+    // Para valores enteros, no mostrar decimales
+    if (decimal == decimal.toInt()) {
+      return decimal.toInt().toString();
+    } else {
+      // Para valores con decimales, mostrar 2 decimales
+      return decimal.toStringAsFixed(2);
+    }
   }
 
   /// Construye las columnas de la tabla
@@ -1581,7 +1601,7 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
         child: Text(
           esCampoTexto 
             ? (valor?.toString() ?? '') 
-            : (mostrarMoneda ? _formatearMoneda(valor) : (valor?.toString() ?? '0')),
+            : (mostrarMoneda ? _formatearMoneda(valor) : _formatearNumero(valor)),
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: widget.isExpanded ? 14 : 12,
@@ -1595,7 +1615,7 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     // Preparar valor para mostrar según el tipo de campo
     final valorMostrar = esCampoTexto 
       ? (valor?.toString() == '0' ? '' : valor?.toString() ?? '') 
-      : (valor?.toString() == '0' ? '' : valor?.toString() ?? '');
+      : (_formatearNumero(valor) == '0' ? '' : _formatearNumero(valor));
     
     // Crear clave única para el FocusNode
     final claveFocus = '${empleadoIndex}_${campo}';
@@ -1648,7 +1668,7 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
             ],
           ),
           child: Text(
-            mostrarMoneda ? _formatearMoneda(valor) : (valor?.toString() ?? '0'),
+            mostrarMoneda ? _formatearMoneda(valor) : _formatearNumero(valor),
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: widget.isExpanded ? 15 : 13,
@@ -1664,7 +1684,9 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     final esCampoTexto = campo.contains('_campo') || campo.contains('_id');
 
     // Convertir el valor según el tipo de campo
-    final valorMostrar = valor?.toString() ?? '';
+    final valorMostrar = esCampoTexto 
+      ? (valor?.toString() ?? '')
+      : (_formatearNumero(valor) == '0' ? '' : _formatearNumero(valor));
     
     // Crear clave única para el FocusNode
     final claveFocus = '${empleadoIndex}_${campo}';

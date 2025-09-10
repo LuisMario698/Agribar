@@ -1481,10 +1481,12 @@ class _NominaScreenState extends State<NominaScreen>
 
     try {
       // 🔧 PASO 1: Obtener TODOS los empleados asignados a la cuadrilla (desde guardarEmpleadosCuadrillaSemana)
+      // ✨ ORDENADOS por id_nomina para preservar el orden original de armado de cuadrilla
       final empleadosAsignadosResult = await db.connection.query('''
-        SELECT DISTINCT ecs.id_empleado
+        SELECT ecs.id_empleado, ecs.id_nomina
         FROM nomina_empleados_semanal ecs
-        WHERE ecs.id_semana = @semanaId AND ecs.id_cuadrilla = @cuadrillaId;
+        WHERE ecs.id_semana = @semanaId AND ecs.id_cuadrilla = @cuadrillaId
+        ORDER BY ecs.id_nomina;
       ''', substitutionValues: {'semanaId': semanaId, 'cuadrillaId': cuadrillaId});
 
       if (empleadosAsignadosResult.isEmpty) {
@@ -2436,60 +2438,8 @@ class _NominaScreenState extends State<NominaScreen>
       return;
     }
     
-    // 🔍 Validación de datos de la tabla antes de proceder
-    final validacion = NominaTablaEditable.validarTablaDesdeKey(_tablaKey);
-    
-    if (validacion != null && validacion['valido'] == false) {
-      // ❌ Hay errores en la tabla - mostrar mensaje de error
-      final errores = validacion['errores'] as List<String>;
-      final resumen = validacion['resumen'] as String;
-      
-      await showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Row(
-            children: [
-              Icon(Icons.warning, color: Colors.orange),
-              SizedBox(width: 8),
-              Text('⚠️ Errores en la Tabla de Nóminas'),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(resumen, style: TextStyle(fontWeight: FontWeight.bold)),
-              SizedBox(height: 16),
-              Text('Errores encontrados:', style: TextStyle(fontWeight: FontWeight.bold)),
-              SizedBox(height: 8),
-              Container(
-                height: 200,
-                width: double.maxFinite,
-                child: ListView.builder(
-                  itemCount: errores.length,
-                  itemBuilder: (context, index) => Padding(
-                    padding: EdgeInsets.symmetric(vertical: 2),
-                    child: Text('• ${errores[index]}', style: TextStyle(fontSize: 12)),
-                  ),
-                ),
-              ),
-              SizedBox(height: 16),
-              Text(
-                'Por favor, revisa y completa todos los campos marcados antes de guardar.',
-                style: TextStyle(fontSize: 13, fontStyle: FontStyle.italic),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text('Entendido', style: TextStyle(color: Colors.blue)),
-            ),
-          ],
-        ),
-      );
-      return; // Detener el guardado hasta que se corrijan los errores
-    }
+    // � Validación eliminada por solicitud del usuario
+    // La validación automática de campos se ha desactivado
     
     // 🔧 Validación adicional de datos antes de guardar
     bool hayDatosValidos = false;
