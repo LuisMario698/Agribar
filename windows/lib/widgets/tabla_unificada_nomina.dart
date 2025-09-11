@@ -281,7 +281,7 @@ class _TablaUnificadaNominaState extends State<TablaUnificadaNomina> {
           if (widget.vistaExpandida) _construirCeldaTotal('S', ancho: anchoColumna),
           if (widget.vistaExpandida) _construirCeldaTotal('D', ancho: anchoColumna),
           _construirCeldaTotal('Total', ancho: anchoColumna),
-          if (widget.vistaExpandida) _construirCeldaTotal('Debe', ancho: anchoColumna),
+          if (widget.vistaExpandida) _construirCeldaTotal('Otras Percepciones', ancho: anchoColumna),
           if (widget.vistaExpandida) _construirCeldaTotal('Subtotal', ancho: anchoColumna),
           if (widget.vistaExpandida) _construirCeldaTotal('Comedor', ancho: anchoColumna),
           _construirCeldaTotal('Total Neto', ancho: anchoColumna),

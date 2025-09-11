@@ -48,6 +48,7 @@ class _EmpleadosContentState extends State<EmpleadosContent> {
     'rfc',
     'Estado',
     'Habilitado',
+    'Acciones',
   ];
 
   final List<String> tabTitles = ['General', 'Registro'];
@@ -370,6 +371,7 @@ class _EmpleadosContentState extends State<EmpleadosContent> {
             empleadosData: empleadosData,
             empleadosHeaders: empleadosHeaders,
             toggleHabilitado: _toggleHabilitado,
+            onEmpleadoActualizado: () => _cargarEmpleadosOptimizado(forzarRecarga: true),
           ),
         ),
       ],

@@ -4,17 +4,21 @@
 import 'package:flutter/material.dart';
 import 'widgets_general/EmpleadosMetricsRow.dart';
 import '../widgets_shared/widgets_shared/index.dart';
+import '../services/edicion_empleado_service.dart';
+import '../widgets/editar_empleado_dialog.dart';
 
 class EmpleadosGeneralTab extends StatefulWidget {
   final List<Map<String, dynamic>> empleadosData;
   final List<String> empleadosHeaders;
   final Function(int) toggleHabilitado;
+  final VoidCallback? onEmpleadoActualizado; // Nuevo callback
 
   const EmpleadosGeneralTab({
     Key? key,
     required this.empleadosData,
     required this.empleadosHeaders,
     required this.toggleHabilitado,
+    this.onEmpleadoActualizado, // Nuevo parámetro opcional
   }) : super(key: key);
 
   @override
@@ -61,6 +65,75 @@ class _EmpleadosGeneralTabState extends State<EmpleadosGeneralTab> {
     final inicio = (_paginaActual - 1) * _elementosPorPagina;
     final fin = inicio + _elementosPorPagina;
     _datosVisibles = _filteredData.take(fin).skip(inicio).toList();
+    
+    // Debug para verificar paginación
+    print('🔍 DEBUG Paginación:');
+    print('   Total empleados: ${_filteredData.length}');
+    print('   Página actual: $_paginaActual');
+    print('   Elementos por página: $_elementosPorPagina');
+    print('   Inicio: $inicio, Fin: $fin');
+    print('   Empleados visibles: ${_datosVisibles.length}');
+    if (_filteredData.length >= 10000) {
+      print('   🚨 EMPLEADOS >= 10000 DETECTADOS');
+      final totalPaginas = (_filteredData.length / _elementosPorPagina).ceil();
+      print('   Total páginas calculado: $totalPaginas');
+    }
+  }
+
+  void _editarEmpleado(Map<String, dynamic> empleado, int index) async {
+    try {
+      final idEmpleado = empleado['id_empleado'] as int;
+      
+      // Obtener datos completos del empleado
+      final datosCompletos = await EdicionEmpleadoService.obtenerEmpleadoCompleto(idEmpleado);
+      
+      if (datosCompletos == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: No se pudieron cargar los datos del empleado'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+      
+      // Mostrar diálogo de edición
+      if (mounted) {
+        final resultado = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            return EditarEmpleadoDialog(
+              empleadoData: datosCompletos,
+              onEmpleadoActualizado: () {
+                // Callback para actualizar la lista después de editar
+                if (mounted) {
+                  widget.onEmpleadoActualizado?.call(); // Llamar al callback del padre
+                }
+              },
+            );
+          },
+        );
+        
+        // Si se guardaron los cambios, actualizar la lista
+        if (resultado == true && mounted) {
+          widget.onEmpleadoActualizado?.call(); // Llamar al callback del padre
+        }
+      }
+      
+    } catch (e) {
+      print('❌ Error al editar empleado: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al cargar datos del empleado'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _filterData() {
@@ -275,6 +348,28 @@ class _EmpleadosGeneralTabState extends State<EmpleadosGeneralTab> {
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
                         ),
+                      ),
+                    ),
+                  ),
+                ),
+                DataCell(
+                  Container(
+                    width: 50,
+                    child: IconButton(
+                      style: IconButton.styleFrom(
+                        backgroundColor: Color(0xFF2196F3),
+                        padding: EdgeInsets.all(8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      onPressed: () {
+                        _editarEmpleado(row, originalIndex);
+                      },
+                      icon: Icon(
+                        Icons.edit,
+                        size: 18,
+                        color: Colors.white,
                       ),
                     ),
                   ),

@@ -1188,7 +1188,7 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
       ),
       DataColumn(
         label: Container(
-          width: anchoExpandido ? 90 : 75,
+          width: anchoExpandido ? 150 : 120,
           padding: EdgeInsets.symmetric(vertical: anchoExpandido ? 8 : 4),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -1200,7 +1200,7 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
               ),
               SizedBox(height: anchoExpandido ? 4 : 2),
               Text(
-                'Debe',
+                'Otras Percepciones',
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: anchoExpandido ? 13 : 10,
@@ -1309,7 +1309,7 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
           // Celda Clave
           DataCell(
             SizedBox(
-              width: widget.isExpanded ? 80 : 70,
+              width: widget.isExpanded ? 100 : 85,
               child: Text(
                 empleado['codigo']?.toString() ?? '',
                 textAlign: TextAlign.center,
@@ -1320,7 +1320,7 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
           // Celda Nombre
           DataCell(
             SizedBox(
-              width: widget.isExpanded ? 200 : 170,
+              width: widget.isExpanded ? 250 : 200,
               child: Text(
                 empleado['nombre']?.toString() ?? '',
                 textAlign: TextAlign.left,
@@ -1334,7 +1334,7 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
           // Celda Total (solo lectura)
           DataCell(
             SizedBox(
-              width: widget.isExpanded ? 100 : 85,
+              width: widget.isExpanded ? 120 : 100,
               child: Builder(
                 builder: (context) {
                   final totalFormateado = _formatearMoneda(empleado['total']);
@@ -1350,19 +1350,19 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
             ),
           ),
           
-          // Celda Debe (editable con label)
+          // Celda Debe (editable)
           _construirCeldaEditable(
             index, 
             'debe', 
             empleado['debe'],
-            labelTexto: 'Descuento',
+            ancho: widget.isExpanded ? 150 : 120,
             mostrarMoneda: true,
           ),
           
           // Celda Subtotal (solo lectura)
           DataCell(
             SizedBox(
-              width: widget.isExpanded ? 100 : 85,
+              width: widget.isExpanded ? 120 : 100,
               child: Text(
                 _formatearMoneda(empleado['subtotal']),
                 textAlign: TextAlign.center,
@@ -1383,7 +1383,7 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
           // Celda Total Neto (solo lectura)
           DataCell(
             SizedBox(
-              width: widget.isExpanded ? 100 : 85,
+              width: widget.isExpanded ? 120 : 100,
               child: Builder(
                 builder: (context) {
                   final totalNetoFormateado = _formatearMoneda(empleado['totalNeto']);

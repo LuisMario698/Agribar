@@ -61,6 +61,13 @@ Future<List<Map<String, dynamic>>> obtenerEmpleadosDesdeBD({bool forzarRecarga =
     _cacheEmpleados[cacheKey] = listaEmpleados;
     _ultimaActualizacion = DateTime.now();
     
+    // Debug: mostrar cuántos empleados se cargaron
+    print('🔍 DEBUG: Se cargaron ${listaEmpleados.length} empleados desde la BD');
+    if (listaEmpleados.isNotEmpty) {
+      print('🔍 DEBUG: Primer empleado - Código: ${listaEmpleados.first['clave']}');
+      print('🔍 DEBUG: Último empleado - Código: ${listaEmpleados.last['clave']}');
+    }
+    
     return listaEmpleados;
 
   } catch (e) {

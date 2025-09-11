@@ -413,7 +413,7 @@ class _NuevaTablaEditableState extends State<NuevaTablaEditable> {
       DataColumn(
         label: SizedBox(
           width: anchoExpandido ? 90 : 75,
-          child: const Text('Debe',
+          child: const Text('Otras Percepciones',
             style: TextStyle(fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),
