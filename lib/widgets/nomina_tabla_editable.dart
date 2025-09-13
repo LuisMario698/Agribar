@@ -13,6 +13,8 @@ class NominaTablaEditable extends StatefulWidget {
   final bool isExpanded;
   final bool readOnly;
   final Map<String, Function>? funcionesConversionActividad; // 🔑 Funciones de conversión de actividad
+  // Permite activar comportamiento de columnas fijas + header sticky también en modo compacto (previsualización)
+  final bool enableStickyPreview;
 
   const NominaTablaEditable({
     Key? key,
@@ -22,6 +24,7 @@ class NominaTablaEditable extends StatefulWidget {
     this.isExpanded = false,
     this.readOnly = false,
     this.funcionesConversionActividad, // 🔑 Funciones de conversión de actividad
+    this.enableStickyPreview = false,
   }) : super(key: key);
 
   @override
@@ -51,6 +54,17 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
   
   // Variable para controlar si el widget ha been disposed
   bool _isDisposed = false;
+
+  // Controladores para implementar columnas fijas (clave y nombre) en modo expandido
+  // Scroll vertical sincronizado entre tabla fija (izquierda) y tabla desplazable (derecha)
+  final ScrollController _verticalScrollLeft = ScrollController();
+  final ScrollController _verticalScrollRight = ScrollController();
+  bool _syncingVertical = false; // Evita bucles recursivos de sincronización
+
+  // Controladores horizontales para sincronizar encabezado y cuerpo (sección derecha)
+  final ScrollController _horizontalScrollHeader = ScrollController();
+  final ScrollController _horizontalScrollBody = ScrollController();
+  bool _syncingHorizontal = false;
 
   // Mapas para almacenar las actividades
   Map<String, String> _actividadesMap = {}; // ID -> nombre
@@ -159,6 +173,42 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
   void initState() {
     super.initState();
     print('🏁 DEBUG - initState llamado: isExpanded=${widget.isExpanded}, empleados=${widget.empleados.length}');
+
+    // Listeners para sincronizar scroll vertical entre tablas (solo se usarán en modo expandido)
+    _verticalScrollLeft.addListener(() {
+      if (_syncingVertical) return;
+      _syncingVertical = true;
+      if (_verticalScrollRight.hasClients) {
+        _verticalScrollRight.jumpTo(_verticalScrollLeft.position.pixels);
+      }
+      _syncingVertical = false;
+    });
+    _verticalScrollRight.addListener(() {
+      if (_syncingVertical) return;
+      _syncingVertical = true;
+      if (_verticalScrollLeft.hasClients) {
+        _verticalScrollLeft.jumpTo(_verticalScrollRight.position.pixels);
+      }
+      _syncingVertical = false;
+    });
+
+    // Listeners horizontal para encabezado fijo (solo se usan si isExpanded)
+    _horizontalScrollHeader.addListener(() {
+      if (_syncingHorizontal) return;
+      _syncingHorizontal = true;
+      if (_horizontalScrollBody.hasClients) {
+        _horizontalScrollBody.jumpTo(_horizontalScrollHeader.position.pixels);
+      }
+      _syncingHorizontal = false;
+    });
+    _horizontalScrollBody.addListener(() {
+      if (_syncingHorizontal) return;
+      _syncingHorizontal = true;
+      if (_horizontalScrollHeader.hasClients) {
+        _horizontalScrollHeader.jumpTo(_horizontalScrollBody.position.pixels);
+      }
+      _syncingHorizontal = false;
+    });
     
     // Inicializar FocusNodes para navegación
     _inicializarFocusNodes();
@@ -177,6 +227,12 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
   void dispose() {
     // Marcar como disposed para evitar operaciones posteriores
     _isDisposed = true;
+
+    // Dispose de controladores de scroll
+    _verticalScrollLeft.dispose();
+    _verticalScrollRight.dispose();
+  _horizontalScrollHeader.dispose();
+  _horizontalScrollBody.dispose();
     
     // Limpiar todos los FocusNodes
     for (final focusNode in _focusNodes.values) {
@@ -594,8 +650,9 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     print('  debe: $debeOriginal (${debeOriginal.runtimeType}) -> $debe');
     print('  comedor: $comedorOriginal (${comedorOriginal.runtimeType}) -> $comedor');
     
-    final subtotal = total - debe;
-    final totalNeto = subtotal - comedor;
+  // Ajuste: ahora 'debe' funciona como un ajuste positivo que SE SUMA al subtotal
+  final subtotal = total + debe;
+  final totalNeto = subtotal - comedor; // comedor sigue restando
     
     print('  🎯 RESULTADO FINAL: total=$total, subtotal=$subtotal, totalNeto=$totalNeto');
     print('  ═══════════════════════════════════════════════════════════════');
@@ -1188,19 +1245,19 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
       ),
       DataColumn(
         label: Container(
-          width: anchoExpandido ? 150 : 120,
+          width: anchoExpandido ? 85 : 70,
           padding: EdgeInsets.symmetric(vertical: anchoExpandido ? 8 : 4),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
-                Icons.remove_circle_outline_rounded,
-                color: Colors.red.shade500,
+                Icons.add_circle_outline_rounded,
+                color: Colors.green.shade600,
                 size: anchoExpandido ? 18 : 14,
               ),
               SizedBox(height: anchoExpandido ? 4 : 2),
               Text(
-                'Otras Percepciones',
+                'Ajuste +',
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: anchoExpandido ? 13 : 10,
@@ -1242,7 +1299,7 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
       ),
       DataColumn(
         label: Container(
-          width: anchoExpandido ? 90 : 75,
+          width: anchoExpandido ? 85 : 70,
           padding: EdgeInsets.symmetric(vertical: anchoExpandido ? 8 : 4),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -1355,8 +1412,9 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
             index, 
             'debe', 
             empleado['debe'],
-            ancho: widget.isExpanded ? 150 : 120,
+            labelTexto: 'Ajuste +',
             mostrarMoneda: true,
+            ancho: widget.isExpanded ? 85 : 70,
           ),
           
           // Celda Subtotal (solo lectura)
@@ -1378,6 +1436,7 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
             empleado['comedor'],
             labelTexto: 'Comida',
             mostrarMoneda: true,
+            ancho: widget.isExpanded ? 85 : 70,
           ),
           
           // Celda Total Neto (solo lectura)
@@ -1743,72 +1802,371 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
 
   @override
   Widget build(BuildContext context) {
+    final todasColumnas = _construirColumnas();
+    final filas = _construirFilas();
+
+    // 1) Vista compacta normal (sin sticky)
+    if (!widget.isExpanded && !widget.enableStickyPreview) {
+      return Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+              spreadRadius: 1,
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.vertical,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                columnSpacing: 8,
+                headingRowHeight: 56,
+                dataRowHeight: 58,
+                headingRowColor: MaterialStateProperty.all(Colors.grey.shade100),
+                headingTextStyle: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF374151),
+                  letterSpacing: 0.3,
+                ),
+                dataTextStyle: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF6B7280),
+                ),
+                showBottomBorder: true,
+                columns: todasColumnas,
+                rows: filas,
+                border: TableBorder(
+                  horizontalInside: BorderSide(
+                    color: Colors.grey.shade300,
+                    width: 1,
+                  ),
+                  verticalInside: BorderSide(
+                    color: Colors.grey.shade300,
+                    width: 1,
+                  ),
+                  top: BorderSide(
+                    color: Color(0xFF7BAE2F).withOpacity(0.3),
+                    width: 2,
+                  ),
+                  bottom: BorderSide(
+                    color: Colors.grey.shade300,
+                    width: 1.5,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // 2) Vista compacta con header sticky (sin columnas fijas)
+    if (!widget.isExpanded && widget.enableStickyPreview) {
+      const double headingHeight = 56;
+      const double dataRowHeight = 58;
+      const double columnSpacing = 8;
+      return Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final availableHeight = constraints.maxHeight.isFinite
+                  ? (constraints.maxHeight - headingHeight).clamp(120.0, 800.0)
+                  : 320.0;
+
+              // Header único sin scroll horizontal
+              final header = DataTable(
+                columnSpacing: columnSpacing,
+                headingRowHeight: headingHeight,
+                dataRowHeight: 0,
+                headingRowColor: MaterialStateProperty.all(Colors.grey.shade100),
+                columns: todasColumnas,
+                rows: const [],
+                border: TableBorder(
+                  horizontalInside: BorderSide.none,
+                  verticalInside: BorderSide(color: Colors.grey.shade300, width: 1),
+                  top: BorderSide(color: Color(0xFF7BAE2F).withOpacity(0.3), width: 2),
+                  bottom: BorderSide(color: Colors.grey.shade300, width: 1),
+                ),
+              );
+
+              // Cuerpo solo con scroll vertical
+              final body = SingleChildScrollView(
+                scrollDirection: Axis.vertical,
+                child: DataTable(
+                  columnSpacing: columnSpacing,
+                  headingRowHeight: 0,
+                  dataRowHeight: dataRowHeight,
+                  columns: todasColumnas.map((c) => DataColumn(label: const SizedBox())).toList(),
+                  rows: filas,
+                  border: TableBorder(
+                    horizontalInside: BorderSide(color: Colors.grey.shade300, width: 1),
+                    verticalInside: BorderSide(color: Colors.grey.shade300, width: 1),
+                    bottom: BorderSide(color: Colors.grey.shade300, width: 1.5),
+                  ),
+                ),
+              );
+
+              return Stack(
+                children: [
+                  Padding(
+                    padding: EdgeInsets.only(top: headingHeight),
+                    child: SizedBox(
+                      height: availableHeight,
+                      child: ClipRect(child: body),
+                    ),
+                  ),
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: header,
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      );
+    }
+
+    // 3) Vista expandida (columnas fijas + header sticky)
+  final double headingHeight = 72;
+    final double dataRowHeight = 100;
+    final double columnSpacing = 16;
+    const int anchoClave = 80;
+    const int anchoEmpleado = 200;
+    const int separador = 16;
+
+    final columnasFijas = todasColumnas.take(2).toList();
+    final columnasScroll = todasColumnas.skip(2).toList();
+
+    List<DataRow> filasFijas = [];
+    List<DataRow> filasScroll = [];
+    for (final fila in filas) {
+      if (fila.cells.length >= 2) {
+        filasFijas.add(DataRow(cells: fila.cells.take(2).toList()));
+        filasScroll.add(DataRow(cells: fila.cells.skip(2).toList()));
+      } else {
+        filasFijas.add(fila);
+        filasScroll.add(fila);
+      }
+    }
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(widget.isExpanded ? 16 : 12),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.08),
-            blurRadius: widget.isExpanded ? 20 : 12,
-            offset: Offset(0, widget.isExpanded ? 8 : 4),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
             spreadRadius: 1,
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(widget.isExpanded ? 16 : 12),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.vertical,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              columnSpacing: widget.isExpanded ? 16 : 8,
-              headingRowHeight: widget.isExpanded ? 72 : 56,
-              dataRowHeight: widget.isExpanded ? 100 : 58, // 🔧 Aumentado de 85 a 100 para mejor acomodación de 3 campos
-              headingRowColor: MaterialStateProperty.all(
-                widget.isExpanded 
-                  ? Color(0xFF7BAE2F).withOpacity(0.1)
-                  : Colors.grey.shade100
-              ),
-              headingTextStyle: TextStyle(
-                fontSize: widget.isExpanded ? 16 : 14,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF374151),
-                letterSpacing: 0.3,
-              ),
-              dataTextStyle: TextStyle(
-                fontSize: widget.isExpanded ? 15 : 13,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF6B7280),
-              ),
-              showBottomBorder: true,
-              columns: _construirColumnas(),
-              rows: _construirFilas(),
-              border: TableBorder(
-                horizontalInside: BorderSide(
-                  color: widget.isExpanded 
-                    ? Colors.grey.shade200 
-                    : Colors.grey.shade300,
-                  width: widget.isExpanded ? 1.5 : 1,
+        borderRadius: BorderRadius.circular(16),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final screenWidth = MediaQuery.of(context).size.width;
+            final maxWidth = constraints.maxWidth.isFinite ? constraints.maxWidth : screenWidth;
+            const int fixedLeftWidth = anchoClave + anchoEmpleado + separador; // ancho fijo asignado a columnas fijas
+            final rightViewportWidth = (maxWidth - fixedLeftWidth).clamp(300.0, maxWidth);
+            final double fixedWidth = fixedLeftWidth.toDouble();
+
+            // Construir header completo (una sola fila) reutilizando DataTable para estilos
+            Widget header = Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header fijo izquierda
+                ConstrainedBox(
+                  constraints: BoxConstraints.tightFor(width: fixedWidth),
+                  child: DataTable(
+                    columnSpacing: columnSpacing,
+                    headingRowHeight: headingHeight,
+                    dataRowHeight: 0, // sin filas de datos
+                    headingRowColor: MaterialStateProperty.all(
+                      Color(0xFF7BAE2F).withOpacity(0.1),
+                    ),
+                    columns: columnasFijas,
+                    rows: const [],
+                    border: TableBorder(
+                      verticalInside: BorderSide.none,
+                      horizontalInside: BorderSide.none,
+                      top: BorderSide(color: Color(0xFF7BAE2F).withOpacity(0.3), width: 2),
+                      bottom: BorderSide(color: Colors.grey.shade300, width: 1),
+                    ),
+                  ),
                 ),
-                verticalInside: BorderSide(
-                  color: widget.isExpanded 
-                    ? Colors.grey.shade200 
-                    : Colors.grey.shade300,
-                  width: widget.isExpanded ? 1.5 : 1,
+                // Header desplazable derecha
+                SizedBox(
+                  width: rightViewportWidth,
+                  child: SingleChildScrollView(
+                    controller: _horizontalScrollHeader,
+                    scrollDirection: Axis.horizontal,
+                    // Envolvemos la DataTable en un Row para agregar un espacio extra al final
+                    // y asegurar que la última columna (Total Neto) pueda desplazarse totalmente dentro del viewport.
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        DataTable(
+                          columnSpacing: columnSpacing,
+                          headingRowHeight: headingHeight,
+                          dataRowHeight: 0,
+                          headingRowColor: MaterialStateProperty.all(
+                            Color(0xFF7BAE2F).withOpacity(0.1),
+                          ),
+                          columns: columnasScroll,
+                          rows: const [],
+                          border: TableBorder(
+                            verticalInside: BorderSide(color: Colors.grey.shade200, width: 1.5),
+                            horizontalInside: BorderSide.none,
+                            top: BorderSide(color: Color(0xFF7BAE2F).withOpacity(0.3), width: 2),
+                            bottom: BorderSide(color: Colors.grey.shade300, width: 1),
+                          ),
+                        ),
+                        const SizedBox(width: 140), // espacio extra mayor para mostrar completamente la última columna
+                      ],
+                    ),
+                  ),
                 ),
-                top: BorderSide(
-                  color: Color(0xFF7BAE2F).withOpacity(0.3),
-                  width: 2,
+              ],
+            );
+
+            // Cuerpo sin encabezados (headingRowHeight=0)
+            Widget body = Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ConstrainedBox(
+                  constraints: BoxConstraints.tightFor(width: fixedWidth),
+                  child: SingleChildScrollView(
+                    controller: _verticalScrollLeft,
+                    scrollDirection: Axis.vertical,
+                    child: DataTable(
+                      columnSpacing: columnSpacing,
+                      headingRowHeight: 0, // ocultar encabezado en cuerpo
+                      dataRowHeight: dataRowHeight,
+                      columns: columnasFijas
+                          .map((c) => DataColumn(label: const SizedBox()))
+                          .toList(),
+                      rows: filasFijas,
+                      border: TableBorder(
+                        horizontalInside: BorderSide(color: Colors.grey.shade200, width: 1.5),
+                        top: BorderSide.none,
+                        bottom: BorderSide(color: Colors.grey.shade300, width: 1.5),
+                      ),
+                    ),
+                  ),
                 ),
-                bottom: BorderSide(
-                  color: Colors.grey.shade300,
-                  width: 1.5,
+                SizedBox(
+                  width: rightViewportWidth,
+                  child: SingleChildScrollView(
+                    controller: _horizontalScrollBody,
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SingleChildScrollView(
+                          controller: _verticalScrollRight,
+                          scrollDirection: Axis.vertical,
+                          child: DataTable(
+                            columnSpacing: columnSpacing,
+                            headingRowHeight: 0,
+                            dataRowHeight: dataRowHeight,
+                            columns: columnasScroll
+                                .map((c) => DataColumn(label: const SizedBox()))
+                                .toList(),
+                            rows: filasScroll,
+                            border: TableBorder(
+                              horizontalInside: BorderSide(color: Colors.grey.shade200, width: 1.5),
+                              verticalInside: BorderSide(color: Colors.grey.shade200, width: 1.5),
+                              top: BorderSide.none,
+                              bottom: BorderSide(color: Colors.grey.shade300, width: 1.5),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 140), // espacio extra mayor para mostrar completamente la última columna
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          ),
+              ],
+            );
+
+            // Altura disponible: restar header para permitir scroll interno si sobrepasa
+      final availableHeight = constraints.maxHeight.isFinite
+        ? (constraints.maxHeight - headingHeight).clamp(150.0, 1200.0)
+        : 520.0; // fallback expandido
+
+            return Stack(
+              children: [
+                Padding(
+                  padding: EdgeInsets.only(top: headingHeight), // altura header
+                  child: SizedBox(
+                    height: availableHeight,
+                    child: ClipRect(
+                      child: body,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.06),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: header,
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );

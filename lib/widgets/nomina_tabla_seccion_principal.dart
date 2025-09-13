@@ -151,6 +151,7 @@ class NominaTablaSeccionPrincipal extends StatelessWidget {
                         : null,
                     onChanged: onTableChange,
                     isExpanded: false,
+                    enableStickyPreview: true,
                     funcionesConversionActividad: funcionesConversionActividad, // 🔑 Funciones de conversión de actividad
                   ),
                 ),
