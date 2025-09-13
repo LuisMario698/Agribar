@@ -20,21 +20,28 @@ class IndicatorsRow extends StatelessWidget {
 
   /// Calcula el total neto de un empleado
   double _calcularTotalEmpleado(Map<String, dynamic> emp) {
-    final numDays = (endDate != null && startDate != null)
-        ? endDate!.difference(startDate!).inDays + 1
-        : 7;
-    
-    final total = List.generate(
-      numDays,
-      (i) => int.tryParse(emp['dia_$i']?.toString() ?? '0') ?? 0,
-    ).reduce((a, b) => a + b);
-    
-    final debe = int.tryParse(emp['debe']?.toString() ?? '0') ?? 0;
-    final subtotal = total - debe;
-    final comedorValue = (emp['comedor'] == true) ? 400 : 0;
-    final totalNeto = subtotal - comedorValue;
-    
-    return totalNeto.toDouble();
+    // Semana estándar fija de 7 días
+    const int numDays = 7;
+    double total = 0.0;
+    for (int i = 0; i < numDays; i++) {
+      final raw = emp['dia_${i}_s'] ?? emp['dia_$i'];
+      final valor = _toDouble(raw);
+      if (valor > 0) total += valor;
+    }
+    final debe = _toDouble(emp['debe']);
+    final comedor = _toDouble(emp['comedor']);
+    final subtotal = total + debe; // ✅ Nueva regla
+    final totalNeto = subtotal - comedor;
+    return totalNeto;
+  }
+
+  double _toDouble(dynamic v) {
+    if (v == null) return 0.0;
+    if (v is double) return v;
+    if (v is int) return v.toDouble();
+    if (v is String) return double.tryParse(v) ?? 0.0;
+    if (v is bool) return v ? 400.0 : 0.0; // comedor booleano legacy
+    return 0.0;
   }
 
   /// Calcula el acumulado de la cuadrilla actual

@@ -15,6 +15,8 @@ class NominaTablaEditable extends StatefulWidget {
   final Map<String, Function>? funcionesConversionActividad; // 🔑 Funciones de conversión de actividad
   // Permite activar comportamiento de columnas fijas + header sticky también en modo compacto (previsualización)
   final bool enableStickyPreview;
+  // 🆕 Flag para activar verificación interna de consistencia tras cada cambio
+  final bool debugVerificacion;
 
   const NominaTablaEditable({
     Key? key,
@@ -25,6 +27,7 @@ class NominaTablaEditable extends StatefulWidget {
     this.readOnly = false,
     this.funcionesConversionActividad, // 🔑 Funciones de conversión de actividad
     this.enableStickyPreview = false,
+    this.debugVerificacion = false,
   }) : super(key: key);
 
   @override
@@ -40,6 +43,23 @@ class NominaTablaEditable extends StatefulWidget {
 }
 
 class _NominaTablaEditableState extends State<NominaTablaEditable> {
+  // ====== Constantes de anchos para asegurar alineación encabezado/filas (vista expandida) ======
+  static const double kAnchoClaveExpanded = 100; // antes 80 header / 100 fila -> desalineado
+  static const double kAnchoClaveCompact = 85;   // antes 70 header / 85 fila
+  static const double kAnchoEmpleadoExpanded = 250; // antes 200 header / 250 fila
+  static const double kAnchoEmpleadoCompact = 200;  // antes 170 header / 200 fila
+  static const double kAnchoDiaExpanded = 300; // aumentado para más espacio (actividad + sueldo + campo)
+  static const double kAnchoDiaCompact = 80;
+  static const double kAnchoTotalExpanded = 120; // antes header 100, fila 120
+  static const double kAnchoTotalCompact = 100;  // header 85, fila 100
+  static const double kAnchoOtrasPercepcionesExpanded = 120; // header 120, fila 120
+  static const double kAnchoOtrasPercepcionesCompact = 100;  // header 100, fila 100
+  static const double kAnchoSubtotalExpanded = 120; // header 100, fila 120
+  static const double kAnchoSubtotalCompact = 100;  // header 85, fila 100
+  static const double kAnchoComedorExpanded = 85;   // coincide
+  static const double kAnchoComedorCompact = 70;    // coincide
+  static const double kAnchoTotalNetoExpanded = 120; // header 100, fila 120
+  static const double kAnchoTotalNetoCompact = 100;  // header 85, fila 100
   // Map para mantener el estado calculado de cada empleado
   final Map<int, Map<String, dynamic>> _empleadosCalculados = {};
   
@@ -578,51 +598,51 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
   }
 
   /// Calcula los totales de un empleado específico
-  Map<String, int> _calcularTotalesEmpleado(Map<String, dynamic> empleado) {
-    final diasCount = widget.semanaSeleccionada?.duration.inDays ?? 6;
-    int total = 0;
+  Map<String, double> _calcularTotalesEmpleado(Map<String, dynamic> empleado) {
+    // ✅ Normalizamos a una semana estándar de 7 días (0..6)
+    const int diasCount = 7;
+    double total = 0.0;
     
     print('🔍 DEBUG - Calculando totales para: ${empleado['nombre']} (isExpanded: ${widget.isExpanded})');
     
     // ESTRATEGIA 1: Sumar días trabajados (dia_0_s, dia_1_s, etc.)
     List<String> diasEncontrados = [];
-    for (int i = 0; i <= diasCount; i++) {
+    for (int i = 0; i < diasCount; i++) {
       final key = 'dia_${i}_s';
       if (empleado.containsKey(key) && empleado[key] != null) {
         final valorOriginal = empleado[key];
-        final valor = _convertirAEntero(valorOriginal);
+        final valor = _convertirADouble(valorOriginal);
         if (valor > 0) {
-          diasEncontrados.add('$key=$valor');
+          diasEncontrados.add('$key=${valor.toStringAsFixed(2)}');
           total += valor;
         }
-        print('  $key: $valorOriginal (${valorOriginal.runtimeType}) -> $valor');
+        print('  $key: $valorOriginal (${valorOriginal.runtimeType}) -> ${valor.toStringAsFixed(2)}');
       }
     }
     
     print('  Días encontrados (${diasEncontrados.length}): ${diasEncontrados.join(', ')}');
     print('  Total de días: $total');
     
-    // ESTRATEGIA 2: Si no hay suficientes días individuales o total es 0, 
-    // buscar también en formato alternativo de BD
-    if (total == 0 || diasEncontrados.length < 3) {
+    // ESTRATEGIA 2 (ajustada): Solo buscar formato alternativo si NO hay ningún día capturado (>0)
+    if (total == 0.0 && diasEncontrados.isEmpty) {
       print('  🔄 Buscando formatos alternativos...');
       final formatosAlternativos = [
         'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo',
         'day_0', 'day_1', 'day_2', 'day_3', 'day_4', 'day_5', 'day_6',
       ];
       
-      int totalAlternativo = 0;
+      double totalAlternativo = 0.0;
       List<String> alternativosEncontrados = [];
       
       for (String formato in formatosAlternativos) {
         if (empleado.containsKey(formato) && empleado[formato] != null) {
           final valorOriginal = empleado[formato];
-          final valor = _convertirAEntero(valorOriginal);
+            final valor = _convertirADouble(valorOriginal);
           if (valor > 0) {
-            alternativosEncontrados.add('$formato=$valor');
+            alternativosEncontrados.add('$formato=${valor.toStringAsFixed(2)}');
             totalAlternativo += valor;
           }
-          print('  $formato (alternativo): $valorOriginal -> $valor');
+          print('  $formato (alternativo): $valorOriginal -> ${valor.toStringAsFixed(2)}');
         }
       }
       
@@ -633,28 +653,28 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     }
     
     // ESTRATEGIA 3: ÚLTIMO RECURSO - Si aún no hay datos de días, usar total existente de BD
-    if (total == 0 && empleado.containsKey('total') && empleado['total'] != null) {
+    if (total == 0.0 && empleado.containsKey('total') && empleado['total'] != null) {
       final totalOriginal = empleado['total'];
-      final totalBD = _convertirAEntero(totalOriginal);
+      final totalBD = _convertirADouble(totalOriginal);
       if (totalBD > 0) {
         total = totalBD;
-        print('  ⚠️ Usando total desde BD (último recurso): $totalOriginal (${totalOriginal.runtimeType}) -> $total');
+        print('  ⚠️ Usando total desde BD (último recurso): $totalOriginal (${totalOriginal.runtimeType}) -> ${total.toStringAsFixed(2)}');
       }
     }
     
     final debeOriginal = empleado['debe'];
     final comedorOriginal = empleado['comedor'];
-    final debe = _convertirAEntero(debeOriginal);
-    final comedor = _convertirAEntero(comedorOriginal);
+    final debe = _convertirADouble(debeOriginal);
+    final comedor = _convertirADouble(comedorOriginal);
     
-    print('  debe: $debeOriginal (${debeOriginal.runtimeType}) -> $debe');
-    print('  comedor: $comedorOriginal (${comedorOriginal.runtimeType}) -> $comedor');
+    print('  debe: $debeOriginal (${debeOriginal.runtimeType}) -> ${debe.toStringAsFixed(2)}');
+    print('  comedor: $comedorOriginal (${comedorOriginal.runtimeType}) -> ${comedor.toStringAsFixed(2)}');
     
-  // Ajuste: ahora 'debe' funciona como un ajuste positivo que SE SUMA al subtotal
-  final subtotal = total + debe;
-  final totalNeto = subtotal - comedor; // comedor sigue restando
+    // Ajuste: 'debe' (otras percepciones) se suma al subtotal
+  final subtotal = total + debe; // ✅ Nueva regla estable
+    final totalNeto = subtotal - comedor; // comedor resta
     
-    print('  🎯 RESULTADO FINAL: total=$total, subtotal=$subtotal, totalNeto=$totalNeto');
+    print('  🎯 RESULTADO FINAL: total=${total.toStringAsFixed(2)}, subtotal=${subtotal.toStringAsFixed(2)}, totalNeto=${totalNeto.toStringAsFixed(2)}');
     print('  ═══════════════════════════════════════════════════════════════');
     
     return {
@@ -695,6 +715,9 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
       if (doubleValue != null) {
         return doubleValue;
       }
+      // Heurística eliminada (antes: dividir cadenas de 4 dígitos entre 10).
+      // Ahora: si el usuario ingresa "4005" debe conservarse como 4005.00.
+      // Cualquier ajuste de escala sólo se aplica a 5+ dígitos en _autoCorregirEscala.
       // Si no es un decimal válido, intentar como entero
       final intValue = int.tryParse(valor);
       if (intValue != null) {
@@ -703,6 +726,39 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
       return 0.0;
     }
     return 0.0;
+  }
+
+  /// Parsea una entrada de usuario (que puede contener símbolos, comas, espacios) a double con 2 decimales
+  double _parsearMoneda(String valor) {
+    if (valor.isEmpty) return 0.0;
+    // Reemplazar coma decimal por punto y eliminar símbolos no numéricos excepto punto y signo
+    final normalizado = valor
+        .replaceAll(' ', '')
+        .replaceAll(',', '.')
+        .replaceAll(RegExp(r'[^0-9\.-]'), '');
+    final parsed = double.tryParse(normalizado) ?? 0.0;
+    // Redondear a 2 decimales
+    return double.parse(parsed.toStringAsFixed(2));
+  }
+
+  /// Corrige valores que probablemente perdieron el punto (escala x100) p.ej. 40050 -> 400.50
+  double _autoCorregirEscala(double valor, String rawOriginal) {
+    // Si ya trae punto, no se modifica
+    if (rawOriginal.contains('.')) return valor;
+    // Nuevo criterio: SOLO ajustar si hay 9+ dígitos (ej. 400000050) indicando claramente escala centavos.
+    // Motivo: evitar que montos legítimos como 40050 (40,050.00) se reduzcan a 400.50.
+    final soloDigitos = RegExp(r'^\d{9,}$'); // 9 o más dígitos
+    if (soloDigitos.hasMatch(rawOriginal)) {
+      // Evitar casos fuera de rango absurdo antes de dividir
+      if (valor < 1000000000) { // Tope más amplio pero razonable
+        final dividido = valor / 100.0; // Interpretar últimos dos como centavos perdidos
+        // Aún así validar que el resultado no sea irrealmente grande para un día
+        if (dividido < 1000000) {
+          return double.parse(dividido.toStringAsFixed(2));
+        }
+      }
+    }
+    return valor; // No ajuste para <9 dígitos
   }
 
   /// Maneja cambios en los campos editables
@@ -715,15 +771,16 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     
     // Actualizar el valor en el empleado
     if (campo == 'comedor') {
-      final valorEntero = _convertirAEntero(valor);
-      empleado[campo] = valorEntero;
-      print('  Comedor actualizado: $valorEntero');
+        double v = _parsearMoneda(valor); // Parsear el valor de entrada
+        v = _autoCorregirEscala(v, valor); // Corregir escala si es necesario
+        empleado[campo] = v; // Actualizar el campo 'comedor'
+        print('  Comedor actualizado -> ${v.toStringAsFixed(2)}'); // Mostrar el nuevo valor
     } else if (campo.contains('dia_') && campo.endsWith('_s')) {
-      // Para campos de días trabajados, asegurar que se guarde como entero
-      final valorLimpio = valor.replaceAll(RegExp(r'[^\d]'), '');
-      final valorEntero = int.tryParse(valorLimpio) ?? 0;
-      empleado[campo] = valorEntero; // Guardar como entero, no como string
-      print('  Campo $campo actualizado: $valorLimpio -> $valorEntero');
+      // Día sueldo ahora double
+      double v = _parsearMoneda(valor);
+      v = _autoCorregirEscala(v, valor);
+      empleado[campo] = v;
+      print('  Campo $campo actualizado -> ${v.toStringAsFixed(2)}');
     } else if (campo.contains('dia_') && campo.endsWith('_id')) {
       // Para campos de clave de actividad - guardar la clave tal como está
       empleado[campo] = valor.isEmpty ? '0' : valor;
@@ -744,11 +801,10 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
       print('    Nombre encontrado: $nombreCampo');
       print('    Mapa de campos disponible: ${_camposMap.keys.join(', ')}');
     } else if (campo == 'debe') {
-      // Para debe, también guardar como entero
-      final valorLimpio = valor.replaceAll(RegExp(r'[^\d]'), '');
-      final valorEntero = int.tryParse(valorLimpio) ?? 0;
-      empleado[campo] = valorEntero;
-      print('  Debe actualizado: $valorLimpio -> $valorEntero');
+      double v = _parsearMoneda(valor);
+      v = _autoCorregirEscala(v, valor);
+      empleado[campo] = v;
+      print('  Debe (otras percepciones) actualizado -> ${v.toStringAsFixed(2)}');
     } else {
       // Para otros campos, usar string limpio
       final valorLimpio = valor.replaceAll(RegExp(r'[^\d]'), '');
@@ -791,6 +847,52 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     widget.onChanged?.call(index, 'totalNeto', totales['totalNeto']);
     
     print('✅ Cambio procesado completamente');
+    // 🆕 Verificación automática si está activada
+    if (widget.debugVerificacion) {
+      _verificarConsistenciaEmpleado(index);
+    }
+  }
+
+  /// 🆕 Verifica que los totales del empleado sean consistentes con la suma de días y reglas de negocio
+  void _verificarConsistenciaEmpleado(int index) {
+    if (index < 0 || index >= widget.empleados.length) return;
+    final e = widget.empleados[index];
+    final diasCount = widget.semanaSeleccionada?.duration.inDays ?? 6;
+    double sumaDias = 0.0;
+    for (int i = 0; i <= diasCount; i++) {
+      final k = 'dia_${i}_s';
+      if (e.containsKey(k)) {
+        sumaDias += _convertirADouble(e[k]);
+      }
+    }
+    final debe = _convertirADouble(e['debe']);
+    final comedor = _convertirADouble(e['comedor']);
+    final esperadoSubtotal = sumaDias + debe;
+    final esperadoTotalNeto = esperadoSubtotal - comedor;
+    final total = _convertirADouble(e['total']);
+    final subtotal = _convertirADouble(e['subtotal']);
+    final totalNeto = _convertirADouble(e['totalNeto']);
+
+    final inconsistencias = <String>[];
+    if ((total - sumaDias).abs() > 0.009) {
+      inconsistencias.add('total(${total.toStringAsFixed(2)}) != sumaDias(${sumaDias.toStringAsFixed(2)})');
+    }
+    if ((subtotal - esperadoSubtotal).abs() > 0.009) {
+      inconsistencias.add('subtotal(${subtotal.toStringAsFixed(2)}) != dias+debe(${esperadoSubtotal.toStringAsFixed(2)})');
+    }
+    if ((totalNeto - esperadoTotalNeto).abs() > 0.009) {
+      inconsistencias.add('totalNeto(${totalNeto.toStringAsFixed(2)}) != subtotal-comedor(${esperadoTotalNeto.toStringAsFixed(2)})');
+    }
+
+    if (inconsistencias.isEmpty) {
+      print('🧪 VERIFICACIÓN OK -> Empleado: ${e['nombre']}  Días=${sumaDias.toStringAsFixed(2)}  Debe=${debe.toStringAsFixed(2)}  Comedor=${comedor.toStringAsFixed(2)}  Neto=${totalNeto.toStringAsFixed(2)}');
+    } else {
+      print('⚠️ VERIFICACIÓN FALLÓ -> Empleado: ${e['nombre']}');
+      for (final inc in inconsistencias) {
+        print('   · $inc');
+      }
+      print('   Datos: dias=${sumaDias.toStringAsFixed(2)}, debe=${debe.toStringAsFixed(2)}, comedor=${comedor.toStringAsFixed(2)}, total=${total.toStringAsFixed(2)}, subtotal=${subtotal.toStringAsFixed(2)}, neto=${totalNeto.toStringAsFixed(2)}');
+    }
   }
 
   /// Duplica los datos del día anterior en el día especificado
@@ -1030,46 +1132,28 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     };
   }
 
-  /// Formatea un valor como moneda
+  /// Formatea un valor como moneda siempre con 2 decimales
   String _formatearMoneda(dynamic valor) {
     final decimal = _convertirADouble(valor);
-    // Para valores enteros (como días trabajados), no mostrar decimales
-    if (decimal == decimal.toInt()) {
-      final entero = decimal.toInt();
-      if (entero != 0) {
-        print('💰 [${widget.isExpanded ? 'EXPANDIDA' : 'PRINCIPAL'}] _formatearMoneda: $valor (${valor.runtimeType}) -> \$${NumberFormat('#,##0', 'es_ES').format(entero)}');
-      }
-      return '\$${NumberFormat('#,##0', 'es_ES').format(entero)}';
-    } else {
-      // Para valores con decimales, mostrar 2 decimales
-      if (decimal != 0) {
-        print('💰 [${widget.isExpanded ? 'EXPANDIDA' : 'PRINCIPAL'}] _formatearMoneda: $valor (${valor.runtimeType}) -> \$${NumberFormat('#,##0.00', 'es_ES').format(decimal)}');
-      }
-      return '\$${NumberFormat('#,##0.00', 'es_ES').format(decimal)}';
-    }
+    final redondeado = double.parse(decimal.toStringAsFixed(2));
+  // Formato forzado a punto decimal usando locale en_US
+  return '\$${NumberFormat('0.00', 'en_US').format(redondeado)}';
   }
 
-  /// Formatea un valor numérico sin símbolo de moneda
+  /// Formatea un valor numérico sin símbolo de moneda (conserva 0 o 2 decimales según corresponda)
   String _formatearNumero(dynamic valor) {
     final decimal = _convertirADouble(valor);
-    // Para valores enteros, no mostrar decimales
-    if (decimal == decimal.toInt()) {
-      return decimal.toInt().toString();
-    } else {
-      // Para valores con decimales, mostrar 2 decimales
-      return decimal.toStringAsFixed(2);
-    }
+    return decimal.toStringAsFixed(2); // Siempre 2 decimales para consistencia
   }
 
   /// Construye las columnas de la tabla
   List<DataColumn> _construirColumnas() {
     final anchoExpandido = widget.isExpanded;
-    
     return [
       // Columna Clave
       DataColumn(
         label: Container(
-          width: anchoExpandido ? 80 : 70,
+          width: anchoExpandido ? kAnchoClaveExpanded : kAnchoClaveCompact,
           padding: EdgeInsets.symmetric(vertical: anchoExpandido ? 8 : 4),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -1094,11 +1178,10 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
           ),
         ),
       ),
-      
       // Columna Nombre
       DataColumn(
         label: Container(
-          width: anchoExpandido ? 200 : 170,
+          width: anchoExpandido ? kAnchoEmpleadoExpanded : kAnchoEmpleadoCompact,
           padding: EdgeInsets.symmetric(vertical: anchoExpandido ? 8 : 4),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -1127,7 +1210,6 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
           ),
         ),
       ),
-      
       // Columnas de días
       ...List.generate(_numeroDias, (i) {
         String nombreDia;
@@ -1146,7 +1228,7 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
         
         return DataColumn(
           label: Container(
-            width: anchoExpandido ? 240 : 80,
+            width: anchoExpandido ? kAnchoDiaExpanded : kAnchoDiaCompact,
             padding: EdgeInsets.symmetric(vertical: anchoExpandido ? 6 : 3),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -1214,11 +1296,10 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
           ),
         );
       }),
-      
       // Columnas de totales mejoradas
       DataColumn(
         label: Container(
-          width: anchoExpandido ? 100 : 85,
+          width: anchoExpandido ? kAnchoTotalExpanded : kAnchoTotalCompact,
           padding: EdgeInsets.symmetric(vertical: anchoExpandido ? 8 : 4),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -1245,7 +1326,7 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
       ),
       DataColumn(
         label: Container(
-          width: anchoExpandido ? 85 : 70,
+          width: anchoExpandido ? kAnchoOtrasPercepcionesExpanded : kAnchoOtrasPercepcionesCompact,
           padding: EdgeInsets.symmetric(vertical: anchoExpandido ? 8 : 4),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -1257,12 +1338,13 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
               ),
               SizedBox(height: anchoExpandido ? 4 : 2),
               Text(
-                'Ajuste +',
+                'Otras\npercepciones',
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
-                  fontSize: anchoExpandido ? 13 : 10,
+                  fontSize: anchoExpandido ? 12 : 9,
                   color: Color(0xFF374151),
-                  letterSpacing: 0.3,
+                  letterSpacing: 0.2,
+                  height: 1.1,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -1272,7 +1354,7 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
       ),
       DataColumn(
         label: Container(
-          width: anchoExpandido ? 100 : 85,
+          width: anchoExpandido ? kAnchoSubtotalExpanded : kAnchoSubtotalCompact,
           padding: EdgeInsets.symmetric(vertical: anchoExpandido ? 8 : 4),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -1299,7 +1381,7 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
       ),
       DataColumn(
         label: Container(
-          width: anchoExpandido ? 85 : 70,
+          width: anchoExpandido ? kAnchoComedorExpanded : kAnchoComedorCompact,
           padding: EdgeInsets.symmetric(vertical: anchoExpandido ? 8 : 4),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -1326,7 +1408,7 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
       ),
       DataColumn(
         label: Container(
-          width: anchoExpandido ? 100 : 85,
+          width: anchoExpandido ? kAnchoTotalNetoExpanded : kAnchoTotalNetoCompact,
           padding: EdgeInsets.symmetric(vertical: anchoExpandido ? 8 : 4),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -1366,7 +1448,7 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
           // Celda Clave
           DataCell(
             SizedBox(
-              width: widget.isExpanded ? 100 : 85,
+              width: widget.isExpanded ? kAnchoClaveExpanded : kAnchoClaveCompact,
               child: Text(
                 empleado['codigo']?.toString() ?? '',
                 textAlign: TextAlign.center,
@@ -1377,7 +1459,7 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
           // Celda Nombre
           DataCell(
             SizedBox(
-              width: widget.isExpanded ? 250 : 200,
+              width: widget.isExpanded ? kAnchoEmpleadoExpanded : kAnchoEmpleadoCompact,
               child: Text(
                 empleado['nombre']?.toString() ?? '',
                 textAlign: TextAlign.left,
@@ -1391,7 +1473,7 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
           // Celda Total (solo lectura)
           DataCell(
             SizedBox(
-              width: widget.isExpanded ? 120 : 100,
+              width: widget.isExpanded ? kAnchoTotalExpanded : kAnchoTotalCompact,
               child: Builder(
                 builder: (context) {
                   final totalFormateado = _formatearMoneda(empleado['total']);
@@ -1412,15 +1494,15 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
             index, 
             'debe', 
             empleado['debe'],
-            labelTexto: 'Ajuste +',
+            labelTexto: 'Otras percepciones',
             mostrarMoneda: true,
-            ancho: widget.isExpanded ? 85 : 70,
+            ancho: widget.isExpanded ? kAnchoOtrasPercepcionesExpanded : kAnchoOtrasPercepcionesCompact,
           ),
           
           // Celda Subtotal (solo lectura)
           DataCell(
             SizedBox(
-              width: widget.isExpanded ? 120 : 100,
+              width: widget.isExpanded ? kAnchoSubtotalExpanded : kAnchoSubtotalCompact,
               child: Text(
                 _formatearMoneda(empleado['subtotal']),
                 textAlign: TextAlign.center,
@@ -1436,13 +1518,13 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
             empleado['comedor'],
             labelTexto: 'Comida',
             mostrarMoneda: true,
-            ancho: widget.isExpanded ? 85 : 70,
+            ancho: widget.isExpanded ? kAnchoComedorExpanded : kAnchoComedorCompact,
           ),
           
           // Celda Total Neto (solo lectura)
           DataCell(
             SizedBox(
-              width: widget.isExpanded ? 120 : 100,
+              width: widget.isExpanded ? kAnchoTotalNetoExpanded : kAnchoTotalNetoCompact,
               child: Builder(
                 builder: (context) {
                   final totalNetoFormateado = _formatearMoneda(empleado['totalNeto']);
@@ -1520,7 +1602,7 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     // Modo expandido: ID, Salario y campo adicional con labels
     return DataCell(
       SizedBox(
-        width: 240,
+  width: kAnchoDiaExpanded,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -2356,9 +2438,25 @@ class _CeldaEditableConNavegacionState extends State<_CeldaEditableConNavegacion
             // Para campos de texto: pasar el valor tal como está
             widget.alCambiar(valor);
           } else {
-            // Para campos numéricos: limpiar y validar
-            final limpio = valor.replaceAll(RegExp(r'[^\d]'), '');
-            widget.alCambiar(limpio.isEmpty ? '0' : limpio);
+            // Para campos numéricos: preservar el punto decimal y limitar a 2 decimales
+            if (valor.isEmpty) {
+              widget.alCambiar('0');
+              return;
+            }
+            if (valor == '.') {
+              widget.alCambiar('0.');
+              return;
+            }
+            if (valor.contains('.')) {
+              final parts = valor.split('.');
+              final parteEntera = parts[0].isEmpty ? '0' : parts[0];
+              var parteDecimal = parts.length > 1 ? parts[1] : '';
+              if (parteDecimal.length > 2) parteDecimal = parteDecimal.substring(0, 2);
+              final reconstruido = parteDecimal.isEmpty ? parteEntera : '$parteEntera.$parteDecimal';
+              widget.alCambiar(reconstruido);
+            } else {
+              widget.alCambiar(valor); // Solo dígitos
+            }
           }
         },
         onTap: () {

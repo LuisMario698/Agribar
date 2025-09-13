@@ -759,19 +759,27 @@ class _NominaScreenState extends State<NominaScreen>
     try {
       await db.connect();
 
-      //  Función auxiliar para obtener valores numéricos seguros
-      // 🔧 CORREGIDO: Envía 0 para valores vacíos, pero maneja correctamente los tipos
+      //  Función auxiliar para obtener valores numéricos seguros como double (2 decimales)
+      double _getSafeDoubleValue(dynamic value) {
+        if (value == null) return 0.0;
+        if (value is double) return double.parse(value.toStringAsFixed(2));
+        if (value is int) return value.toDouble();
+        if (value is num) return double.parse(value.toDouble().toStringAsFixed(2));
+        if (value is String) {
+          final trimmed = value.trim();
+          if (trimmed.isEmpty) return 0.0;
+          final parsed = double.tryParse(trimmed.replaceAll(',', '.'));
+          if (parsed == null) return 0.0;
+          return double.parse(parsed.toStringAsFixed(2));
+        }
+        return 0.0;
+      }
+
+      // Helper para IDs de actividades (enteros)
       int _getSafeIntValue(dynamic value) {
         if (value == null) return 0;
         if (value is int) return value;
-        if (value is double) return value.round();
-        if (value is num) return value.round();
-        if (value is String) {
-          final trimmed = value.trim();
-          if (trimmed.isEmpty) return 0; // String vacío = 0
-          final parsed = num.tryParse(trimmed);
-          return parsed?.round() ?? 0;
-        }
+        if (value is String) return int.tryParse(value) ?? 0;
         return 0;
       }
 
@@ -820,31 +828,31 @@ class _NominaScreenState extends State<NominaScreen>
           'id_semana': idSemana,
           'id_cuadrilla': idCuadrilla,
           'act_1': _getSafeIntValue(empleado['dia_0_id']), // dia_0_id de tabla → act_1 de BD
-          'dia_1': _getSafeIntValue(empleado['dia_0_s']), // dia_0_s de tabla → dia_1 de BD
+          'dia_1': _getSafeDoubleValue(empleado['dia_0_s']), // dia_0_s de tabla → dia_1 de BD
           'campo_1': _getSafeStringValue(empleado['dia_0_campo']), // dia_0_campo de tabla → campo_1 de BD
           'act_2': _getSafeIntValue(empleado['dia_1_id']), // dia_1_id de tabla → act_2 de BD
-          'dia_2': _getSafeIntValue(empleado['dia_1_s']), // dia_1_s de tabla → dia_2 de BD
+          'dia_2': _getSafeDoubleValue(empleado['dia_1_s']), // dia_1_s de tabla → dia_2 de BD
           'campo_2': _getSafeStringValue(empleado['dia_1_campo']), // dia_1_campo de tabla → campo_2 de BD
           'act_3': _getSafeIntValue(empleado['dia_2_id']), // dia_2_id de tabla → act_3 de BD
-          'dia_3': _getSafeIntValue(empleado['dia_2_s']), // dia_2_s de tabla → dia_3 de BD
+          'dia_3': _getSafeDoubleValue(empleado['dia_2_s']), // dia_2_s de tabla → dia_3 de BD
           'campo_3': _getSafeStringValue(empleado['dia_2_campo']), // dia_2_campo de tabla → campo_3 de BD
           'act_4': _getSafeIntValue(empleado['dia_3_id']), // dia_3_id de tabla → act_4 de BD
-          'dia_4': _getSafeIntValue(empleado['dia_3_s']), // dia_3_s de tabla → dia_4 de BD
+          'dia_4': _getSafeDoubleValue(empleado['dia_3_s']), // dia_3_s de tabla → dia_4 de BD
           'campo_4': _getSafeStringValue(empleado['dia_3_campo']), // dia_3_campo de tabla → campo_4 de BD
           'act_5': _getSafeIntValue(empleado['dia_4_id']), // dia_4_id de tabla → act_5 de BD
-          'dia_5': _getSafeIntValue(empleado['dia_4_s']), // dia_4_s de tabla → dia_5 de BD
+          'dia_5': _getSafeDoubleValue(empleado['dia_4_s']), // dia_4_s de tabla → dia_5 de BD
           'campo_5': _getSafeStringValue(empleado['dia_4_campo']), // dia_4_campo de tabla → campo_5 de BD
           'act_6': _getSafeIntValue(empleado['dia_5_id']), // dia_5_id de tabla → act_6 de BD
-          'dia_6': _getSafeIntValue(empleado['dia_5_s']), // dia_5_s de tabla → dia_6 de BD
+          'dia_6': _getSafeDoubleValue(empleado['dia_5_s']), // dia_5_s de tabla → dia_6 de BD
           'campo_6': _getSafeStringValue(empleado['dia_5_campo']), // dia_5_campo de tabla → campo_6 de BD
           'act_7': _getSafeIntValue(empleado['dia_6_id']), // dia_6_id de tabla → act_7 de BD
-          'dia_7': _getSafeIntValue(empleado['dia_6_s']), // dia_6_s de tabla → dia_7 de BD
+          'dia_7': _getSafeDoubleValue(empleado['dia_6_s']), // dia_6_s de tabla → dia_7 de BD
           'campo_7': _getSafeStringValue(empleado['dia_6_campo']), // dia_6_campo de tabla → campo_7 de BD
-          'total': _getSafeIntValue(empleado['total']),
-          'debe': _getSafeIntValue(empleado['debe']),
-          'subtotal': _getSafeIntValue(empleado['subtotal']),
-          'comedor': _getSafeIntValue(empleado['comedor']),
-          'total_neto': _getSafeIntValue(empleado['totalNeto']),
+          'total': _getSafeDoubleValue(empleado['total']),
+          'debe': _getSafeDoubleValue(empleado['debe']),
+          'subtotal': _getSafeDoubleValue(empleado['subtotal']),
+          'comedor': _getSafeDoubleValue(empleado['comedor']),
+          'total_neto': _getSafeDoubleValue(empleado['totalNeto']),
         };
 
         // 🔧 DEBUG: Mostrar datos procesados que se van a guardar
@@ -1023,37 +1031,52 @@ class _NominaScreenState extends State<NominaScreen>
         if (nominaResult.isNotEmpty) {
           // El empleado tiene datos de nómina guardados
           final nominaData = nominaResult.first;
+          String _norm(dynamic v) {
+            final s = v?.toString() ?? '0';
+            if (s.contains('.')) return s;
+            final soloDigitos = RegExp(r'^\d{5,}$');
+            if (soloDigitos.hasMatch(s)) {
+              final d = double.tryParse(s) ?? 0.0;
+              if (d < 1000000) {
+                final ajustado = d / 100.0;
+                if (ajustado < 10000) {
+                  return ajustado.toStringAsFixed(2);
+                }
+              }
+            }
+            return s;
+          }
           empleadoCompleto = {
             'codigo': empleadoBasico[1]?.toString() ?? '',
             'nombre': empleadoBasico[2]?.toString() ?? '',
             'id': empleadoBasico[0]?.toString() ?? '',
             // Mapear de BD a formato de tabla (ahora incluye campo)
-            'dia_0_s': nominaData[0]?.toString() ?? '0', // dia_1 BD → dia_0_s tabla
+            'dia_0_s': _norm(nominaData[0]), // dia_1 BD → dia_0_s tabla
             'dia_0_id': nominaData[1]?.toString() ?? '0', // act_1 BD → dia_0_id tabla
             'dia_0_campo': nominaData[2]?.toString() ?? '', // campo_1 BD → dia_0_campo tabla
-            'dia_1_s': nominaData[3]?.toString() ?? '0', // dia_2 BD → dia_1_s tabla
+            'dia_1_s': _norm(nominaData[3]), // dia_2 BD → dia_1_s tabla
             'dia_1_id': nominaData[4]?.toString() ?? '0', // act_2 BD → dia_1_id tabla
             'dia_1_campo': nominaData[5]?.toString() ?? '', // campo_2 BD → dia_1_campo tabla
-            'dia_2_s': nominaData[6]?.toString() ?? '0', // dia_3 BD → dia_2_s tabla
+            'dia_2_s': _norm(nominaData[6]), // dia_3 BD → dia_2_s tabla
             'dia_2_id': nominaData[7]?.toString() ?? '0', // act_3 BD → dia_2_id tabla
             'dia_2_campo': nominaData[8]?.toString() ?? '', // campo_3 BD → dia_2_campo tabla
-            'dia_3_s': nominaData[9]?.toString() ?? '0', // dia_4 BD → dia_3_s tabla
+            'dia_3_s': _norm(nominaData[9]), // dia_4 BD → dia_3_s tabla
             'dia_3_id': nominaData[10]?.toString() ?? '0', // act_4 BD → dia_3_id tabla
             'dia_3_campo': nominaData[11]?.toString() ?? '', // campo_4 BD → dia_3_campo tabla
-            'dia_4_s': nominaData[12]?.toString() ?? '0', // dia_5 BD → dia_4_s tabla
+            'dia_4_s': _norm(nominaData[12]), // dia_5 BD → dia_4_s tabla
             'dia_4_id': nominaData[13]?.toString() ?? '0', // act_5 BD → dia_4_id tabla
             'dia_4_campo': nominaData[14]?.toString() ?? '', // campo_5 BD → dia_4_campo tabla
-            'dia_5_s': nominaData[15]?.toString() ?? '0', // dia_6 BD → dia_5_s tabla
+            'dia_5_s': _norm(nominaData[15]), // dia_6 BD → dia_5_s tabla
             'dia_5_id': nominaData[16]?.toString() ?? '0', // act_6 BD → dia_5_id tabla
             'dia_5_campo': nominaData[17]?.toString() ?? '', // campo_6 BD → dia_5_campo tabla
-            'dia_6_s': nominaData[18]?.toString() ?? '0', // dia_7 BD → dia_6_s tabla
+            'dia_6_s': _norm(nominaData[18]), // dia_7 BD → dia_6_s tabla
             'dia_6_id': nominaData[19]?.toString() ?? '0', // act_7 BD → dia_6_id tabla
             'dia_6_campo': nominaData[20]?.toString() ?? '', // campo_7 BD → dia_6_campo tabla
-            'total': nominaData[21]?.toString() ?? '0',
-            'debe': nominaData[22]?.toString() ?? '0',
-            'subtotal': nominaData[23]?.toString() ?? '0',
-            'comedor': nominaData[24]?.toString() ?? '0',
-            'totalNeto': nominaData[25]?.toString() ?? '0',
+            'total': _norm(nominaData[21]),
+            'debe': _norm(nominaData[22]),
+            'subtotal': _norm(nominaData[23]),
+            'comedor': _norm(nominaData[24]),
+            'totalNeto': _norm(nominaData[25]),
           };
           print('✅ Empleado ${empleadoCompleto['nombre']} con datos de nómina cargados');
         } else {
@@ -2095,36 +2118,23 @@ class _NominaScreenState extends State<NominaScreen>
     }
   }
 
-  /// Actualiza el estado de cambios cuando se modifica un campo
+  /// Actualiza el estado de cambios cuando se modifica un campo (manteniendo decimales)
   void _onFieldChanged(int index, String key, dynamic value) {
+    if (!mounted || _isDisposed) return;
     setState(() {
       if (index < empleadosFiltrados.length) {
-        // 🔧 Convertir valores numéricos a enteros para mantener tipos correctos
         dynamic processedValue = value;
         if (_isNumericField(key)) {
-          processedValue = int.tryParse(value.toString()) ?? 0;
+          final str = value.toString().trim();
+          processedValue = str.isEmpty ? 0.0 : (double.tryParse(str) ?? 0.0);
         }
-        
-        // ✅ Actualizar directamente empleadosFiltrados (tabla principal)
         empleadosFiltrados[index][key] = processedValue;
-        
-        // 🚫 NO recalcular aquí - dejar que NuevaTablaEditable se encargue del cálculo
-        // Solo recalcular si es un cambio en campos que no son totales calculados
-        if (!_isTotalField(key)) {
-          // Los totales los calculará NuevaTablaEditable automáticamente
-          print('📝 Campo actualizado por usuario: $key = $processedValue');
-        } else {
-          // Si es un total calculado, actualizar directamente sin recalcular
-          print('📊 Total actualizado por NuevaTablaEditable: $key = $processedValue');
-        }
-        
-        // ✅ Sincronizar con empleadosNominaTemp si existe
         if (index < empleadosNominaTemp.length) {
           empleadosNominaTemp[index][key] = processedValue;
-          // Tampoco recalcular aquí para evitar duplicación
         }
-        
-        // Detectar cambios para habilitar/deshabilitar el botón guardar
+        if (!_isTotalField(key)) {
+          _recalcularTotalesEmpleado(empleadosFiltrados[index]);
+        }
         if (_detectUnsavedChanges()) {
           marcarCambiosNoGuardados();
         }
@@ -2155,27 +2165,18 @@ class _NominaScreenState extends State<NominaScreen>
 
   /// 🔧 Recalcula los totales de un empleado específico
   void _recalcularTotalesEmpleado(Map<String, dynamic> empleado) {
-    if (_startDate == null || _endDate == null) return;
-    
-    final numDays = _endDate!.difference(_startDate!).inDays + 1;
-    
-    // Sumar solo las celdas "S" (salario) por día
-    final total = List.generate(numDays, (i) {
-      return int.tryParse(empleado['dia_${i}_s']?.toString() ?? '0') ?? 0;
-    }).reduce((a, b) => a + b);
-    
-    final debe = int.tryParse(empleado['debe']?.toString() ?? '0') ?? 0;
-    final comedorValue = int.tryParse(empleado['comedor']?.toString() ?? '0') ?? 0;
-    final subtotal = total - debe;
+    double total = 0.0;
+    for (int i = 0; i < 7; i++) {
+      final v = empleado['dia_${i}_s'];
+      total += (v is num) ? v.toDouble() : double.tryParse(v?.toString() ?? '0') ?? 0.0;
+    }
+    final debe = (empleado['debe'] is num) ? (empleado['debe'] as num).toDouble() : double.tryParse(empleado['debe']?.toString() ?? '0') ?? 0.0;
+    final comedorValue = (empleado['comedor'] is num) ? (empleado['comedor'] as num).toDouble() : double.tryParse(empleado['comedor']?.toString() ?? '0') ?? 0.0;
+    final subtotal = total + debe; // Nueva regla
     final totalNeto = subtotal - comedorValue;
-
-    // Actualizar los totales en el empleado
-    empleado['total'] = total;
-    empleado['subtotal'] = subtotal;
-    empleado['totalNeto'] = totalNeto;
-    
-    // 📊 LLAMADA CALCULO TOTAL SEMANAL: Después de recalcular totales de empleado
-    // Esto actualiza el total semanal en tiempo real cuando el usuario cambia valores
+    empleado['total'] = double.parse(total.toStringAsFixed(2));
+    empleado['subtotal'] = double.parse(subtotal.toStringAsFixed(2));
+    empleado['totalNeto'] = double.parse(totalNeto.toStringAsFixed(2));
     _actualizarTotalSemana();
   }
 

@@ -28,10 +28,9 @@ class EmpleadoTableRowBuilder {
   }
 
   String _formatCurrency(num value) {
-    if (value == value.toInt()) {
-      return '\$${value.toInt()}';
-    }
-    return '\$${value.toStringAsFixed(2)}';
+    final doubleVal = value.toDouble();
+  // Asegurar punto decimal (toStringAsFixed ya usa punto, pero mantenemos comentario aclaratorio)
+  return '\$${doubleVal.toStringAsFixed(2)}';
   }
 
   void _handleCellChange(String key, dynamic value) {
@@ -40,11 +39,22 @@ class EmpleadoTableRowBuilder {
 
   /// Construye las celdas de la fila del empleado
   List<DataCell> buildCells() {
-    // Calcular valores (usando enteros)
-    final total = empleado['total'] ?? 0;
-    final subtotal = int.tryParse(empleado['subtotal'].toString()) ?? 0;
-    final comedorValue = int.tryParse(empleado['comedor'].toString()) ?? 0;
-    final totalNeto = empleado['totalNeto'] ?? subtotal - comedorValue;
+    num _parse(dynamic v) {
+      if (v == null) return 0.0;
+      if (v is num) return v;
+      if (v is bool) return v ? 400.0 : 0.0; // comedor boolean
+      if (v is String) {
+        final cleaned = v.replaceAll(',', '.');
+        return double.tryParse(cleaned) ?? 0.0;
+      }
+      return 0.0;
+    }
+
+    final total = _parse(empleado['total']);
+    final debe = _parse(empleado['debe']);
+    final subtotal = total + debe; // Nueva regla: debe suma
+    final comedorValue = _parse(empleado['comedor']);
+    final totalNeto = _parse(empleado['totalNeto'] ?? (subtotal - comedorValue));
 
     return [
       // Celda Código
@@ -69,7 +79,7 @@ class EmpleadoTableRowBuilder {
       DataCell(SizedBox(
         width: isExpanded ? 90 : 85,
         child: Text(
-          _formatCurrency(int.tryParse(total.toString()) ?? 0),
+          _formatCurrency(total),
           textAlign: TextAlign.center,
           style: TextStyle(
             fontWeight: FontWeight.w500,
@@ -80,7 +90,7 @@ class EmpleadoTableRowBuilder {
       // Celda Debe
       _buildEditableCell(
         'debe',
-        (empleado['debe'] ?? '0').toString(),
+  _parse(empleado['debe']).toStringAsFixed(2),
         width: isExpanded ? 80 : 75,
         showCurrency: true,
       ),
@@ -99,7 +109,7 @@ class EmpleadoTableRowBuilder {
       // Celda Comedor
       _buildEditableCell(
         'comedor',
-        (empleado['comedor'] ?? '0').toString(),
+  _parse(empleado['comedor']).toStringAsFixed(2),
         width: isExpanded ? 80 : 75,
         showCurrency: true,
       ),

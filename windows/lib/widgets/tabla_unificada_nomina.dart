@@ -27,7 +27,8 @@ class TablaUnificadaNomina extends StatefulWidget {
 class _TablaUnificadaNominaState extends State<TablaUnificadaNomina> {
   final Map<String, TextEditingController> _controladores = {};
   final Map<String, FocusNode> _focusNodes = {};
-  final NumberFormat _formatoMoneda = NumberFormat('#,##0', 'es_ES');
+  // Usar en_US para punto decimal
+  final NumberFormat _formatoMoneda = NumberFormat('0.00', 'en_US'); // sin separador de miles
 
   @override
   void initState() {
@@ -74,63 +75,28 @@ class _TablaUnificadaNominaState extends State<TablaUnificadaNomina> {
   /// Calcula los totales para un empleado específico
   void _calcularTotalesEmpleado(int indice) {
     final empleado = widget.empleados[indice];
-    
-    // Calcular total de días trabajados
-    int totalDias = 0;
-    for (String dia in ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo']) {
-      final valor = empleado[dia];
-      if (valor is int) {
-        totalDias += valor;
-      } else if (valor is double) {
-        totalDias += valor.toInt();
-      } else {
-        totalDias += int.tryParse(valor?.toString() ?? '0') ?? 0;
+    num _parse(dynamic v) {
+      if (v == null) return 0.0;
+      if (v is num) return v;
+      if (v is bool) return v ? 400.0 : 0.0;
+      if (v is String) {
+        final cleaned = v.replaceAll(',', '.');
+        return double.tryParse(cleaned) ?? 0.0;
       }
+      return 0.0;
     }
 
-    // Obtener tarifa del empleado
-    final tarifaData = empleado['tarifa'] ?? 0;
-    int tarifa = 0;
-    if (tarifaData is int) {
-      tarifa = tarifaData;
-    } else if (tarifaData is double) {
-      tarifa = tarifaData.toInt();
-    } else {
-      tarifa = int.tryParse(tarifaData.toString()) ?? 0;
+    double totalDias = 0.0;
+    for (String dia in ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo']) {
+      totalDias += _parse(empleado[dia]);
     }
-
-    // Calcular total bruto
+    final tarifa = _parse(empleado['tarifa']);
     final totalBruto = totalDias * tarifa;
-
-    // Obtener debe
-    final debeData = empleado['debe'] ?? 0;
-    int debe = 0;
-    if (debeData is int) {
-      debe = debeData;
-    } else if (debeData is double) {
-      debe = debeData.toInt();
-    } else {
-      debe = int.tryParse(debeData.toString()) ?? 0;
-    }
-
-    // Obtener comedor
-    final comedorData = empleado['comedor'] ?? 0;
-    int comedor = 0;
-    if (comedorData is bool) {
-      comedor = comedorData ? 400 : 0;
-    } else if (comedorData is int) {
-      comedor = comedorData;
-    } else if (comedorData is double) {
-      comedor = comedorData.toInt();
-    } else {
-      comedor = int.tryParse(comedorData.toString()) ?? 0;
-    }
-
-    // Calcular subtotal y total neto
-    final subtotal = totalBruto - debe;
+    final debe = _parse(empleado['debe']);
+    final comedor = _parse(empleado['comedor']);
+    final subtotal = totalBruto + debe; // NUEVA REGLA: debe suma
     final totalNeto = subtotal - comedor;
 
-    // Actualizar empleado
     empleado['total'] = totalBruto;
     empleado['subtotal'] = subtotal;
     empleado['totalNeto'] = totalNeto;
@@ -164,7 +130,7 @@ class _TablaUnificadaNominaState extends State<TablaUnificadaNomina> {
     
     // Procesar según el tipo de campo
     if (['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo', 'debe', 'tarifa'].contains(campo)) {
-      valorProcesado = int.tryParse(nuevoValor) ?? 0;
+      valorProcesado = double.tryParse(nuevoValor.replaceAll(',', '.')) ?? 0.0;
     } else if (campo == 'comedor') {
       // Comedor puede ser booleano o entero
       if (nuevoValor.toLowerCase() == 'true' || nuevoValor == '1') {
@@ -172,7 +138,7 @@ class _TablaUnificadaNominaState extends State<TablaUnificadaNomina> {
       } else if (nuevoValor.toLowerCase() == 'false' || nuevoValor == '0') {
         valorProcesado = false;
       } else {
-        valorProcesado = int.tryParse(nuevoValor) ?? 0;
+        valorProcesado = double.tryParse(nuevoValor.replaceAll(',', '.')) ?? 0.0;
       }
     } else {
       valorProcesado = nuevoValor;
@@ -251,7 +217,7 @@ class _TablaUnificadaNominaState extends State<TablaUnificadaNomina> {
           color: colorFondo ?? Colors.grey.shade50,
         ),
         child: Text(
-          valor is int ? _formatoMoneda.format(valor) : valor.toString(),
+          (valor is num) ? _formatoMoneda.format(valor) : valor.toString(),
           textAlign: TextAlign.center,
           style: const TextStyle(
             fontSize: 14,

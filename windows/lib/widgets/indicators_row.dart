@@ -23,17 +23,27 @@ class IndicatorsRow extends StatelessWidget {
     final numDays = (endDate != null && startDate != null)
         ? endDate!.difference(startDate!).inDays + 1
         : 7;
-    
+
+    num _parseNum(dynamic v) {
+      if (v == null) return 0.0;
+      if (v is num) return v;
+      if (v is String) return double.tryParse(v.replaceAll(',', '.')) ?? 0.0;
+      return 0.0;
+    }
+
     final total = List.generate(
       numDays,
-      (i) => int.tryParse(emp['dia_$i']?.toString() ?? '0') ?? 0,
-    ).reduce((a, b) => a + b);
-    
-    final debe = int.tryParse(emp['debe']?.toString() ?? '0') ?? 0;
-    final subtotal = total - debe;
-    final comedorValue = (emp['comedor'] == true) ? 400 : 0;
+      (i) => _parseNum(emp['dia_${i}_s'] ?? emp['dia_$i']),
+    ).fold<double>(0.0, (a, b) => a + b);
+
+    final debe = _parseNum(emp['debe']);
+    final comedorValue = emp['comedor'] == true
+        ? 400.0
+        : _parseNum(emp['comedor']);
+
+    // Nueva regla: 'debe' (otras percepciones) se SUMA al subtotal
+    final subtotal = total + debe;
     final totalNeto = subtotal - comedorValue;
-    
     return totalNeto.toDouble();
   }
 
@@ -78,7 +88,7 @@ class IndicatorsRow extends StatelessWidget {
           Expanded(
             child: IndicatorCard(
               title: 'Acumulado',
-              value: '\$${_calcularAcumuladoCuadrilla().toStringAsFixed(2)}',
+              value: '\$${_calcularAcumuladoCuadrilla().toStringAsFixed(2)}', // punto decimal
               icon: Icons.payments,
             ),
           ),
@@ -86,7 +96,7 @@ class IndicatorsRow extends StatelessWidget {
           Expanded(
             child: IndicatorCard(
               title: 'Total semana',
-              value: '\$${_calcularTotalSemana().toStringAsFixed(2)}',
+              value: '\$${_calcularTotalSemana().toStringAsFixed(2)}', // punto decimal
               icon: Icons.monetization_on,
             ),
           ),

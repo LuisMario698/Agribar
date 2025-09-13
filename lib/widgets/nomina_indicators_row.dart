@@ -108,19 +108,15 @@ class _NominaIndicatorsRowState extends State<NominaIndicatorsRow> {
     }
     
     // Solo sumar las celdas "S", ignorar las celdas "ID"
-    final total = List.generate(
-      numDays,
-      (i) => _safeParseNum(emp['dia_${i}_s']).toInt(),
-    ).reduce((a, b) => a + b);
-    
+    double total = 0.0;
+    for (int i = 0; i < numDays; i++) {
+      total += _safeParseNum(emp['dia_${i}_s']).toDouble();
+    }
     final debe = _safeParseNum(emp['debe']).toDouble();
-    final subtotal = total - debe;
-    
-    // Usar el valor numérico del comedor con conversión segura
     final comedorValue = _safeParseNum(emp['comedor']).toDouble();
+    final subtotal = total + debe; // ✅ Nueva regla
     final totalNeto = subtotal - comedorValue;
-    
-    return totalNeto.toDouble();
+    return totalNeto;
   }
 
   /// Calcula el acumulado de la cuadrilla actual

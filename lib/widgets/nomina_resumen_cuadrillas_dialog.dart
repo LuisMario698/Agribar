@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'dart:io';
 import 'package:excel/excel.dart' as ExcelLib;
-import 'package:path_provider/path_provider.dart';
+// import 'package:path_provider/path_provider.dart'; // removido (no se utiliza)
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:file_picker/file_picker.dart';
@@ -33,6 +33,24 @@ class _ResumenCuadrillasDialogState extends State<ResumenCuadrillasDialog> {
   bool _generandoExcel = false;
   bool _excelGenerado = false; // Variable para rastrear si se ha exportado Excel
   bool _generandoPdf = false; // Variable para rastrear si se está generando PDF de cheques
+
+  // ===== Helpers nuevos para migración a double =====
+  double _toDouble(dynamic v) {
+    if (v == null) return 0.0;
+    if (v is double) return v;
+    if (v is int) return v.toDouble();
+    if (v is String) {
+      final cleaned = v.replaceAll(',', '.').replaceAll(RegExp(r'[^0-9\.-]'), '');
+      return double.tryParse(cleaned) ?? 0.0;
+    }
+    return 0.0;
+  }
+
+  String _fmt(dynamic v) {
+    final d = _toDouble(v);
+  // Forzar punto decimal
+  return NumberFormat('0.00', 'en_US').format(double.parse(d.toStringAsFixed(2))); // sin separador miles
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -452,7 +470,7 @@ class _ResumenCuadrillasDialogState extends State<ResumenCuadrillasDialog> {
                           ],
                         ),
                         Text(
-                          '\$${totalGeneral.toStringAsFixed(2)}',
+                          '\$${_fmt(totalGeneral)}',
                           style: const TextStyle(
                             fontSize: 20, // Reducido de 24 a 20
                             fontWeight: FontWeight.bold,
@@ -651,7 +669,7 @@ class _ResumenCuadrillasDialogState extends State<ResumenCuadrillasDialog> {
                     borderRadius: BorderRadius.circular(16), // Reducido de 20 a 16
                   ),
                   child: Text(
-                    '\$${total.toStringAsFixed(2)}',
+                    '\$${_fmt(total)}',
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -786,7 +804,7 @@ class _ResumenCuadrillasDialogState extends State<ResumenCuadrillasDialog> {
                               ),
                               // Total neto
                               Text(
-                                '\$${neto.toStringAsFixed(2)}',
+                                '\$${_fmt(neto)}',
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 13, // Reducido de 14 a 13
@@ -823,7 +841,7 @@ class _ResumenCuadrillasDialogState extends State<ResumenCuadrillasDialog> {
                               ),
                             ),
                             Text(
-                              '\$${total.toStringAsFixed(2)}',
+                              '\$${_fmt(total)}',
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 15, // Reducido de 16 a 15
@@ -844,16 +862,8 @@ class _ResumenCuadrillasDialogState extends State<ResumenCuadrillasDialog> {
   }
 
   /// Función auxiliar para convertir valores de manera segura a double
-  double _parseToDouble(dynamic value) {
-    if (value == null) return 0.0;
-    if (value is num) return value.toDouble();
-    if (value is String) {
-      // Remover formatos de moneda y convertir
-      final cleanValue = value.replaceAll(RegExp(r'[^\d.]'), '');
-      return double.tryParse(cleanValue) ?? 0.0;
-    }
-    return 0.0;
-  }
+  // Mantener compatibilidad: alias al nuevo helper
+  double _parseToDouble(dynamic value) => _toDouble(value);
 
   /// Convertir cantidad a letras en formato mexicano
   String _convertirCantidadALetras(double cantidad) {
@@ -910,20 +920,20 @@ class _ResumenCuadrillasDialogState extends State<ResumenCuadrillasDialog> {
     return 'CANTIDAD MUY GRANDE';
   }
 
-  /// Función auxiliar para formatear dinero de manera segura sin usar NumberFormat
-  String _formatearDineroSeguro(double value) {
-    try {
-      // Eliminar decimales si es un número entero
-      if (value == value.toInt()) {
-        return '\$${value.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}';
-      } else {
-        return '\$${value.toStringAsFixed(2).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}';
-      }
-    } catch (e) {
-      print('❌ Error al formatear dinero: $e, valor: $value');
-      return '\$${value.toInt()}'; // Fallback seguro
-    }
-  }
+  // /// Función auxiliar para formatear dinero de manera segura sin usar NumberFormat
+  // String _formatearDineroSeguro(double value) {
+  //   try {
+  //     // Eliminar decimales si es un número entero
+  //     if (value == value.toInt()) {
+  //       return '\$${value.toInt().toString().replaceAllMapped(RegExp(r'(\\d{1,3})(?=(\\d{3})+(?!\\d))'), (Match m) => '${m[1]},')}';
+  //     } else {
+  //       return '\$${value.toStringAsFixed(2).replaceAllMapped(RegExp(r'(\\d{1,3})(?=(\\d{3})+(?!\\d))'), (Match m) => '${m[1]},')}';
+  //     }
+  //   } catch (e) {
+  //     print('❌ Error al formatear dinero: $e, valor: $value');
+  //     return '\$${value.toInt()}'; // Fallback seguro
+  //   }
+  // }
 
   Future<void> _generarExcel() async {
     setState(() => _generandoExcel = true);
@@ -1667,29 +1677,20 @@ class _ResumenCuadrillasDialogState extends State<ResumenCuadrillasDialog> {
       sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: currentRow - 1)).value = 'Empleado';
       col++;
       
-      // Días de la semana
-      final diasSemana = ['Jue', 'Vie', 'Sáb', 'Dom', 'Lun', 'Mar', 'Mié'];
-      final fechasDias = ['3/7', '4/7', '5/7', '6/7', '7/7', '8/7', '2/7'];
+  // Días de la semana (calculados dinámicamente más abajo)
       
-      if (widget.fechaInicio != null && widget.fechaFin != null) {
-        for (int i = 0; i < 7; i++) {
-          final fecha = widget.fechaInicio.add(Duration(days: i));
-          final diaReal = DateFormat('EEE', 'es').format(fecha).toLowerCase();
-          final fechaReal = DateFormat('d/M').format(fecha);
-          sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: currentRow - 1)).value = '$diaReal\n$fechaReal';
-          col++;
-        }
-      } else {
-        for (int i = 0; i < 7; i++) {
-          sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: currentRow - 1)).value = '${diasSemana[i]}\n${fechasDias[i]}';
-          col++;
-        }
+      for (int i = 0; i < 7; i++) {
+        final fecha = widget.fechaInicio.add(Duration(days: i));
+        final diaReal = DateFormat('EEE', 'es').format(fecha).toLowerCase();
+        final fechaReal = DateFormat('d/M').format(fecha);
+        sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: currentRow - 1)).value = '$diaReal\n$fechaReal';
+        col++;
       }
       
       // Columnas de totales
       sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: currentRow - 1)).value = 'Total';
       col++;
-      sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: currentRow - 1)).value = 'Debe';
+  sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: currentRow - 1)).value = 'Otras percepciones';
       col++;
       sheet.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: currentRow - 1)).value = 'Subtotal';
       col++;
@@ -1921,27 +1922,18 @@ class _ResumenCuadrillasDialogState extends State<ResumenCuadrillasDialog> {
       colCuadrilla++;
       
       // Días de la semana
-      if (widget.fechaInicio != null && widget.fechaFin != null) {
-        for (int i = 0; i < 7; i++) {
-          final fecha = widget.fechaInicio.add(Duration(days: i));
-          final diaReal = DateFormat('EEE', 'es').format(fecha).toLowerCase();
-          final fechaReal = DateFormat('d/M').format(fecha);
-          sheetCuadrilla.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: colCuadrilla - 1, rowIndex: currentRowCuadrilla - 1)).value = '$diaReal\n$fechaReal';
-          colCuadrilla++;
-        }
-      } else {
-        final diasSemana = ['Jue', 'Vie', 'Sáb', 'Dom', 'Lun', 'Mar', 'Mié'];
-        final fechasDias = ['3/7', '4/7', '5/7', '6/7', '7/7', '8/7', '2/7'];
-        for (int i = 0; i < 7; i++) {
-          sheetCuadrilla.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: colCuadrilla - 1, rowIndex: currentRowCuadrilla - 1)).value = '${diasSemana[i]}\n${fechasDias[i]}';
-          colCuadrilla++;
-        }
+      for (int i = 0; i < 7; i++) {
+        final fecha = widget.fechaInicio.add(Duration(days: i));
+        final diaReal = DateFormat('EEE', 'es').format(fecha).toLowerCase();
+        final fechaReal = DateFormat('d/M').format(fecha);
+        sheetCuadrilla.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: colCuadrilla - 1, rowIndex: currentRowCuadrilla - 1)).value = '$diaReal\n$fechaReal';
+        colCuadrilla++;
       }
       
       // Columnas de totales
       sheetCuadrilla.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: colCuadrilla - 1, rowIndex: currentRowCuadrilla - 1)).value = 'Total';
       colCuadrilla++;
-      sheetCuadrilla.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: colCuadrilla - 1, rowIndex: currentRowCuadrilla - 1)).value = 'Debe';
+  sheetCuadrilla.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: colCuadrilla - 1, rowIndex: currentRowCuadrilla - 1)).value = 'Otras percepciones';
       colCuadrilla++;
       sheetCuadrilla.cell(ExcelLib.CellIndex.indexByColumnRow(columnIndex: colCuadrilla - 1, rowIndex: currentRowCuadrilla - 1)).value = 'Subtotal';
       colCuadrilla++;

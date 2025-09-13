@@ -96,31 +96,27 @@ class _NominaIndicatorsRowState extends State<NominaIndicatorsRow> {
     final numDays = (widget.endDate != null && widget.startDate != null)
         ? widget.endDate!.difference(widget.startDate!).inDays + 1
         : 7;
-    
-    // 🔧 Función auxiliar para convertir valores de manera segura
-    num _safeParseNum(dynamic value) {
-      if (value == null) return 0;
+
+    num _parse(dynamic value) {
+      if (value == null) return 0.0;
       if (value is num) return value;
       if (value is String) {
-        return num.tryParse(value) ?? 0;
+        final cleaned = value.replaceAll(',', '.');
+        return double.tryParse(cleaned) ?? 0.0;
       }
-      return 0;
+      return 0.0;
     }
-    
-    // Solo sumar las celdas "S", ignorar las celdas "ID"
+
     final total = List.generate(
       numDays,
-      (i) => _safeParseNum(emp['dia_${i}_s']).toInt(),
-    ).reduce((a, b) => a + b);
-    
-    final debe = _safeParseNum(emp['debe']).toDouble();
-    final subtotal = total - debe;
-    
-    // Usar el valor numérico del comedor con conversión segura
-    final comedorValue = _safeParseNum(emp['comedor']).toDouble();
+      (i) => _parse(emp['dia_${i}_s'] ?? emp['dia_$i']),
+    ).fold<double>(0.0, (a, b) => a + b);
+
+    final debe = _parse(emp['debe']);
+    final comedorValue = emp['comedor'] == true ? 400.0 : _parse(emp['comedor']);
+    final subtotal = total + debe; // Nueva regla: debe suma
     final totalNeto = subtotal - comedorValue;
-    
-    return totalNeto.toDouble();
+    return totalNeto;
   }
 
   /// Calcula el acumulado de la cuadrilla actual
@@ -130,12 +126,13 @@ class _NominaIndicatorsRowState extends State<NominaIndicatorsRow> {
     
     // 🔧 Función auxiliar para convertir valores de manera segura
     num _safeParseNum(dynamic value) {
-      if (value == null) return 0;
+      if (value == null) return 0.0;
       if (value is num) return value;
       if (value is String) {
-        return num.tryParse(value) ?? 0;
+        final cleaned = value.replaceAll(',', '.');
+        return double.tryParse(cleaned) ?? 0.0;
       }
-      return 0;
+      return 0.0;
     }
 
     double total = 0.0;
@@ -143,8 +140,8 @@ class _NominaIndicatorsRowState extends State<NominaIndicatorsRow> {
     for (var emp in widget.empleadosFiltrados) {
       // Usar el totalNeto ya calculado en el empleado si existe y es válido
       if (emp['totalNeto'] != null) {
-        final totalNeto = _safeParseNum(emp['totalNeto']).toDouble();
-        total += totalNeto;
+  final totalNeto = _safeParseNum(emp['totalNeto']);
+  total += totalNeto.toDouble();
       } else {
         // Si no existe totalNeto, calcularlo aquí como fallback
         final calculatedTotal = _calcularTotalEmpleado(emp);

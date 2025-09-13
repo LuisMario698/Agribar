@@ -228,7 +228,7 @@ class _NuevaTablaEditableState extends State<NuevaTablaEditable> {
     print('  debe: $debeOriginal (${debeOriginal.runtimeType}) -> $debe');
     print('  comedor: $comedorOriginal (${comedorOriginal.runtimeType}) -> $comedor');
     
-    final subtotal = total - debe;
+  final subtotal = total + debe; // ✅ Nueva regla de negocio: debe suma
     final totalNeto = subtotal - comedor;
     
     print('  🎯 RESULTADO FINAL: total=$total, subtotal=$subtotal, totalNeto=$totalNeto');

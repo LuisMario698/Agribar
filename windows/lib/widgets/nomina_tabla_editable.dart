@@ -492,9 +492,9 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
   }
 
   /// Calcula los totales de un empleado específico
-  Map<String, int> _calcularTotalesEmpleado(Map<String, dynamic> empleado) {
+  Map<String, double> _calcularTotalesEmpleado(Map<String, dynamic> empleado) {
     final diasCount = widget.semanaSeleccionada?.duration.inDays ?? 6;
-    int total = 0;
+    double total = 0.0;
     
     print('🔍 DEBUG - Calculando totales para: ${empleado['nombre']} (isExpanded: ${widget.isExpanded})');
     
@@ -504,70 +504,71 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
       final key = 'dia_${i}_s';
       if (empleado.containsKey(key) && empleado[key] != null) {
         final valorOriginal = empleado[key];
-        final valor = _convertirAEntero(valorOriginal);
+        final valor = _convertirADouble(valorOriginal);
         if (valor > 0) {
-          diasEncontrados.add('$key=$valor');
+          diasEncontrados.add('$key=${valor.toStringAsFixed(2)}');
           total += valor;
         }
-        print('  $key: $valorOriginal (${valorOriginal.runtimeType}) -> $valor');
+        print('  $key: $valorOriginal (${valorOriginal.runtimeType}) -> ${valor.toStringAsFixed(2)}');
       }
     }
     
     print('  Días encontrados (${diasEncontrados.length}): ${diasEncontrados.join(', ')}');
-    print('  Total de días: $total');
+    print('  Total de días: ${total.toStringAsFixed(2)}');
     
     // ESTRATEGIA 2: Si no hay suficientes días individuales o total es 0, 
     // buscar también en formato alternativo de BD
-    if (total == 0 || diasEncontrados.length < 3) {
+    if (total == 0.0 || diasEncontrados.length < 3) {
       print('  🔄 Buscando formatos alternativos...');
       final formatosAlternativos = [
         'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo',
         'day_0', 'day_1', 'day_2', 'day_3', 'day_4', 'day_5', 'day_6',
       ];
       
-      int totalAlternativo = 0;
+      double totalAlternativo = 0.0;
       List<String> alternativosEncontrados = [];
       
       for (String formato in formatosAlternativos) {
         if (empleado.containsKey(formato) && empleado[formato] != null) {
           final valorOriginal = empleado[formato];
-          final valor = _convertirAEntero(valorOriginal);
+          final valor = _convertirADouble(valorOriginal);
           if (valor > 0) {
-            alternativosEncontrados.add('$formato=$valor');
+            alternativosEncontrados.add('$formato=${valor.toStringAsFixed(2)}');
             totalAlternativo += valor;
           }
-          print('  $formato (alternativo): $valorOriginal -> $valor');
+          print('  $formato (alternativo): $valorOriginal -> ${valor.toStringAsFixed(2)}');
         }
       }
       
       if (totalAlternativo > total) {
         total = totalAlternativo;
-        print('  ✅ Usando total alternativo: $total (formatos: ${alternativosEncontrados.join(', ')})');
+        print('  ✅ Usando total alternativo: ${total.toStringAsFixed(2)} (formatos: ${alternativosEncontrados.join(', ')})');
       }
     }
     
     // ESTRATEGIA 3: ÚLTIMO RECURSO - Si aún no hay datos de días, usar total existente de BD
-    if (total == 0 && empleado.containsKey('total') && empleado['total'] != null) {
+    if (total == 0.0 && empleado.containsKey('total') && empleado['total'] != null) {
       final totalOriginal = empleado['total'];
-      final totalBD = _convertirAEntero(totalOriginal);
+      final totalBD = _convertirADouble(totalOriginal);
       if (totalBD > 0) {
         total = totalBD;
-        print('  ⚠️ Usando total desde BD (último recurso): $totalOriginal (${totalOriginal.runtimeType}) -> $total');
+        print('  ⚠️ Usando total desde BD (último recurso): $totalOriginal (${totalOriginal.runtimeType}) -> ${total.toStringAsFixed(2)}');
       }
     }
     
     final debeOriginal = empleado['debe'];
     final comedorOriginal = empleado['comedor'];
-    final debe = _convertirAEntero(debeOriginal);
-    final comedor = _convertirAEntero(comedorOriginal);
+    final debe = _convertirADouble(debeOriginal);
+    final comedor = _convertirADouble(comedorOriginal);
     
-    print('  debe: $debeOriginal (${debeOriginal.runtimeType}) -> $debe');
-    print('  comedor: $comedorOriginal (${comedorOriginal.runtimeType}) -> $comedor');
+    print('  debe: $debeOriginal (${debeOriginal.runtimeType}) -> ${debe.toStringAsFixed(2)}');
+    print('  comedor: $comedorOriginal (${comedorOriginal.runtimeType}) -> ${comedor.toStringAsFixed(2)}');
     
-    final subtotal = total - debe;
+    // NUEVA REGLA: 'debe' (otras percepciones) se suma al subtotal
+    final subtotal = total + debe;
     final totalNeto = subtotal - comedor;
     
-    print('  🎯 RESULTADO FINAL: total=$total, subtotal=$subtotal, totalNeto=$totalNeto');
+    print('  🎯 RESULTADO FINAL: total=${total.toStringAsFixed(2)}, subtotal=${subtotal.toStringAsFixed(2)}, totalNeto=${totalNeto.toStringAsFixed(2)}');
     print('  ═══════════════════════════════════════════════════════════════');
     
     return {
@@ -596,6 +597,33 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     return 0;
   }
 
+  /// Convierte cualquier valor a double de forma segura (para campos con decimales)
+  double _convertirADouble(dynamic valor) {
+    if (valor == null) return 0.0;
+    if (valor is double) return valor;
+    if (valor is int) return valor.toDouble();
+    if (valor is bool) return valor ? 400.0 : 0.0; // Para comedor si aún se maneja como bool en algún flujo
+    if (valor is String) {
+      final doubleValue = double.tryParse(valor);
+      if (doubleValue != null) return doubleValue;
+      final intValue = int.tryParse(valor);
+      if (intValue != null) return intValue.toDouble();
+      return 0.0;
+    }
+    return 0.0;
+  }
+
+  /// Parsea entrada de usuario (con símbolos, comas) a double con 2 decimales
+  double _parsearMoneda(String valor) {
+    if (valor.isEmpty) return 0.0;
+    final normalizado = valor
+        .replaceAll(' ', '')
+        .replaceAll(',', '.')
+        .replaceAll(RegExp(r'[^0-9\.-]'), '');
+    final parsed = double.tryParse(normalizado) ?? 0.0;
+    return double.parse(parsed.toStringAsFixed(2));
+  }
+
   /// Maneja cambios en los campos editables
   void _manejarCambio(int index, String campo, String valor) {
     if (widget.readOnly || index >= widget.empleados.length) return;
@@ -606,15 +634,13 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     
     // Actualizar el valor en el empleado
     if (campo == 'comedor') {
-      final valorEntero = _convertirAEntero(valor);
-      empleado[campo] = valorEntero;
-      print('  Comedor actualizado: $valorEntero');
+      final v = _parsearMoneda(valor);
+      empleado[campo] = v;
+      print('  Comedor actualizado -> ${v.toStringAsFixed(2)}');
     } else if (campo.contains('dia_') && campo.endsWith('_s')) {
-      // Para campos de días trabajados, asegurar que se guarde como entero
-      final valorLimpio = valor.replaceAll(RegExp(r'[^\d]'), '');
-      final valorEntero = int.tryParse(valorLimpio) ?? 0;
-      empleado[campo] = valorEntero; // Guardar como entero, no como string
-      print('  Campo $campo actualizado: $valorLimpio -> $valorEntero');
+      final v = _parsearMoneda(valor);
+      empleado[campo] = v;
+      print('  Campo $campo actualizado -> ${v.toStringAsFixed(2)}');
     } else if (campo.contains('dia_') && campo.endsWith('_id')) {
       // Para campos de ID de actividad - 🔧 CORREGIDO: usar "0" en lugar de null
       empleado[campo] = valor.isEmpty ? '0' : valor;
@@ -631,11 +657,9 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
       print('    Nombre encontrado: $nombreCampo');
       print('    Mapa de campos disponible: ${_camposMap.keys.join(', ')}');
     } else if (campo == 'debe') {
-      // Para debe, también guardar como entero
-      final valorLimpio = valor.replaceAll(RegExp(r'[^\d]'), '');
-      final valorEntero = int.tryParse(valorLimpio) ?? 0;
-      empleado[campo] = valorEntero;
-      print('  Debe actualizado: $valorLimpio -> $valorEntero');
+      final v = _parsearMoneda(valor);
+      empleado[campo] = v;
+      print('  Debe (otras percepciones) actualizado -> ${v.toStringAsFixed(2)}');
     } else {
       // Para otros campos, usar string limpio
       final valorLimpio = valor.replaceAll(RegExp(r'[^\d]'), '');
@@ -653,10 +677,10 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     }
     
     // Recalcular totales solo para este empleado
-    final totales = _calcularTotalesEmpleado(empleado);
-    empleado['total'] = totales['total'];
-    empleado['subtotal'] = totales['subtotal'];
-    empleado['totalNeto'] = totales['totalNeto'];
+  final totales = _calcularTotalesEmpleado(empleado);
+  empleado['total'] = totales['total'];
+  empleado['subtotal'] = totales['subtotal'];
+  empleado['totalNeto'] = totales['totalNeto'];
     
     // Actualizar cache
     _empleadosCalculados[index] = {
@@ -673,9 +697,9 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     widget.onChanged?.call(index, campo, empleado[campo]);
     
     // Notificar totales actualizados
-    widget.onChanged?.call(index, 'total', totales['total']);
-    widget.onChanged?.call(index, 'subtotal', totales['subtotal']);
-    widget.onChanged?.call(index, 'totalNeto', totales['totalNeto']);
+  widget.onChanged?.call(index, 'total', totales['total']);
+  widget.onChanged?.call(index, 'subtotal', totales['subtotal']);
+  widget.onChanged?.call(index, 'totalNeto', totales['totalNeto']);
     
     print('✅ Cambio procesado completamente');
   }
@@ -888,7 +912,7 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
         }
         
         // Verificar si hay datos en el día anterior para activar el botón
-        final bool hayDatosAnterior = i > 0 ? _hayDatosEnDia(i - 1) : false;
+  // Eliminado hayDatosAnterior (no usado tras refactor a double)
         
         return DataColumn(
           label: Container(
@@ -1265,7 +1289,7 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     // Modo expandido: ID, Salario y campo adicional con labels
     return DataCell(
       SizedBox(
-        width: 240,
+  width: 300, // ancho aumentado sincronizado con versión lib
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
