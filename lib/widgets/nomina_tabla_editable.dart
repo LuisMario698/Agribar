@@ -90,7 +90,9 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
   Map<String, String> _actividadesMap = {}; // ID -> nombre
   Map<String, String> _claveAIdMap = {}; // clave -> ID  
   Map<String, String> _idAClaveMap = {}; // ID -> clave
+  Map<String, String> _idANombreMap = {}; // ID -> nombre directo
   Map<String, String> _claveANombreMap = {}; // clave -> nombre
+  bool _actividadesCargadas = false; // bandera para saber si ya tenemos mapas listos
 
   // Mapa para almacenar los campos
   Map<String, String> _camposMap = {};
@@ -106,24 +108,35 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
       setState(() {
         // Limpiar todos los mapas
         _actividadesMap.clear();
-        _claveAIdMap.clear();
-        _idAClaveMap.clear();
-        _claveANombreMap.clear();
+  _claveAIdMap.clear();
+  _idAClaveMap.clear();
+  _claveANombreMap.clear();
+  _idANombreMap.clear();
         
         for (var actividad in actividades) {
-          final id = (actividad['id'] ?? 0).toString();
+          final id = (actividad['id'] ?? actividad['id_actividad'] ?? actividad['ID'] ?? actividad['idActividad'] ?? 0).toString();
           final nombre = actividad['nombre']?.toString() ?? 'Sin nombre';
           final clave = actividad['clave']?.toString() ?? '';
-          
-          // Mapas para compatibilidad y conversión
-          _actividadesMap[id] = '${clave} - ${nombre}'; // Original
-          _claveAIdMap[clave] = id; // clave -> ID (para conversión al guardar)
-          _idAClaveMap[id] = clave; // ID -> clave (para mostrar en interfaz)
-          _claveANombreMap[clave] = nombre; // clave -> nombre (para mostrar nombre)
-          
-          print('  Mapeando - Clave: $clave -> ID: $id -> Nombre: $nombre');
+
+          // Registrar siempre por ID
+          _actividadesMap[id] = '${clave} - ${nombre}';
+          _idANombreMap[id] = nombre;
+
+          // Si hay clave, registrar también usando la clave como llave para permitir entrada por clave
+          if (clave.isNotEmpty) {
+            _actividadesMap.putIfAbsent(clave, () => '${clave} - ${nombre}');
+            _idANombreMap.putIfAbsent(clave, () => nombre);
+            _claveAIdMap[clave] = id; // clave -> id
+            _idAClaveMap[id] = clave; // id -> clave
+            _claveANombreMap[clave] = nombre; // clave -> nombre
+          }
+
+          print('  Mapeando actividad -> ID: $id | Clave: $clave | Nombre: $nombre');
         }
       });
+      // 🔁 Tras cargar actividades, volver a normalizar claves en empleados (por si se ejecutó initState antes de tener mapas)
+      _normalizarClavesEmpleados();
+  _actividadesCargadas = true;
       
       print('✅ Actividades cargadas exitosamente:');
       print('  Total actividades: ${_actividadesMap.length}');
@@ -136,8 +149,39 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     } catch (e, stackTrace) {
       print('❌ Error al cargar actividades: $e');
       print('Stack trace: $stackTrace');
+      _actividadesCargadas = false;
     }
   }
+
+  /// Normaliza los valores de dia_X_id: si están como ID los convierte a clave usando los mapas ya cargados
+  void _normalizarClavesEmpleados() {
+    if (_idAClaveMap.isEmpty) return; // Nada que hacer si no hay mapas
+    int convertidos = 0;
+    for (final emp in widget.empleados) {
+      for (int i = 0; i <= 6; i++) {
+        final key = 'dia_${i}_id';
+        final raw = emp[key];
+        if (raw == null) continue;
+        final s = raw.toString();
+        if (s.isEmpty || s == '0') continue;
+        
+        // Si es un ID interno y no es una clave válida, convertir a clave
+        if (!_claveANombreMap.containsKey(s) && _idAClaveMap.containsKey(s)) {
+          final nuevaClave = _idAClaveMap[s];
+          if (nuevaClave != null && nuevaClave.isNotEmpty) {
+            emp[key] = nuevaClave; // Reemplazar ID por clave
+            convertidos++;
+          }
+        }
+      }
+    }
+    if (convertidos > 0) {
+      print('🔁 Normalización posterior: convertidos $convertidos IDs a claves.');
+      if (mounted && !_isDisposed) setState(() {});
+    }
+  }
+
+
 
   // 🔑 Funciones auxiliares que usan las funciones del widget padre
   // (Funciones removidas por no estar en uso)
@@ -181,18 +225,34 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     }
   }
 
-  /// Obtiene el nombre de una actividad por su clave
-  String _obtenerNombreActividad(String? clave) {
-    if (clave == null || clave.isEmpty || clave == '0') {
-      return '';
-    }
-    return _claveANombreMap[clave] ?? '';
-  }
+  // (Eliminado _obtenerNombreActividad: ya no se usa en el modelo basado en IDs directos)
   
   @override
   void initState() {
     super.initState();
     print('🏁 DEBUG - initState llamado: isExpanded=${widget.isExpanded}, empleados=${widget.empleados.length}');
+
+    // Normalizar: asegurar que dia_X_id contenga siempre CLAVES (no IDs internos)
+    for (final emp in widget.empleados) {
+      for (int i = 0; i <= 6; i++) {
+        final k = 'dia_${i}_id';
+        if (!emp.containsKey(k)) continue;
+        final raw = emp[k];
+        if (raw == null) continue;
+        final s = raw.toString();
+        if (s.isEmpty || s == '0') continue;
+        
+        // Si es un ID interno (y tenemos el mapeo), convertir a clave
+        if (_idAClaveMap.containsKey(s)) {
+          final clave = _idAClaveMap[s];
+          if (clave != null && clave.isNotEmpty) {
+            emp[k] = clave;
+          }
+        }
+        // Si ya es una clave válida, mantener como está
+        // Si no es ni ID ni clave válida, se mantendrá el valor original
+      }
+    }
 
     // Listeners para sincronizar scroll vertical entre tablas (solo se usarán en modo expandido)
     _verticalScrollLeft.addListener(() {
@@ -782,24 +842,34 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
       empleado[campo] = v;
       print('  Campo $campo actualizado -> ${v.toStringAsFixed(2)}');
     } else if (campo.contains('dia_') && campo.endsWith('_id')) {
-      // Para campos de clave de actividad - guardar la clave tal como está
-      empleado[campo] = valor.isEmpty ? '0' : valor;
-      final nombre = _obtenerNombreActividad(valor);
+      // Ahora se almacena la CLAVE directamente (no el ID interno)
+      final soloDigitos = valor.replaceAll(RegExp(r'[^0-9]'), '');
+      final clave = soloDigitos.isEmpty ? '0' : soloDigitos;
+      empleado[campo] = clave;
+      
+      // Obtener nombre usando la clave
+      String nombre = '';
+      if (clave != '0' && _claveANombreMap.containsKey(clave)) {
+        nombre = _claveANombreMap[clave]!;
+      } else if (clave != '0' && _actividadesCargadas) {
+        nombre = 'no existe';
+      }
+      
       print('  Campo actividad actualizado:');
-      print('    Clave: "$valor"');
-      print('    Nombre encontrado: "$nombre"');
-      print('    ¿Existe en mapa?: ${_claveANombreMap.containsKey(valor)}');
-      if (!_claveANombreMap.containsKey(valor) && valor != '0' && valor.isNotEmpty) {
-        print('    ⚠️ CLAVE NO ENCONTRADA - Claves disponibles: ${_claveANombreMap.keys.take(10).join(', ')}...');
+      print('    Clave almacenada: $clave');
+      print('    Nombre: "$nombre"');
+      if (clave != '0' && nombre.isEmpty && _actividadesCargadas) {
+        print('    ⚠️ Clave no encontrada. Claves disponibles: ${_claveANombreMap.keys.take(10).join(', ')}');
       }
     } else if (campo.contains('dia_') && campo.endsWith('_campo')) {
-      // Para el campo "campo" - 🔧 CORREGIDO: usar "0" en lugar de null
-      empleado[campo] = valor.isEmpty ? '0' : valor;
-      final nombreCampo = _camposMap[valor] ?? '';
+      // Campo (rancho) como entero
+      final soloDigitos = valor.replaceAll(RegExp(r'[^0-9]'), '');
+      final campoInt = int.tryParse(soloDigitos.isEmpty ? '0' : soloDigitos) ?? 0;
+      empleado[campo] = campoInt;
+      final nombreCampo = _camposMap[campoInt.toString()] ?? '';
       print('  Campo rancho actualizado:');
-      print('    ID: $valor');
+      print('    ID(int): $campoInt');
       print('    Nombre encontrado: $nombreCampo');
-      print('    Mapa de campos disponible: ${_camposMap.keys.join(', ')}');
     } else if (campo == 'debe') {
       double v = _parsearMoneda(valor);
       v = _autoCorregirEscala(v, valor);
@@ -918,14 +988,14 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
       final campoAnterior = empleado['dia_${diaAnterior}_campo']?.toString() ?? '';
       
       print('  🔍 Valores originales del día $diaAnterior:');
-      print('    - actividad: ${empleado['dia_${diaAnterior}_id']} (${empleado['dia_${diaAnterior}_id']?.runtimeType})');
+      print('    - actividad (clave): ${empleado['dia_${diaAnterior}_id']} (${empleado['dia_${diaAnterior}_id']?.runtimeType})');
       print('    - sueldo: ${empleado['dia_${diaAnterior}_s']} (${empleado['dia_${diaAnterior}_s']?.runtimeType})');
       print('    - campo: ${empleado['dia_${diaAnterior}_campo']} (${empleado['dia_${diaAnterior}_campo']?.runtimeType})');
       
       // Solo duplicar si hay datos en el día anterior
-      bool hayDatosAnterior = actividadAnterior.isNotEmpty ||
+      bool hayDatosAnterior = (actividadAnterior.isNotEmpty && actividadAnterior != '0') ||
                              sueldoAnteriorCheck > 0 ||
-                             campoAnterior.isNotEmpty;
+                             (campoAnterior.isNotEmpty && campoAnterior != '0');
       
       if (hayDatosAnterior) {
         print('  📋 Duplicando datos de $nombre:');
@@ -1144,6 +1214,32 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
   String _formatearNumero(dynamic valor) {
     final decimal = _convertirADouble(valor);
     return decimal.toStringAsFixed(2); // Siempre 2 decimales para consistencia
+  }
+
+  /// Formatea un valor de campo/id (actividad o campo) como entero sin decimales.
+  /// Si viene como double terminado en .0 (p.ej. 1306.0) lo convierte a '1306'.
+  /// Si es 0 o null retorna cadena vacía para mantener UX de celda vacía.
+  String _formatearIdOCampo(dynamic valor) {
+    if (valor == null) return '';
+    if (valor is int) {
+      if (valor == 0) return '';
+      return valor.toString();
+    }
+    if (valor is double) {
+      if (valor == 0) return '';
+      if (valor % 1 == 0) {
+        return valor.toInt().toString();
+      }
+      // Si por algún motivo trae decimales, truncar presentación a entero sin romper dato interno
+      return valor.toStringAsFixed(0);
+    }
+    // Si es string numérica con .0 limpiarlo
+    final s = valor.toString();
+    if (s == '0') return '';
+    if (RegExp(r'^\d+\.0$').hasMatch(s)) {
+      return s.split('.').first;
+    }
+    return s;
   }
 
   /// Construye las columnas de la tabla
@@ -1563,19 +1659,23 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
       );
     }
 
-    // Usar 'dia_X_id' para obtener la clave de actividad ingresada por el usuario
-    final actividadClave = empleado['dia_${diaIndex}_id']?.toString();
-    final nombreActividad = _claveANombreMap[actividadClave] ?? '';
+    // Interpretar 'dia_X_id' como CLAVE de actividad (no ID interno)
+    final actividadClave = empleado['dia_${diaIndex}_id'];
     String actividadNombre;
-    
-    if (actividadClave == null || actividadClave.isEmpty || actividadClave == '0') {
+    if (actividadClave == null || actividadClave.toString() == '0' || actividadClave.toString().isEmpty) {
       actividadNombre = 'actividad';
-    } else if (nombreActividad.isEmpty) {
-      // Si la clave no se encuentra en el mapa, mostrar "no existe"
-      actividadNombre = 'no existe';
     } else {
-      // Mostrar directamente el nombre de la actividad
-      actividadNombre = nombreActividad;
+      // Normalizar la clave: remover decimales si existen (ej: "1301.0" -> "1301")
+      final claveRaw = actividadClave.toString();
+      final clave = claveRaw.contains('.') ? claveRaw.split('.')[0] : claveRaw;
+      
+      // Buscar por clave normalizada
+      if (_claveANombreMap.containsKey(clave)) {
+        actividadNombre = _claveANombreMap[clave]!;
+      } else {
+        // Si no existe la clave, mostrar "no existe" solo si ya cargamos las actividades
+        actividadNombre = _actividadesCargadas ? 'no existe' : '...';
+      }
     }
     
     // Usar 'dia_X_campo' para el ID de campo y obtener solo el nombre
@@ -1594,15 +1694,15 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
       campoNombre = partes.length > 1 ? partes[1] : nombreCampo;
     }
     
-    print('📅 Día $diaIndex - Empleado $empleadoIndex:');
-    print('  Clave Actividad: $actividadClave -> Nombre: $actividadNombre');
+  print('📅 Día $diaIndex - Empleado $empleadoIndex:');
+  print('  Clave Actividad: ${actividadClave ?? ''} -> Nombre: $actividadNombre');
     print('  ID Campo: $campoId -> Nombre: $campoNombre');
     print('  Mapas cargados - Actividades: ${_claveANombreMap.length}, Campos: ${_camposMap.length}');
 
     // Modo expandido: ID, Salario y campo adicional con labels
     return DataCell(
       SizedBox(
-  width: kAnchoDiaExpanded,
+        width: kAnchoDiaExpanded,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -1678,11 +1778,15 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
             Row(
               children: [
                 Expanded(
-                  child: _construirWidgetEditable(
-                    empleadoIndex, 
-                    'dia_${diaIndex}_id', 
-                    empleado['dia_${diaIndex}_id'],
-                    esPequena: true,
+                  child: _CeldaEditableActividadConLabel(
+                    empleadoIndex: empleadoIndex,
+                    diaIndex: diaIndex,
+                    valorInicial: _formatearIdOCampo(empleado['dia_${diaIndex}_id']),
+                    focusNode: _focusNodes['${empleadoIndex}_dia_${diaIndex}_id'],
+                    onCambio: (valor) => _manejarCambio(empleadoIndex, 'dia_${diaIndex}_id', valor),
+                    onNavegacion: (event) => _manejarNavegacion(event, '${empleadoIndex}_dia_${diaIndex}_id'),
+                    claveANombreMap: _claveANombreMap,
+                    actividadesCargadas: _actividadesCargadas,
                   ),
                 ),
                 const SizedBox(width: 6),
@@ -1724,8 +1828,8 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     // 🔒 Solo editable en tabla expandida o si readOnly está desactivado
     final esEditable = widget.isExpanded && !widget.readOnly;
     
-    // Determinar si es un campo de texto (campo o actividad ID)
-    final esCampoTexto = campo.contains('_campo') || campo.contains('_id');
+  // Determinar si es un campo simple (actividad/campo). Aunque se almacena como int, se trata sin formato monetario.
+  final esCampoTexto = campo.contains('_campo') || campo.contains('_id');
     
     if (!esEditable) {
       return Container(
@@ -1741,7 +1845,7 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
         ),
         child: Text(
           esCampoTexto 
-            ? (valor?.toString() ?? '') 
+            ? _formatearIdOCampo(valor)
             : (mostrarMoneda ? _formatearMoneda(valor) : _formatearNumero(valor)),
           textAlign: TextAlign.center,
           style: TextStyle(
@@ -1754,9 +1858,7 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     }
 
     // Preparar valor para mostrar según el tipo de campo
-    final valorMostrar = esCampoTexto 
-      ? (valor?.toString() == '0' ? '' : valor?.toString() ?? '') 
-      : (valor?.toString() == '0' ? '' : valor?.toString() ?? '');
+  final valorMostrar = esCampoTexto ? _formatearIdOCampo(valor) : ((valor?.toString() ?? '') == '0' ? '' : valor?.toString() ?? '');
     
     // Crear clave única para el FocusNode
     final claveFocus = '${empleadoIndex}_${campo}';
@@ -2255,6 +2357,179 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
   }
 }
 
+/// Widget especializado para celdas de actividad que actualiza el label dinámicamente
+class _CeldaEditableActividadConLabel extends StatefulWidget {
+  final int empleadoIndex;
+  final int diaIndex;
+  final String valorInicial;
+  final FocusNode? focusNode;
+  final Function(String) onCambio;
+  final Function(KeyEvent) onNavegacion;
+  final Map<String, String> claveANombreMap;
+  final bool actividadesCargadas;
+
+  const _CeldaEditableActividadConLabel({
+    required this.empleadoIndex,
+    required this.diaIndex,
+    required this.valorInicial,
+    this.focusNode,
+    required this.onCambio,
+    required this.onNavegacion,
+    required this.claveANombreMap,
+    required this.actividadesCargadas,
+  });
+
+  @override
+  State<_CeldaEditableActividadConLabel> createState() => _CeldaEditableActividadConLabelState();
+}
+
+class _CeldaEditableActividadConLabelState extends State<_CeldaEditableActividadConLabel> {
+  late TextEditingController _controller;
+  late FocusNode _focusNode;
+  bool _isDisposed = false;
+
+  /// Normaliza el valor de actividad para remover decimales innecesarios
+  String _normalizarValorActividad(String valor) {
+    if (valor.isEmpty || valor == '0') return '';
+    // Si termina en .0, remover los decimales
+    if (valor.endsWith('.0')) {
+      return valor.substring(0, valor.length - 2);
+    }
+    return valor;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Normalizar el valor inicial para remover decimales innecesarios (.0)
+    final valorLimpio = _normalizarValorActividad(widget.valorInicial);
+    _controller = TextEditingController(text: valorLimpio);
+    _focusNode = widget.focusNode ?? FocusNode();
+    
+    _focusNode.addListener(() {
+      // Limpiar cuando focus y valor es '0'
+      if (_focusNode.hasFocus && _controller.text == '0') {
+        _controller.clear();
+      } 
+      // Poner '0' si está vacío al perder focus
+      else if (!_focusNode.hasFocus && _controller.text.isEmpty) {
+        _controller.text = '0';
+        widget.onCambio('0');
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(_CeldaEditableActividadConLabel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.valorInicial != widget.valorInicial && !_focusNode.hasFocus) {
+      _controller.text = _normalizarValorActividad(widget.valorInicial);
+    }
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    _controller.dispose();
+    // Solo dispose si creamos nosotros el FocusNode
+    if (widget.focusNode == null) {
+      _focusNode.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 55,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 4,
+            offset: Offset(0, 1),
+          ),
+        ],
+      ),
+      child: TextFormField(
+        controller: _controller,
+        focusNode: _focusNode,
+        textAlign: TextAlign.center,
+        keyboardType: TextInputType.number,
+        textInputAction: TextInputAction.next,
+        inputFormatters: [
+          FilteringTextInputFormatter.digitsOnly,
+          LengthLimitingTextInputFormatter(8),
+        ],
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: Colors.grey.shade700,
+        ),
+        decoration: InputDecoration(
+          contentPadding: EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 14,
+          ),
+          hintText: '0',
+          hintStyle: TextStyle(
+            color: Colors.grey.shade400,
+            fontSize: 13,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(color: Color(0xFF7BAE2F), width: 2.5),
+          ),
+          errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(color: Colors.red.shade400, width: 2),
+          ),
+          filled: true,
+          fillColor: _focusNode.hasFocus 
+            ? Color(0xFF7BAE2F).withOpacity(0.08)
+            : Colors.grey.shade50,
+        ),
+        onChanged: (valor) {
+          if (mounted && !_isDisposed) {
+            setState(() {}); // Para actualizar el color de fondo
+          }
+          
+          // Procesar el valor y notificar el cambio
+          final valorLimpio = valor.replaceAll(RegExp(r'[^0-9]'), '');
+          final valorFinal = valorLimpio.isEmpty ? '0' : valorLimpio;
+          widget.onCambio(valorFinal);
+        },
+        onTap: () {
+          if (mounted && !_isDisposed) {
+            setState(() {}); // Para actualizar el color de fondo
+          }
+        },
+        onFieldSubmitted: (value) {
+          widget.onNavegacion(KeyDownEvent(
+            timeStamp: Duration.zero,
+            physicalKey: PhysicalKeyboardKey.enter,
+            logicalKey: LogicalKeyboardKey.enter,
+            character: null,
+            synthesized: false,
+          ));
+        },
+        onEditingComplete: () {
+          // Prevenir el comportamiento predeterminado
+        },
+      ),
+    );
+  }
+}
+
 /// Widget editable con navegación por teclado
 class _CeldaEditableConNavegacion extends StatefulWidget {
   final String valorInicial;
@@ -2344,30 +2619,24 @@ class _CeldaEditableConNavegacionState extends State<_CeldaEditableConNavegacion
         controller: _controller,
         focusNode: _focusNode,
         textAlign: TextAlign.center,
-        keyboardType: widget.esCampoTexto ? TextInputType.text : TextInputType.numberWithOptions(decimal: true),
+        keyboardType: widget.esCampoTexto
+            ? TextInputType.number // ahora claves/ids solo dígitos
+            : const TextInputType.numberWithOptions(decimal: true),
         textInputAction: TextInputAction.next, // Esto permite manejar Enter
         inputFormatters: widget.esCampoTexto
             ? [
-                // Para campos de texto (claves): permitir letras, números y algunos símbolos
-                FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9\-_]')),
-                LengthLimitingTextInputFormatter(15),
+                // Solo dígitos para IDs (actividad y campo)
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(8),
               ]
             : [
-                // Para campos numéricos: dígitos y punto decimal
                 FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-                // Limitar a solo un punto decimal y máximo 2 decimales
                 TextInputFormatter.withFunction((oldValue, newValue) {
-                  // Contar cuántos puntos hay
                   final pointCount = '.'.allMatches(newValue.text).length;
-                  if (pointCount > 1) {
-                    return oldValue;
-                  }
-                  
-                  // Si hay un punto, verificar que no tenga más de 2 decimales
+                  if (pointCount > 1) return oldValue;
                   if (pointCount == 1) {
                     final parts = newValue.text.split('.');
                     if (parts.length == 2 && parts[1].length > 2) {
-                      // Truncar a 2 decimales
                       final truncated = '${parts[0]}.${parts[1].substring(0, 2)}';
                       return TextEditingValue(
                         text: truncated,
@@ -2375,7 +2644,6 @@ class _CeldaEditableConNavegacionState extends State<_CeldaEditableConNavegacion
                       );
                     }
                   }
-                  
                   return newValue;
                 }),
                 LengthLimitingTextInputFormatter(10),

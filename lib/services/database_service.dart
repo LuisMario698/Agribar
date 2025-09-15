@@ -885,26 +885,26 @@ Future<bool> cerrarSemanaEnBD(int idSemana, {String? autorizadoPor, List<Map<Str
                   dia_1, dia_2, dia_3, dia_4, dia_5, dia_6, dia_7,
                   act_1, act_2, act_3, act_4, act_5, act_6, act_7,
                   campo_1, campo_2, campo_3, campo_4, campo_5, campo_6, campo_7,
-                  total, debe, subtotal, comedor, fecha_cierre, usuario_cierre
+                  total, debe, subtotal, comedor, total_neto, fecha_cierre, usuario_cierre
                 ) VALUES (
                   @idEmpleado, @idSemana, @idCuadrilla,
                   @dia1, @dia2, @dia3, @dia4, @dia5, @dia6, @dia7,
                   @act1, @act2, @act3, @act4, @act5, @act6, @act7,
                   @campo1, @campo2, @campo3, @campo4, @campo5, @campo6, @campo7,
-                  @total, @debe, @subtotal, @comedor, CURRENT_TIMESTAMP, @usuarioCierre
+                  @total, @debe, @subtotal, @comedor, @totalNeto, CURRENT_TIMESTAMP, @usuarioCierre
                 );
               ''', substitutionValues: {
                 'idEmpleado': registro['id_empleado'],
                 'idSemana': idSemana,
                 'idCuadrilla': registro['id_cuadrilla'],
-                // Días (convertir null a 0)
-                'dia1': _parseDouble(registro['dia_1']).round(),
-                'dia2': _parseDouble(registro['dia_2']).round(),
-                'dia3': _parseDouble(registro['dia_3']).round(),
-                'dia4': _parseDouble(registro['dia_4']).round(),
-                'dia5': _parseDouble(registro['dia_5']).round(),
-                'dia6': _parseDouble(registro['dia_6']).round(),
-                'dia7': _parseDouble(registro['dia_7']).round(),  // ¡AGREGADO DIA_7!
+                // Días (conservar decimales - NO redondear)
+                'dia1': _parseDouble(registro['dia_1']),
+                'dia2': _parseDouble(registro['dia_2']),
+                'dia3': _parseDouble(registro['dia_3']),
+                'dia4': _parseDouble(registro['dia_4']),
+                'dia5': _parseDouble(registro['dia_5']),
+                'dia6': _parseDouble(registro['dia_6']),
+                'dia7': _parseDouble(registro['dia_7']),
                 // Actividades (convertir null a 0)
                 'act1': _parseInt(registro['act_1'] ?? 0),
                 'act2': _parseInt(registro['act_2'] ?? 0),
@@ -921,11 +921,12 @@ Future<bool> cerrarSemanaEnBD(int idSemana, {String? autorizadoPor, List<Map<Str
                 'campo5': registro['campo_5']?.toString() ?? "0",
                 'campo6': registro['campo_6']?.toString() ?? "0",
                 'campo7': registro['campo_7']?.toString() ?? "0",  // ¡AGREGADO CAMPO_7!
-                // Totales
-                'total': _parseDouble(registro['total']).round(),
-                'debe': _parseDouble(registro['debe']).round(),
-                'subtotal': _parseDouble(registro['subtotal']).round(),
-                'comedor': _parseDouble(registro['comedor']).round(),
+                // Totales (conservar decimales - NO redondear)
+                'total': _parseDouble(registro['total']),
+                'debe': _parseDouble(registro['debe']),
+                'subtotal': _parseDouble(registro['subtotal']),
+                'comedor': _parseDouble(registro['comedor']),
+                'totalNeto': _parseDouble(registro['total_neto']),
                 'usuarioCierre': autorizadoPor,
               });
               registrosInsertados++;

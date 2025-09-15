@@ -19,7 +19,6 @@ import '../widgets/nomina_week_selection_card.dart';
 import '../widgets/nomina_cuadrilla_selection_card.dart';
 import '../widgets/nomina_indicators_row.dart';
 import '../widgets/nomina_tabla_seccion_principal.dart';
-import '../widgets/nomina_tabla_editable.dart';
 import '../widgets/nomina_resumen_cuadrillas_dialog.dart';
 import '../widgets/nomina_export_section.dart';
 import '../widgets/nomina_flow_indicator.dart';
@@ -186,8 +185,9 @@ class _NominaScreenState extends State<NominaScreen>
       }
       
       await connection.close();
+      print('✅ Mapeo de actividades cargado: ${_claveAIdMap.length} claves disponibles');
     } catch (e) {
-      print('Error cargando mapping de actividades: $e');
+      print('❌ ERROR cargando mapping de actividades: $e');
     }
   }
   
@@ -217,26 +217,34 @@ class _NominaScreenState extends State<NominaScreen>
     return _idAClaveMap[id] ?? id.toString();
   }
 
-  /// Función inteligente para obtener el ID a guardar en la base de datos
-  /// Maneja tanto claves como IDs existentes
+  /// Obtener ID de actividad para guardar: la UI maneja CLAVE; si ya es ID numérico válido se acepta.
   int _obtenerIdParaGuardar(dynamic valor) {
     if (valor == null) return 0;
+    String s = valor.toString().trim();
+    if (s.isEmpty || s == '0') return 0;
     
-    final valorStr = valor.toString();
-    if (valorStr == '0' || valorStr.isEmpty) return 0;
-    
-    // Si el valor es una clave conocida, convertirla a ID
-    if (_claveAIdMap.containsKey(valorStr)) {
-      return _claveAIdMap[valorStr]!;
+    // 🔧 NORMALIZAR: Quitar '.0' si está presente (ej: "1301.0" → "1301")
+    if (s.endsWith('.0')) {
+      s = s.substring(0, s.length - 2);
     }
     
-    // Si es un ID numérico válido, devolverlo
-    final id = int.tryParse(valorStr);
-    if (id != null && id > 0) {
-      return id;
+    // � VERIFICAR: Si el mapeo no está cargado, intentar cargarlo
+    if (_claveAIdMap.isEmpty) {
+      print('⚠️ WARNING: Mapeo de actividades vacío. Forzando recarga...');
+      // Nota: No podemos hacer await aquí, pero al menos alertamos del problema
     }
     
-    // Si no se puede convertir, devolver 0
+    // 1) Si coincide como clave conocida -> devolver ID
+    if (_claveAIdMap.containsKey(s)) {
+      return _claveAIdMap[s]!;
+    }
+    
+    // 2) Si s es número y además es un ID válido -> aceptar
+    final posibleId = int.tryParse(s);
+    if (posibleId != null && posibleId > 0) {
+      return posibleId;
+    }
+    
     return 0;
   }
 
@@ -314,6 +322,41 @@ class _NominaScreenState extends State<NominaScreen>
         print('  Datos días: dia_0_s=${firstEmp['dia_0_s']}, dia_1_s=${firstEmp['dia_1_s']}');
         print('  Total BD: ${firstEmp['total']}');
       }
+
+      // 🧹 Normalización post-carga: asegurar que dia_X_id y dia_X_campo sean enteros puros
+      for (final emp in data) {
+        for (int i = 0; i <= 6; i++) {
+          final keyId = 'dia_${i}_id';
+          final keyCampo = 'dia_${i}_campo';
+          if (emp.containsKey(keyId)) {
+            final v = emp[keyId];
+            int id;
+            if (v is int) {
+              id = v;
+            } else if (v is double) {
+              id = v.toInt();
+            } else {
+              final s = v?.toString() ?? '0';
+              id = int.tryParse(s.split('.').first) ?? 0;
+            }
+            emp[keyId] = id;
+          }
+          if (emp.containsKey(keyCampo)) {
+            final v = emp[keyCampo];
+            int cId;
+            if (v is int) {
+              cId = v;
+            } else if (v is double) {
+              cId = v.toInt();
+            } else {
+              final s = v?.toString() ?? '0';
+              cId = int.tryParse(s.split('.').first) ?? 0;
+            }
+            emp[keyCampo] = cId;
+          }
+        }
+      }
+      print('🧪 Normalización completada para IDs y Campos en memoria.');
 
       if (mounted) {
         setState(() {
@@ -1278,6 +1321,21 @@ class _NominaScreenState extends State<NominaScreen>
       return;
     }
     
+    // 🔍 VERIFICAR: Asegurar que el mapeo de actividades esté cargado antes de guardar
+    if (_claveAIdMap.isEmpty) {
+      print('⚠️ Mapeo de actividades vacío antes de guardar. Recargando...');
+      await _cargarMappingActividades();
+      
+      if (_claveAIdMap.isEmpty) {
+        print('❌ ERROR: No se pudo cargar el mapeo de actividades');
+        throw Exception('No se pudo cargar el mapeo de actividades');
+      } else {
+        print('✅ Mapeo recargado exitosamente: ${_claveAIdMap.length} claves');
+      }
+    } else {
+      print('✅ Mapeo de actividades disponible: ${_claveAIdMap.length} claves');
+    }
+    
     try {
       await db.connect();
 
@@ -1297,12 +1355,18 @@ class _NominaScreenState extends State<NominaScreen>
         return 0.0;
       }
 
-      // Función auxiliar para obtener valores de texto seguros
-      // 🔧 CORREGIDO: Para campos de rancho, retornar "0" si está vacío
-      String _getSafeStringValue(dynamic value) {
-        if (value == null) return '0'; // NULL = "0"
-        final stringValue = value.toString().trim();
-        return stringValue.isEmpty ? '0' : stringValue; // String vacío = "0"
+      // Función auxiliar para obtener valores enteros seguros (para campos de rancho)
+      int _getSafeIntValue(dynamic value) {
+        if (value == null) return 0;
+        if (value is int) return value;
+        if (value is num) return value.toInt();
+        if (value is String) {
+          final trimmed = value.trim();
+          if (trimmed.isEmpty || trimmed == '0') return 0;
+          final parsed = int.tryParse(trimmed);
+          return parsed ?? 0;
+        }
+        return 0;
       }
 
       for (int i = 0; i < empleadosFiltrados.length; i++) {
@@ -1337,37 +1401,55 @@ class _NominaScreenState extends State<NominaScreen>
         // 🔧 Mapear correctamente desde la tabla hacia la BD
         // Tabla: dia_0_s, dia_1_s, ... dia_6_s → BD: dia_1, dia_2, ... dia_7
         // Incluye campos de actividad, salario y campo
+        
+        // 🔍 DEBUG: Mostrar datos de actividades antes de conversión para este empleado
+        print('Empleado ${empleado['nombre']}: dia_0_id="${empleado['dia_0_id']}" → ID ${_obtenerIdParaGuardar(empleado['dia_0_id'])}');
+        
         final data = {
           'id_empleado': idEmpleado,
           'id_semana': idSemana,
           'id_cuadrilla': idCuadrilla,
-          'act_1': _obtenerIdParaGuardar(empleado['dia_0_id']), // dia_0_id de tabla → act_1 de BD (convierte clave a ID)
-          'dia_1': _getSafeDoubleValue(empleado['dia_0_s']), // dia_0_s de tabla → dia_1 de BD
-          'campo_1': _getSafeStringValue(empleado['dia_0_campo']), // dia_0_campo de tabla → campo_1 de BD
-          'act_2': _obtenerIdParaGuardar(empleado['dia_1_id']), // dia_1_id de tabla → act_2 de BD (convierte clave a ID)
-          'dia_2': _getSafeDoubleValue(empleado['dia_1_s']), // dia_1_s de tabla → dia_2 de BD
-          'campo_2': _getSafeStringValue(empleado['dia_1_campo']), // dia_1_campo de tabla → campo_2 de BD
-          'act_3': _obtenerIdParaGuardar(empleado['dia_2_id']), // dia_2_id de tabla → act_3 de BD (convierte clave a ID)
-          'dia_3': _getSafeDoubleValue(empleado['dia_2_s']), // dia_2_s de tabla → dia_3 de BD
-          'campo_3': _getSafeStringValue(empleado['dia_2_campo']), // dia_2_campo de tabla → campo_3 de BD
-          'act_4': _obtenerIdParaGuardar(empleado['dia_3_id']), // dia_3_id de tabla → act_4 de BD (convierte clave a ID)
-          'dia_4': _getSafeDoubleValue(empleado['dia_3_s']), // dia_3_s de tabla → dia_4 de BD
-          'campo_4': _getSafeStringValue(empleado['dia_3_campo']), // dia_3_campo de tabla → campo_4 de BD
-          'act_5': _obtenerIdParaGuardar(empleado['dia_4_id']), // dia_4_id de tabla → act_5 de BD (convierte clave a ID)
-          'dia_5': _getSafeDoubleValue(empleado['dia_4_s']), // dia_4_s de tabla → dia_5 de BD
-          'campo_5': _getSafeStringValue(empleado['dia_4_campo']), // dia_4_campo de tabla → campo_5 de BD
-          'act_6': _obtenerIdParaGuardar(empleado['dia_5_id']), // dia_5_id de tabla → act_6 de BD (convierte clave a ID)
-          'dia_6': _getSafeDoubleValue(empleado['dia_5_s']), // dia_5_s de tabla → dia_6 de BD
-          'campo_6': _getSafeStringValue(empleado['dia_5_campo']), // dia_5_campo de tabla → campo_6 de BD
-          'act_7': _obtenerIdParaGuardar(empleado['dia_6_id']), // dia_6_id de tabla → act_7 de BD (convierte clave a ID)
-          'dia_7': _getSafeDoubleValue(empleado['dia_6_s']), // dia_6_s de tabla → dia_7 de BD
-          'campo_7': _getSafeStringValue(empleado['dia_6_campo']), // dia_6_campo de tabla → campo_7 de BD
+          'act_1': _obtenerIdParaGuardar(empleado['dia_0_id']),
+          'dia_1': _getSafeDoubleValue(empleado['dia_0_s']),
+          'campo_1': _getSafeIntValue(empleado['dia_0_campo']), // dia_0_campo de tabla → campo_1 de BD (integer)
+          'act_2': _obtenerIdParaGuardar(empleado['dia_1_id']),
+          'dia_2': _getSafeDoubleValue(empleado['dia_1_s']),
+          'campo_2': _getSafeIntValue(empleado['dia_1_campo']), // dia_1_campo de tabla → campo_2 de BD (integer)
+          'act_3': _obtenerIdParaGuardar(empleado['dia_2_id']),
+          'dia_3': _getSafeDoubleValue(empleado['dia_2_s']),
+          'campo_3': _getSafeIntValue(empleado['dia_2_campo']), // dia_2_campo de tabla → campo_3 de BD (integer)
+          'act_4': _obtenerIdParaGuardar(empleado['dia_3_id']),
+          'dia_4': _getSafeDoubleValue(empleado['dia_3_s']),
+          'campo_4': _getSafeIntValue(empleado['dia_3_campo']), // dia_3_campo de tabla → campo_4 de BD (integer)
+          'act_5': _obtenerIdParaGuardar(empleado['dia_4_id']),
+          'dia_5': _getSafeDoubleValue(empleado['dia_4_s']),
+          'campo_5': _getSafeIntValue(empleado['dia_4_campo']), // dia_4_campo de tabla → campo_5 de BD (integer)
+          'act_6': _obtenerIdParaGuardar(empleado['dia_5_id']),
+          'dia_6': _getSafeDoubleValue(empleado['dia_5_s']),
+          'campo_6': _getSafeIntValue(empleado['dia_5_campo']), // dia_5_campo de tabla → campo_6 de BD (integer)
+          'act_7': _obtenerIdParaGuardar(empleado['dia_6_id']),
+          'dia_7': _getSafeDoubleValue(empleado['dia_6_s']),
+          'campo_7': _getSafeIntValue(empleado['dia_6_campo']), // dia_6_campo de tabla → campo_7 de BD (integer)
           'total': _getSafeDoubleValue(empleado['total']),
           'debe': _getSafeDoubleValue(empleado['debe']),
           'subtotal': _getSafeDoubleValue(empleado['subtotal']),
           'comedor': _getSafeDoubleValue(empleado['comedor']),
           'total_neto': _getSafeDoubleValue(empleado['totalNeto']),
         };
+
+        // Log detallado por día para detectar desorden o pérdida de decimales
+        for (int d = 0; d < 7; d++) {
+          final claveCampo = 'dia_${d}_id';
+          final sueldoCampo = 'dia_${d}_s';
+          final ranchoCampo = 'dia_${d}_campo';
+          final claveValor = empleado[claveCampo];
+          final idGuardado = _obtenerIdParaGuardar(claveValor);
+          final sueldoRaw = empleado[sueldoCampo];
+          final sueldoDouble = _getSafeDoubleValue(sueldoRaw);
+          final ranchoValor = empleado[ranchoCampo];
+          print('🧾 [PRE-GUARDAR][${empleado['nombre']}] d${d+1}: clave="$claveValor" -> id=$idGuardado | sueldoRaw="$sueldoRaw" -> ${sueldoDouble.toStringAsFixed(2)} | rancho="$ranchoValor"');
+        }
+        print('🧮 [PRE-GUARDAR TOTALES][${empleado['nombre']}] total=${data['total']}, debe=${data['debe']}, subtotal=${data['subtotal']}, comedor=${data['comedor']}, neto=${data['total_neto']}');
 
         // 🔧 DEBUG: Mostrar datos procesados que se van a guardar
         print('🔧 [DATOS PROCESADOS] ${empleado['nombre']}:');
@@ -4045,8 +4127,11 @@ class _NominaScreenState extends State<NominaScreen>
       
       final resultados = await db.connection.query('''
         SELECT 
-          id_empleado, id_semana, id_cuadrilla, dia_1, dia_2, dia_3, dia_4, dia_5, dia_6,
-          total, debe, subtotal, comedor
+          id_empleado, id_semana, id_cuadrilla, 
+          dia_1, dia_2, dia_3, dia_4, dia_5, dia_6, dia_7,
+          act_1, act_2, act_3, act_4, act_5, act_6, act_7,
+          campo_1, campo_2, campo_3, campo_4, campo_5, campo_6, campo_7,
+          total, debe, subtotal, comedor, total_neto, actualizado_en, orden_empleado
         FROM nomina_empleados_semanal 
         WHERE id_semana = @idSemana
       ''', substitutionValues: {'idSemana': idSemana});
@@ -4055,16 +4140,38 @@ class _NominaScreenState extends State<NominaScreen>
         'id_empleado': row[0],
         'id_semana': row[1], 
         'id_cuadrilla': row[2],
+        // Días de trabajo
         'dia_1': row[3],
         'dia_2': row[4],
         'dia_3': row[5],
         'dia_4': row[6],
         'dia_5': row[7],
         'dia_6': row[8],
-        'total': row[9],
-        'debe': row[10],
-        'subtotal': row[11],
-        'comedor': row[12],
+        'dia_7': row[9],
+        // Actividades
+        'act_1': row[10],
+        'act_2': row[11],
+        'act_3': row[12],
+        'act_4': row[13],
+        'act_5': row[14],
+        'act_6': row[15],
+        'act_7': row[16],
+        // Campos/ranchos
+        'campo_1': row[17],
+        'campo_2': row[18],
+        'campo_3': row[19],
+        'campo_4': row[20],
+        'campo_5': row[21],
+        'campo_6': row[22],
+        'campo_7': row[23],
+        // Totales y cálculos
+        'total': row[24],
+        'debe': row[25],
+        'subtotal': row[26],
+        'comedor': row[27],
+        'total_neto': row[28],
+        'actualizado_en': row[29],
+        'orden_empleado': row[30],
       }).toList();
       
       print('🔍 [DEBUG] Datos obtenidos: ${datos.length} registros');
