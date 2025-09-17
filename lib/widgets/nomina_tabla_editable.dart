@@ -46,21 +46,21 @@ class NominaTablaEditable extends StatefulWidget {
 class _NominaTablaEditableState extends State<NominaTablaEditable> {
   // ====== Constantes de anchos para asegurar alineación encabezado/filas (vista expandida) ======
   static const double kAnchoClaveExpanded = 40; // reducido aún más para ultracompactación
-  static const double kAnchoClaveCompact = 55;   // reducido de 65 a 55
+  static const double kAnchoClaveCompact = 45;   // Reducido al mínimo manteniendo legibilidad
   static const double kAnchoEmpleadoExpanded = 110; // reducido de 120 a 110 para más compactación
-  static const double kAnchoEmpleadoCompact = 140;  // reducido de 160 a 140
+  static const double kAnchoEmpleadoCompact = 180;  // Ajustado para nombres largos
   static const double kAnchoDiaExpanded = 270; // aumentado a 270px para aún mejor usabilidad
-  static const double kAnchoDiaCompact = 65;  // reducido de 80 a 65
+  static const double kAnchoDiaCompact = 80;  // Ajustado para uniformidad
   static const double kAnchoTotalExpanded = 75; // reducido de 85 a 75 para ser más pequeño
-  static const double kAnchoTotalCompact = 70;  // reducido de 80 a 70
+  static const double kAnchoTotalCompact = 80;  // Ajustado para uniformidad
   static const double kAnchoOtrasPercepcionesExpanded = 110; // aumentado de 95 a 110 para ser aún más grande
-  static const double kAnchoOtrasPercepcionesCompact = 100;  // aumentado de 90 a 100
+  static const double kAnchoOtrasPercepcionesCompact = 80;  // Ajustado para uniformidad
   static const double kAnchoSubtotalExpanded = 75; // reducido de 85 a 75 para ser más pequeño
-  static const double kAnchoSubtotalCompact = 70;  // reducido de 80 a 70
+  static const double kAnchoSubtotalCompact = 80;  // Ajustado para uniformidad
   static const double kAnchoComedorExpanded = 95;   // aumentado de 80 a 95 para ser aún más grande
-  static const double kAnchoComedorCompact = 85;    // aumentado de 70 a 85
+  static const double kAnchoComedorCompact = 80;    // Ajustado para uniformidad
   static const double kAnchoTotalNetoExpanded = 75; // reducido de 85 a 75 para ser más pequeño
-  static const double kAnchoTotalNetoCompact = 70;  // reducido de 80 a 70
+  static const double kAnchoTotalNetoCompact = 80;  // Ajustado para uniformidad
   // Map para mantener el estado calculado de cada empleado
   final Map<int, Map<String, dynamic>> _empleadosCalculados = {};
   
@@ -2220,7 +2220,7 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
 
     // 3) Vista expandida (columnas fijas + header sticky)
   final double headingHeight = 70; // reducido de 72 a 70
-    final double dataRowHeight = 95; // reducido de 100 a 95
+    final double dataRowHeight = 90; // Aumentado significativamente para mejor visualización en modo expandido
   // Aumentar un poquito el espaciado para que no se vea tan apretado
   final double columnSpacing = 18;
     // Usar los anchos globales para evitar desalineación entre preview y tabla real
@@ -2274,15 +2274,13 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
             (widget.isExpanded ? kAnchoTotalNetoExpanded : kAnchoTotalNetoCompact);
 
               // Limitar el viewport derecho al menor entre: ancho disponible y ancho necesario
-              final double anchoDisponible = maxWidth - fixedLeftWidth - 88; // mantener margen adicional
+              final double anchoDisponible = maxWidth - fixedLeftWidth - 115; // Aumentado el margen horizontal
               // Permitir viewport mínimo más pequeño para evitar espacio sobrante
               final rightViewportWidth = math.min(math.max(anchoDisponible, 260.0), anchoColumnasScrollables);
               final double fixedWidth = fixedLeftWidth.toDouble();
             
             // Calcular altura disponible balanceada - ajuste muy pequeño
-            final availableHeight = constraints.maxHeight.isFinite
-              ? (constraints.maxHeight - headingHeight - 20).clamp(280.0, 715.0) // reducido a 715 (muy poco)
-              : 435.0; // reducido de 440 a 435
+            final availableHeight = MediaQuery.of(context).size.height - 585; // Usar casi toda la altura de la pantalla disponible
 
             // Construir header completo (una sola fila) reutilizando DataTable para estilos
             Widget header = ClipRect(
