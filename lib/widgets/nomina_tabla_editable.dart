@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -44,22 +45,22 @@ class NominaTablaEditable extends StatefulWidget {
 
 class _NominaTablaEditableState extends State<NominaTablaEditable> {
   // ====== Constantes de anchos para asegurar alineación encabezado/filas (vista expandida) ======
-  static const double kAnchoClaveExpanded = 100; // antes 80 header / 100 fila -> desalineado
-  static const double kAnchoClaveCompact = 85;   // antes 70 header / 85 fila
-  static const double kAnchoEmpleadoExpanded = 250; // antes 200 header / 250 fila
-  static const double kAnchoEmpleadoCompact = 200;  // antes 170 header / 200 fila
-  static const double kAnchoDiaExpanded = 300; // aumentado para más espacio (actividad + sueldo + campo)
-  static const double kAnchoDiaCompact = 80;
-  static const double kAnchoTotalExpanded = 120; // antes header 100, fila 120
-  static const double kAnchoTotalCompact = 100;  // header 85, fila 100
-  static const double kAnchoOtrasPercepcionesExpanded = 120; // header 120, fila 120
-  static const double kAnchoOtrasPercepcionesCompact = 100;  // header 100, fila 100
-  static const double kAnchoSubtotalExpanded = 120; // header 100, fila 120
-  static const double kAnchoSubtotalCompact = 100;  // header 85, fila 100
-  static const double kAnchoComedorExpanded = 85;   // coincide
-  static const double kAnchoComedorCompact = 70;    // coincide
-  static const double kAnchoTotalNetoExpanded = 120; // header 100, fila 120
-  static const double kAnchoTotalNetoCompact = 100;  // header 85, fila 100
+  static const double kAnchoClaveExpanded = 40; // reducido aún más para ultracompactación
+  static const double kAnchoClaveCompact = 55;   // reducido de 65 a 55
+  static const double kAnchoEmpleadoExpanded = 110; // reducido de 120 a 110 para más compactación
+  static const double kAnchoEmpleadoCompact = 140;  // reducido de 160 a 140
+  static const double kAnchoDiaExpanded = 270; // aumentado a 270px para aún mejor usabilidad
+  static const double kAnchoDiaCompact = 65;  // reducido de 80 a 65
+  static const double kAnchoTotalExpanded = 75; // reducido de 85 a 75 para ser más pequeño
+  static const double kAnchoTotalCompact = 70;  // reducido de 80 a 70
+  static const double kAnchoOtrasPercepcionesExpanded = 110; // aumentado de 95 a 110 para ser aún más grande
+  static const double kAnchoOtrasPercepcionesCompact = 100;  // aumentado de 90 a 100
+  static const double kAnchoSubtotalExpanded = 75; // reducido de 85 a 75 para ser más pequeño
+  static const double kAnchoSubtotalCompact = 70;  // reducido de 80 a 70
+  static const double kAnchoComedorExpanded = 95;   // aumentado de 80 a 95 para ser aún más grande
+  static const double kAnchoComedorCompact = 85;    // aumentado de 70 a 85
+  static const double kAnchoTotalNetoExpanded = 75; // reducido de 85 a 75 para ser más pequeño
+  static const double kAnchoTotalNetoCompact = 70;  // reducido de 80 a 70
   // Map para mantener el estado calculado de cada empleado
   final Map<int, Map<String, dynamic>> _empleadosCalculados = {};
   
@@ -86,6 +87,12 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
   final ScrollController _horizontalScrollBody = ScrollController();
   bool _syncingHorizontal = false;
 
+  // Controlador para la tabla principal (vista compacta)
+  final ScrollController _mainTableScrollController = ScrollController();
+
+  // Controlador para la vista sticky header
+  final ScrollController _stickyBodyScrollController = ScrollController();
+
   // Mapas para almacenar las actividades
   Map<String, String> _actividadesMap = {}; // ID -> nombre
   Map<String, String> _claveAIdMap = {}; // clave -> ID  
@@ -105,13 +112,34 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
       if (!mounted) return;
 
       print('📦 Procesando ${actividades.length} actividades...');
-      setState(() {
-        // Limpiar todos los mapas
-        _actividadesMap.clear();
-  _claveAIdMap.clear();
-  _idAClaveMap.clear();
-  _claveANombreMap.clear();
-  _idANombreMap.clear();
+        setState(() {
+          // Limpiar todos los mapas
+          _actividadesMap.clear();
+          _claveAIdMap.clear();
+          _idAClaveMap.clear();
+          _claveANombreMap.clear();
+          _idANombreMap.clear();
+        
+          for (var actividad in actividades) {
+            final id = (actividad['id'] ?? actividad['id_actividad'] ?? actividad['ID'] ?? actividad['idActividad'] ?? 0).toString();
+            final nombre = actividad['nombre']?.toString() ?? 'Sin nombre';
+            final clave = actividad['clave']?.toString() ?? '';
+          
+            // Registrar siempre por ID
+            _actividadesMap[id] = '${clave} - ${nombre}';
+            _idANombreMap[id] = nombre;
+          
+            // Si hay clave, registrar también usando la clave como llave para permitir entrada por clave
+            if (clave.isNotEmpty) {
+              _actividadesMap.putIfAbsent(clave, () => '${clave} - ${nombre}');
+              _idANombreMap.putIfAbsent(clave, () => nombre);
+              _claveAIdMap[clave] = id; // clave -> id
+              _idAClaveMap[id] = clave; // id -> clave
+              _claveANombreMap[clave] = nombre; // clave -> nombre
+            }
+          
+            print('  Mapeando actividad -> ID: $id | Clave: $clave | Nombre: $nombre');
+          }
         
         for (var actividad in actividades) {
           final id = (actividad['id'] ?? actividad['id_actividad'] ?? actividad['ID'] ?? actividad['idActividad'] ?? 0).toString();
@@ -196,21 +224,21 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
       if (!mounted) return;
 
       print('📦 Procesando ${campos.length} campos...');
-      setState(() {
-        _camposMap.clear(); // Limpiar el mapa existente
-        for (var campo in campos) {
-          final id = (campo['id'] ?? 0).toString();
-          final nombre = campo['nombre']?.toString() ?? 'Sin nombre';
-          final clave = campo['clave']?.toString() ?? '';
+        setState(() {
+          _camposMap.clear(); // Limpiar el mapa existente
+          for (var campo in campos) {
+            final id = (campo['id'] ?? 0).toString();
+            final nombre = campo['nombre']?.toString() ?? 'Sin nombre';
+            final clave = campo['clave']?.toString() ?? '';
           
-          // Si no hay clave, usar solo el nombre, si hay clave usar formato "clave - nombre"
-          if (clave.isEmpty) {
-            _camposMap[id] = nombre;
-          } else {
-            _camposMap[id] = '${clave} - ${nombre}';
+            // Si no hay clave, usar solo el nombre, si hay clave usar formato "clave - nombre"
+            if (clave.isEmpty) {
+              _camposMap[id] = nombre;
+            } else {
+              _camposMap[id] = '${clave} - ${nombre}';
+            }
+            print('  Mapeando - ID: $id -> Clave: $clave -> Nombre: $nombre -> Resultado: ${_camposMap[id]}');
           }
-          print('  Mapeando - ID: $id -> Clave: $clave -> Nombre: $nombre -> Resultado: ${_camposMap[id]}');
-        }
       });
       
       print('✅ Campos cargados exitosamente:');
@@ -311,8 +339,10 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     // Dispose de controladores de scroll
     _verticalScrollLeft.dispose();
     _verticalScrollRight.dispose();
-  _horizontalScrollHeader.dispose();
-  _horizontalScrollBody.dispose();
+    _horizontalScrollHeader.dispose();
+    _horizontalScrollBody.dispose();
+    _mainTableScrollController.dispose();
+    _stickyBodyScrollController.dispose();
     
     // Limpiar todos los FocusNodes
     for (final focusNode in _focusNodes.values) {
@@ -1242,6 +1272,22 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     return s;
   }
 
+  /// Prepara valor para mostrar en widgets editables de sueldos
+  /// Conserva valores decimales válidos pero limpia valores cero o nulos
+  String _prepararValorParaMostrar(dynamic valor) {
+    if (valor == null) return '';
+    
+    final valorString = valor.toString();
+    
+    // Si es exactamente "0", "0.0", "0.00" entonces mostrar campo vacío
+    if (valorString == '0' || valorString == '0.0' || valorString == '0.00') {
+      return '';
+    }
+    
+    // Para cualquier otro valor (incluyendo 0.50, 0.25, etc.) mostrarlo tal como está
+    return valorString;
+  }
+
   /// Construye las columnas de la tabla
   List<DataColumn> _construirColumnas() {
     final anchoExpandido = widget.isExpanded;
@@ -1257,16 +1303,16 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
               Icon(
                 Icons.badge_rounded,
                 color: Color(0xFF7BAE2F),
-                size: anchoExpandido ? 18 : 14,
+                size: anchoExpandido ? 16 : 12,
               ),
               SizedBox(height: anchoExpandido ? 4 : 2),
               Text(
                 'Clave',
                 style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: anchoExpandido ? 13 : 10,
+                  fontWeight: FontWeight.w800,
+                  fontSize: anchoExpandido ? 9 : 8, // más pequeño para compactación
                   color: Color(0xFF374151),
-                  letterSpacing: 0.3,
+                  letterSpacing: 0.2,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -1288,16 +1334,16 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
                   Icon(
                     Icons.person_rounded,
                     color: Color(0xFF7BAE2F),
-                    size: anchoExpandido ? 18 : 14,
+                    size: anchoExpandido ? 16 : 12,
                   ),
                   SizedBox(width: anchoExpandido ? 6 : 4),
                   Text(
                     'Empleado',
                     style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: anchoExpandido ? 13 : 10,
+                      fontWeight: FontWeight.w800,
+                      fontSize: anchoExpandido ? 10 : 9, // reducido de 11 a 10
                       color: Color(0xFF374151),
-                      letterSpacing: 0.3,
+                      letterSpacing: 0.2,
                     ),
                   ),
                 ],
@@ -1548,6 +1594,10 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
               child: Text(
                 empleado['codigo']?.toString() ?? '',
                 textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: widget.isExpanded ? 11 : 10, // tamaño pequeño para celdas de clave
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ),
@@ -1559,6 +1609,10 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
               child: Text(
                 empleado['nombre']?.toString() ?? '',
                 textAlign: TextAlign.left,
+                style: TextStyle(
+                  fontSize: widget.isExpanded ? 12 : 11, // reducido aún más para compactación
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ),
@@ -1587,10 +1641,9 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
           
           // Celda Debe (editable)
           _construirCeldaEditable(
-            index, 
-            'debe', 
+            index,
+            'debe',
             empleado['debe'],
-            labelTexto: 'Otras percepciones',
             mostrarMoneda: true,
             ancho: widget.isExpanded ? kAnchoOtrasPercepcionesExpanded : kAnchoOtrasPercepcionesCompact,
           ),
@@ -1609,10 +1662,9 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
           
           // Celda Comedor (editable con label)
           _construirCeldaEditable(
-            index, 
-            'comedor', 
+            index,
+            'comedor',
             empleado['comedor'],
-            labelTexto: 'Comida',
             mostrarMoneda: true,
             ancho: widget.isExpanded ? kAnchoComedorExpanded : kAnchoComedorCompact,
           ),
@@ -1858,7 +1910,9 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     }
 
     // Preparar valor para mostrar según el tipo de campo
-  final valorMostrar = esCampoTexto ? _formatearIdOCampo(valor) : ((valor?.toString() ?? '') == '0' ? '' : valor?.toString() ?? '');
+    final valorMostrar = esCampoTexto 
+        ? _formatearIdOCampo(valor) 
+        : _prepararValorParaMostrar(valor);
     
     // Crear clave única para el FocusNode
     final claveFocus = '${empleadoIndex}_${campo}';
@@ -2006,11 +2060,18 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(12),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.vertical,
+          child: Scrollbar(
+            controller: _mainTableScrollController,
+            thumbVisibility: true,
+            trackVisibility: true,
+            thickness: 6,
+            radius: const Radius.circular(4),
             child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
+              controller: _mainTableScrollController,
+              scrollDirection: Axis.vertical,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: DataTable(
                 columnSpacing: 8,
                 headingRowHeight: 56,
                 dataRowHeight: 58,
@@ -2049,6 +2110,7 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
                 ),
               ),
             ),
+            ),
           ),
         ),
       );
@@ -2076,8 +2138,8 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final availableHeight = constraints.maxHeight.isFinite
-                  ? (constraints.maxHeight - headingHeight).clamp(120.0, 800.0)
-                  : 320.0;
+                  ? (constraints.maxHeight - headingHeight).clamp(200.0, 820.0) // reducido de 870 a 820
+                  : 400.0; // reducido de 430 a 400
 
               // Header único sin scroll horizontal
               final header = DataTable(
@@ -2096,19 +2158,28 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
               );
 
               // Cuerpo solo con scroll vertical
-              final body = SingleChildScrollView(
-                scrollDirection: Axis.vertical,
-                child: DataTable(
+              final body = Scrollbar(
+                controller: _stickyBodyScrollController,
+                thumbVisibility: true,
+                trackVisibility: true,
+                thickness: 6,
+                radius: const Radius.circular(4),
+                child: SingleChildScrollView(
+                  controller: _stickyBodyScrollController,
+                  scrollDirection: Axis.vertical,
+                  child: DataTable(
                   columnSpacing: columnSpacing,
                   headingRowHeight: 0,
                   dataRowHeight: dataRowHeight,
-                  columns: todasColumnas.map((c) => DataColumn(label: const SizedBox())).toList(),
+                  // Reuse original labels so column widths match header
+                  columns: todasColumnas.map((c) => DataColumn(label: c.label)).toList(),
                   rows: filas,
                   border: TableBorder(
                     horizontalInside: BorderSide(color: Colors.grey.shade300, width: 1),
                     verticalInside: BorderSide(color: Colors.grey.shade300, width: 1),
                     bottom: BorderSide(color: Colors.grey.shade300, width: 1.5),
                   ),
+                ),
                 ),
               );
 
@@ -2148,12 +2219,14 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
     }
 
     // 3) Vista expandida (columnas fijas + header sticky)
-  final double headingHeight = 72;
-    final double dataRowHeight = 100;
-    final double columnSpacing = 16;
-    const int anchoClave = 80;
-    const int anchoEmpleado = 200;
-    const int separador = 16;
+  final double headingHeight = 70; // reducido de 72 a 70
+    final double dataRowHeight = 95; // reducido de 100 a 95
+  // Aumentar un poquito el espaciado para que no se vea tan apretado
+  final double columnSpacing = 18;
+    // Usar los anchos globales para evitar desalineación entre preview y tabla real
+    final double anchoClaveLocal = widget.isExpanded ? kAnchoClaveExpanded : kAnchoClaveCompact;
+    final double anchoEmpleadoLocal = widget.isExpanded ? kAnchoEmpleadoExpanded : kAnchoEmpleadoCompact;
+    final double separador = columnSpacing; // usar spacing consistente
 
     final columnasFijas = todasColumnas.take(2).toList();
     final columnasScroll = todasColumnas.skip(2).toList();
@@ -2189,15 +2262,35 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
           builder: (context, constraints) {
             final screenWidth = MediaQuery.of(context).size.width;
             final maxWidth = constraints.maxWidth.isFinite ? constraints.maxWidth : screenWidth;
-            const int fixedLeftWidth = anchoClave + anchoEmpleado + separador; // ancho fijo asignado a columnas fijas
-            final rightViewportWidth = (maxWidth - fixedLeftWidth).clamp(300.0, maxWidth);
-            final double fixedWidth = fixedLeftWidth.toDouble();
+          final double fixedLeftWidth = anchoClaveLocal + anchoEmpleadoLocal + separador; // ancho fijo asignado a columnas fijas
+            // Calcular ancho necesario para las columnas scrollables (días más grandes) - ajuste muy pequeño
+          // Calcular ancho necesario para las columnas scrollables (días, totales, percepciones, etc.)
+          final double anchoColumnasScrollables =
+            (7 * (widget.isExpanded ? kAnchoDiaExpanded : kAnchoDiaCompact)) +
+            (widget.isExpanded ? kAnchoTotalExpanded : kAnchoTotalCompact) +
+            (widget.isExpanded ? kAnchoOtrasPercepcionesExpanded : kAnchoOtrasPercepcionesCompact) +
+            (widget.isExpanded ? kAnchoSubtotalExpanded : kAnchoSubtotalCompact) +
+            (widget.isExpanded ? kAnchoComedorExpanded : kAnchoComedorCompact) +
+            (widget.isExpanded ? kAnchoTotalNetoExpanded : kAnchoTotalNetoCompact);
+
+              // Limitar el viewport derecho al menor entre: ancho disponible y ancho necesario
+              final double anchoDisponible = maxWidth - fixedLeftWidth - 88; // mantener margen adicional
+              // Permitir viewport mínimo más pequeño para evitar espacio sobrante
+              final rightViewportWidth = math.min(math.max(anchoDisponible, 260.0), anchoColumnasScrollables);
+              final double fixedWidth = fixedLeftWidth.toDouble();
+            
+            // Calcular altura disponible balanceada - ajuste muy pequeño
+            final availableHeight = constraints.maxHeight.isFinite
+              ? (constraints.maxHeight - headingHeight - 20).clamp(280.0, 715.0) // reducido a 715 (muy poco)
+              : 435.0; // reducido de 440 a 435
 
             // Construir header completo (una sola fila) reutilizando DataTable para estilos
-            Widget header = Row(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+            Widget header = ClipRect(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.start, // asegurar alineación al inicio
+                children: [
                 // Header fijo izquierda
                 ConstrainedBox(
                   constraints: BoxConstraints.tightFor(width: fixedWidth),
@@ -2245,19 +2338,21 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
                             bottom: BorderSide(color: Colors.grey.shade300, width: 1),
                           ),
                         ),
-                        const SizedBox(width: 140), // espacio extra mayor para mostrar completamente la última columna
                       ],
                     ),
                   ),
                 ),
               ],
+            ),
             );
 
             // Cuerpo sin encabezados (headingRowHeight=0)
-            Widget body = Row(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+            Widget body = ClipRect(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.start, // asegurar alineación al inicio
+                children: [
                 ConstrainedBox(
                   constraints: BoxConstraints.tightFor(width: fixedWidth),
                   child: SingleChildScrollView(
@@ -2281,23 +2376,36 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
                 ),
                 SizedBox(
                   width: rightViewportWidth,
-                  child: SingleChildScrollView(
+                  child: Scrollbar(
                     controller: _horizontalScrollBody,
-                    scrollDirection: Axis.horizontal,
+                    thumbVisibility: true,
+                    trackVisibility: true,
+                    thickness: 6,
+                    radius: const Radius.circular(4),
+                    child: SingleChildScrollView(
+                      controller: _horizontalScrollBody,
+                      scrollDirection: Axis.horizontal,
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        SingleChildScrollView(
+                        Scrollbar(
                           controller: _verticalScrollRight,
-                          scrollDirection: Axis.vertical,
-                          child: DataTable(
-                            columnSpacing: columnSpacing,
-                            headingRowHeight: 0,
-                            dataRowHeight: dataRowHeight,
-                            columns: columnasScroll
-                                .map((c) => DataColumn(label: const SizedBox()))
-                                .toList(),
-                            rows: filasScroll,
+                          thumbVisibility: true,
+                          trackVisibility: true,
+                          thickness: 6,
+                          radius: const Radius.circular(4),
+                          child: SingleChildScrollView(
+                            controller: _verticalScrollRight,
+                            scrollDirection: Axis.vertical,
+                  child: DataTable(
+                  columnSpacing: columnSpacing,
+                  headingRowHeight: 0,
+                  dataRowHeight: dataRowHeight,
+                  // Reuse original labels so column widths match header
+                  columns: columnasScroll
+                    .map((c) => DataColumn(label: c.label))
+                    .toList(),
+                  rows: filasScroll,
                             border: TableBorder(
                               horizontalInside: BorderSide(color: Colors.grey.shade200, width: 1.5),
                               verticalInside: BorderSide(color: Colors.grey.shade200, width: 1.5),
@@ -2306,21 +2414,22 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 140), // espacio extra mayor para mostrar completamente la última columna
+                        ),
                       ],
                     ),
                   ),
                 ),
+                ),
               ],
+            ),
             );
 
-            // Altura disponible: restar header para permitir scroll interno si sobrepasa
-      final availableHeight = constraints.maxHeight.isFinite
-        ? (constraints.maxHeight - headingHeight).clamp(150.0, 1200.0)
-        : 520.0; // fallback expandido
+            // Usar la altura calculada arriba
 
-            return Stack(
-              children: [
+            return ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: maxWidth), // limitar sin forzar ancho
+              child: Stack(
+                children: [
                 Padding(
                   padding: EdgeInsets.only(top: headingHeight), // altura header
                   child: SizedBox(
@@ -2349,6 +2458,7 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
                   ),
                 ),
               ],
+            ),
             );
           },
         ),
@@ -2463,19 +2573,19 @@ class _CeldaEditableActividadConLabelState extends State<_CeldaEditableActividad
           LengthLimitingTextInputFormatter(8),
         ],
         style: TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
+          fontSize: 12, // reducido de 13 a 12
+          fontWeight: FontWeight.w700, // aumentar a negrita
           color: Colors.grey.shade700,
         ),
         decoration: InputDecoration(
           contentPadding: EdgeInsets.symmetric(
-            horizontal: 12,
+            horizontal: 14,
             vertical: 14,
           ),
           hintText: '0',
           hintStyle: TextStyle(
             color: Colors.grey.shade400,
-            fontSize: 13,
+            fontSize: 12, // reducido de 13 a 12 para consistencia
           ),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
@@ -2649,8 +2759,8 @@ class _CeldaEditableConNavegacionState extends State<_CeldaEditableConNavegacion
                 LengthLimitingTextInputFormatter(10),
               ],
         style: TextStyle(
-          fontSize: widget.esPequena ? 13 : (widget.esExpandida ? 16 : 13),
-          fontWeight: FontWeight.w600,
+          fontSize: widget.esPequena ? 10 : (widget.esExpandida ? 12 : 13), // reducido ligeramente
+          fontWeight: FontWeight.w700,
           color: Colors.grey.shade700,
         ),
         decoration: InputDecoration(
@@ -2661,7 +2771,7 @@ class _CeldaEditableConNavegacionState extends State<_CeldaEditableConNavegacion
           hintText: '0',
           hintStyle: TextStyle(
             color: Colors.grey.shade400,
-            fontSize: widget.esPequena ? 13 : (widget.esExpandida ? 16 : 13),
+            fontSize: widget.esPequena ? 11 : (widget.esExpandida ? 14 : 11),
           ),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(widget.esExpandida ? 10 : 8),
@@ -2690,8 +2800,8 @@ class _CeldaEditableConNavegacionState extends State<_CeldaEditableConNavegacion
                   '\$',
                   style: TextStyle(
                     color: Color(0xFF7BAE2F),
-                    fontWeight: FontWeight.w600,
-                    fontSize: widget.esPequena ? 12 : (widget.esExpandida ? 15 : 12),
+                    fontWeight: FontWeight.w700,
+                    fontSize: widget.esPequena ? 11 : (widget.esExpandida ? 14 : 11),
                   ),
                 ),
               )
