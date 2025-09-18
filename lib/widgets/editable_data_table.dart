@@ -206,7 +206,7 @@ final comedorValue = double.tryParse(empleado['comedor'].toString()) ?? 0.0;
                       isDense: true,
                       contentPadding: EdgeInsets.symmetric(
                         horizontal: 8,
-                        vertical: widget.isExpanded ? 12 : 8
+                        vertical: widget.isExpanded ? 20 : 8
                       ),
                       border: const OutlineInputBorder(),
                     ),
@@ -305,7 +305,7 @@ final comedorValue = double.tryParse(empleado['comedor'].toString()) ?? 0.0;
                 : MaterialButton(
                     key: ValueKey('comedor_${empleado['id']}_${empleado['comedor']}'),
                     onPressed: () => _handleValueChange(empleado, index, 'comedor', !(empleado['comedor'] ?? false)),
-                    height: widget.isExpanded ? 40 : 36,
+                    height: widget.isExpanded ? 55 : 36,
                     minWidth: widget.isExpanded ? 90 : 75,
                     color: empleado['comedor'] == true ? const Color(0xFF8AB531) : Colors.grey.shade200,
                     elevation: 0,
@@ -357,8 +357,8 @@ final comedorValue = double.tryParse(empleado['comedor'].toString()) ?? 0.0;
         scrollDirection: Axis.horizontal,
         child: DataTable(
           columnSpacing: widget.isExpanded ? 12 : 8,
-          headingRowHeight: widget.isExpanded ? 52 : 48,
-          dataRowHeight: widget.isExpanded ? 56 : 52,
+          headingRowHeight: widget.isExpanded ? 70 : 48,
+          dataRowHeight: widget.isExpanded ? 75 : 52,
           headingRowColor: MaterialStateProperty.all(Colors.grey.shade100),
           headingTextStyle: const TextStyle(
             fontSize: 15,
