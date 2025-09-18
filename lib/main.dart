@@ -36,7 +36,6 @@ void main() async {
 }
 
 /// Widget principal que representa la aplicación.
-/// Maneja el estado global del tema de la aplicación.
 class MainApp extends StatefulWidget {
   /// Método estático para acceder al estado de MainApp desde cualquier parte de la app
   static _MainAppState? of(BuildContext context) =>
