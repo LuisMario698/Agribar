@@ -46,17 +46,17 @@ class NominaTablaEditable extends StatefulWidget {
 class _NominaTablaEditableState extends State<NominaTablaEditable> {
   // ====== Constantes de anchos para asegurar alineación encabezado/filas (vista expandida) ======
   static const double kAnchoClaveExpanded = 40; // reducido aún más para ultracompactación
-  static const double kAnchoClaveCompact = 45;   // Reducido al mínimo manteniendo legibilidad
+  static const double kAnchoClaveCompact = 70;   // Ajustado para alinear con el encabezado
   static const double kAnchoEmpleadoExpanded = 110; // reducido de 120 a 110 para más compactación
-  static const double kAnchoEmpleadoCompact = 180;  // Ajustado para nombres largos
+  static const double kAnchoEmpleadoCompact = 200;  // Ampliado para nombres largos y alineación
   static const double kAnchoDiaExpanded = 270; // aumentado a 270px para aún mejor usabilidad
-  static const double kAnchoDiaCompact = 80;  // Ajustado para uniformidad
+  static const double kAnchoDiaCompact = 95;  // Ajustado para alinear con el encabezado del día
   static const double kAnchoTotalExpanded = 75; // reducido de 85 a 75 para ser más pequeño
-  static const double kAnchoTotalCompact = 80;  // Ajustado para uniformidad
+  static const double kAnchoTotalCompact = 95;  // Ajustado para alinear con 'Total'
   static const double kAnchoOtrasPercepcionesExpanded = 110; // aumentado de 95 a 110 para ser aún más grande
-  static const double kAnchoOtrasPercepcionesCompact = 80;  // Ajustado para uniformidad
+  static const double kAnchoOtrasPercepcionesCompact = 110;  // Ajustado para 'Otras percepciones'
   static const double kAnchoSubtotalExpanded = 75; // reducido de 85 a 75 para ser más pequeño
-  static const double kAnchoSubtotalCompact = 80;  // Ajustado para uniformidad
+  static const double kAnchoSubtotalCompact = 95;  // Ajustado para alinear con 'Subtotal'
   static const double kAnchoComedorExpanded = 95;   // aumentado de 80 a 95 para ser aún más grande
   static const double kAnchoComedorCompact = 80;    // Ajustado para uniformidad
   static const double kAnchoTotalNetoExpanded = 75; // reducido de 85 a 75 para ser más pequeño
@@ -87,8 +87,9 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
   final ScrollController _horizontalScrollBody = ScrollController();
   bool _syncingHorizontal = false;
 
-  // Controlador para la tabla principal (vista compacta)
+  // Controladores para la tabla principal (vista compacta)
   final ScrollController _mainTableScrollController = ScrollController();
+  final ScrollController _mainTableHorizontalController = ScrollController();
 
   // Controlador para la vista sticky header
   final ScrollController _stickyBodyScrollController = ScrollController();
@@ -2045,33 +2046,36 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
 
     // 1) Vista compacta normal (sin sticky)
     if (!widget.isExpanded && !widget.enableStickyPreview) {
-      return Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-              spreadRadius: 1,
+      return Scrollbar(
+        thumbVisibility: true,
+        trackVisibility: true,
+        controller: _mainTableHorizontalController,
+        child: SingleChildScrollView(
+          controller: _mainTableHorizontalController,
+          scrollDirection: Axis.horizontal,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                  spreadRadius: 1,
+                ),
+              ],
             ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Scrollbar(
-            controller: _mainTableScrollController,
-            thumbVisibility: true,
-            trackVisibility: true,
-            thickness: 6,
-            radius: const Radius.circular(4),
-            child: SingleChildScrollView(
-              controller: _mainTableScrollController,
-              scrollDirection: Axis.vertical,
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: DataTable(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Scrollbar(
+                controller: _mainTableScrollController,
+                thumbVisibility: true,
+                trackVisibility: true,
+                child: SingleChildScrollView(
+                  controller: _mainTableScrollController,
+                  scrollDirection: Axis.vertical,
+                  child: DataTable(
                 columnSpacing: 8,
                 headingRowHeight: 56,
                 dataRowHeight: 58,
@@ -2109,6 +2113,7 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
                   ),
                 ),
               ),
+            ),
             ),
             ),
           ),
