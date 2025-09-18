@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:ui';
 import '../services/usuarios_service.dart';
 import '../services/roles_service.dart';
+import '../theme/app_styles.dart';
 
 class ConfiguracionContent extends StatefulWidget {
   const ConfiguracionContent({Key? key}) : super(key: key);
@@ -82,15 +83,15 @@ class _ConfiguracionContentState extends State<ConfiguracionContent> {
     }
   }
 
-  /// Asigna un color basado en el rol del usuario
   Color _getColorForRole(String role) {
     switch (role.toLowerCase()) {
       case 'admin':
-        return const Color(0xFF7BAE2F); // Verde para administradores
+      case 'administrador':
+        return AppColors.green; // Verde principal para administradores
       case 'capturista':
-        return const Color(0xFF2B8DDB); // Azul para capturistas
+        return const Color(0xFF2196F3); // Azul para capturistas
       case 'supervisor':
-        return const Color(0xFF7B6A3A); // Marrón para supervisores
+        return const Color(0xFFFF9800); // Naranja para supervisores
       default:
         return const Color(0xFF6B7280); // Gris para otros roles
     }
@@ -119,35 +120,13 @@ class _ConfiguracionContentState extends State<ConfiguracionContent> {
       child: Center(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final isSmallScreen = constraints.maxWidth < 800;
-            
             return Container(
               padding: const EdgeInsets.all(32),
               width: constraints.maxWidth * 0.95, // Usar 95% del ancho disponible
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  if (!isSmallScreen)
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: _buildImportSection(),
-                        ),
-                        const SizedBox(width: 24),
-                        Expanded(
-                          child: _buildUserSection(),
-                        ),
-                      ],
-                    )
-                  else
-                    Column(
-                      children: [
-                        _buildImportSection(),
-                        const SizedBox(height: 24),
-                        _buildUserSection(),
-                      ],
-                    ),
+                  _buildUserSection(),
                   const SizedBox(height: 24),
                   // Label simple de resolución abajo a la derecha
                   Row(
@@ -172,59 +151,174 @@ class _ConfiguracionContentState extends State<ConfiguracionContent> {
   }
 
   Widget _buildUserSection() {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.white,
+            Colors.grey[50]!,
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.all(32.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Icon(Icons.manage_accounts, color: Colors.grey[700]),
-                const SizedBox(width: 12),
-                Text(
-                  'Administrar Usuarios',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey[800],
-                  ),
+            // Header moderno con iconos y gradiente
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    AppColors.green,
+                    AppColors.greenDark,
+                  ],
                 ),
-                const Spacer(),
-                if (_isLoadingUsers)
-                  const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.manage_accounts_rounded,
+                      color: Colors.white,
+                      size: 24,
+                    ),
                   ),
-              ],
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Administración de Usuarios',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Gestiona los usuarios del sistema',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.white.withOpacity(0.9),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (_isLoadingUsers)
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
-            const SizedBox(height: 24),
-            if (_isLoadingUsers)
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(32),
-                  child: CircularProgressIndicator(),
+            const SizedBox(height: 32),
+            
+            // Botón de agregar usuario en la parte superior
+            Container(
+              width: double.infinity,
+              height: 56,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    AppColors.green,
+                    AppColors.greenDark,
+                  ],
                 ),
-              )
-            else if (_users.isEmpty)
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(32),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.green.withOpacity(0.3),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => _showUserDialog(context),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Center(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Icon(
+                            Icons.add_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'Agregar nuevo usuario',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            
+            const SizedBox(height: 24),
+            
+            // Contenido de usuarios en tabla
+            if (_isLoadingUsers)
+              Container(
+                height: 200,
+                child: Center(
                   child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
-                        Icons.people_outline,
-                        size: 48,
-                        color: Colors.grey[400],
+                      CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.green),
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'No hay usuarios registrados',
+                        'Cargando usuarios...',
                         style: TextStyle(
                           fontSize: 16,
                           color: Colors.grey[600],
@@ -234,236 +328,385 @@ class _ConfiguracionContentState extends State<ConfiguracionContent> {
                   ),
                 ),
               )
+            else if (_users.isEmpty)
+              Container(
+                height: 200,
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey[200]!),
+                ),
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(50),
+                        ),
+                        child: Icon(
+                          Icons.people_outline_rounded,
+                          size: 48,
+                          color: Colors.grey[400],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No hay usuarios registrados',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Agrega el primer usuario al sistema',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[500],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
             else
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: _users.length,
-                itemBuilder: (context, index) {
-                  final user = _users[index];
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[100],
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey[300]!),
+              // Tabla de usuarios con scroll
+              _buildUsersTable(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUsersTable() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Estadísticas rápidas
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.blue[50],
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.blue[100]!),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.info_outline, color: Colors.blue[700]),
+              const SizedBox(width: 12),
+              Text(
+                '${_users.length} usuario${_users.length != 1 ? 's' : ''} registrado${_users.length != 1 ? 's' : ''}',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.blue[700],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        
+        // Tabla con scroll
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey[200]!),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              // Header de la tabla
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                decoration: BoxDecoration(
+                  color: AppColors.background.withOpacity(0.3),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(12),
+                    topRight: Radius.circular(12),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    // Avatar + Usuario (40%)
+                    Expanded(
+                      flex: 4,
+                      child: Text(
+                        'Usuario',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[800],
+                        ),
+                      ),
                     ),
-                    child: Row(
-                      children: [
-                        CircleAvatar(
-                          backgroundColor: user['color'] as Color,
-                          child: Text(
-                            user['name'].toString().substring(0, 1).toUpperCase(),
-                            style: const TextStyle(color: Colors.white),
+                    // Rol (20%)
+                    Expanded(
+                      flex: 2,
+                      child: Text(
+                        'Rol',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[800],
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    // Correo (30%)
+                    Expanded(
+                      flex: 3,
+                      child: Text(
+                        'Correo Electrónico',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[800],
+                        ),
+                      ),
+                    ),
+                    // Acciones (10%)
+                    SizedBox(
+                      width: 80,
+                      child: Text(
+                        'Acciones',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[800],
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Contenido de la tabla con scroll
+              Container(
+                height: _users.length > 6 ? 350 : (_users.length * 65.0), // Altura dinámica
+                constraints: const BoxConstraints(
+                  minHeight: 100,
+                  maxHeight: 350,
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: List.generate(_users.length, (index) {
+                      final user = _users[index];
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                        decoration: BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(
+                              color: Colors.grey[200]!,
+                              width: 1,
+                            ),
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                user['name'].toString(),
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              Text(
-                                user['role'].toString(),
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                              if (user['correo'] != null)
-                                Text(
-                                  user['correo'].toString(),
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey[500],
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                        PopupMenuButton(
-                          icon: Icon(Icons.more_vert, color: Colors.grey[600]),
-                          itemBuilder: (context) => [
-                            PopupMenuItem(
-                              value: 'edit',
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            // Usuario (Avatar + Nombre) - 40%
+                            Expanded(
+                              flex: 4,
                               child: Row(
                                 children: [
-                                  const Icon(Icons.edit),
-                                  const SizedBox(width: 8),
-                                  const Text('Editar'),
+                                  // Avatar
+                                  Container(
+                                    width: 48,
+                                    height: 48,
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          user['color'] as Color,
+                                          (user['color'] as Color).withOpacity(0.8),
+                                        ],
+                                      ),
+                                      borderRadius: BorderRadius.circular(12),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: (user['color'] as Color).withOpacity(0.3),
+                                          blurRadius: 6,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        user['name'].toString().substring(0, 1).toUpperCase(),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  // Información del usuario
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          user['name'].toString(),
+                                          style: const TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.black87,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          'ID: ${user['id_usuario']}',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: Colors.grey[500],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
-                            PopupMenuItem(
-                              value: 'delete',
+                            
+                            // Rol - 20%
+                            Expanded(
+                              flex: 2,
+                              child: Container(
+                                margin: const EdgeInsets.symmetric(horizontal: 4),
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: (user['color'] as Color).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: (user['color'] as Color).withOpacity(0.3),
+                                  ),
+                                ),
+                                child: Text(
+                                  user['role'].toString(),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: user['color'] as Color,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ),
+                            
+                            // Correo - 30%
+                            Expanded(
+                              flex: 3,
+                              child: user['correo'] != null
+                                  ? Row(
+                                      children: [
+                                        Icon(
+                                          Icons.email_outlined,
+                                          size: 14,
+                                          color: Colors.grey[500],
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Expanded(
+                                          child: Text(
+                                            user['correo'].toString(),
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              color: Colors.grey[700],
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  : Text(
+                                      'Sin correo',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.grey[400],
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                    ),
+                            ),
+                            
+                            // Acciones - 10%
+                            SizedBox(
+                              width: 80,
                               child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  const Icon(Icons.delete, color: Colors.red),
-                                  const SizedBox(width: 8),
-                                  const Text('Eliminar', style: TextStyle(color: Colors.red)),
+                                  // Botón editar
+                                  Container(
+                                    width: 28,
+                                    height: 28,
+                                    margin: const EdgeInsets.only(right: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.blue[50],
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Material(
+                                      color: Colors.transparent,
+                                      child: InkWell(
+                                        onTap: () => _showEditUserDialog(context, index),
+                                        borderRadius: BorderRadius.circular(6),
+                                        child: Icon(
+                                          Icons.edit_rounded,
+                                          color: Colors.blue[600],
+                                          size: 14,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  // Botón eliminar
+                                  Container(
+                                    width: 28,
+                                    height: 28,
+                                    decoration: BoxDecoration(
+                                      color: Colors.red[50],
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Material(
+                                      color: Colors.transparent,
+                                      child: InkWell(
+                                        onTap: () => _showDeleteUserDialog(context, index),
+                                        borderRadius: BorderRadius.circular(6),
+                                        child: Icon(
+                                          Icons.delete_rounded,
+                                          color: Colors.red[600],
+                                          size: 14,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
                           ],
-                          onSelected: (value) {
-                            if (value == 'edit') {
-                              _showEditUserDialog(context, index);
-                            } else if (value == 'delete') {
-                              _showDeleteUserDialog(context, index);
-                            }
-                          },
                         ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: () => _showUserDialog(context),
-              icon: const Icon(Icons.add),
-              label: const Text('Agregar usuario'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0B7A2F),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _importFile(String type) async {
-    try {
-      // Aquí se implementaría la lógica real de importación de archivos
-      // Por ahora mostraremos un diálogo de éxito
-
-      showDialog(
-        context: context,
-        builder:
-            (context) => AlertDialog(
-              title: Text('Importar ${type.toLowerCase()}'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const CircularProgressIndicator(),
-                  const SizedBox(height: 16),
-                  Text('Importando ${type.toLowerCase()}...'),
-                ],
-              ),
-            ),
-      );
-
-      // Simulamos un proceso de importación
-      await Future.delayed(const Duration(seconds: 2));
-
-      Navigator.of(context).pop(); // Cerramos el diálogo de carga
-
-      showDialog(
-        context: context,
-        builder:
-            (context) => AlertDialog(
-              title: const Text('Éxito'),
-              content: Text('${type} importados correctamente.'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Aceptar'),
-                ),
-              ],
-            ),
-      );
-    } catch (e) {
-      showDialog(
-        context: context,
-        builder:
-            (context) => AlertDialog(
-              title: const Text('Error'),
-              content: Text('Error al importar ${type.toLowerCase()}: $e'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Aceptar'),
-                ),
-              ],
-            ),
-      );
-    }
-  }
-
-  Widget _buildImportSection() {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.file_upload, color: Colors.grey[700]),
-                const SizedBox(width: 12),
-                Text(
-                  'Cargar desde excel',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey[800],
+                      );
+                    }),
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            _buildImportButton('Cuadrillas', Icons.groups),
-            const SizedBox(height: 12),
-            _buildImportButton('Actividades', Icons.work),
-            const SizedBox(height: 12),
-            _buildImportButton('Empleados', Icons.person),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildImportButton(String text, IconData icon) {
-    return InkWell(
-      onTap: () => _importFile(text),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-        decoration: BoxDecoration(
-          color: Colors.grey[100],
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey[300]!),
-        ),
-        child: Row(
-          children: [
-            Text(
-              text,
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[800],
               ),
-            ),
-            const Spacer(),
-            Icon(Icons.download, color: Colors.grey[600]),
-          ],
+            ],
+          ),
         ),
-      ),
+      ],
     );
   }
 
@@ -561,13 +804,13 @@ class _AddUserDialogState extends State<_AddUserDialog> {
   Color _getColorForRole(String role) {
     switch (role.toLowerCase()) {
       case 'administrador':
-        return const Color(0xFF6B7280); // Gris para administradores
+        return AppColors.green; // Verde principal para administradores
       case 'capturista':
-        return const Color(0xFF2B8DDB); // Azul para capturistas
+        return const Color(0xFF2196F3); // Azul para capturistas
       case 'supervisor':
-        return const Color(0xFF7B6A3A); // Marrón para supervisores
+        return const Color(0xFFFF9800); // Naranja para supervisores
       default:
-        return const Color.fromARGB(255, 148, 79, 79); // Gris para otros roles
+        return const Color(0xFF6B7280); // Gris para otros roles
     }
   }
 
@@ -616,90 +859,262 @@ class _AddUserDialogState extends State<_AddUserDialog> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
+      backgroundColor: Colors.transparent,
       child: Container(
-        width: 400,
-        padding: const EdgeInsets.all(24.0),
+        width: 450,
+        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.9),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.15),
+              blurRadius: 30,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              widget.initialUser == null
-                  ? 'AÑADIR NUEVO USUARIO'
-                  : 'EDITAR USUARIO',
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            const Icon(Icons.account_circle, size: 64, color: Colors.blue),
-            const SizedBox(height: 24),
-            TextField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Nombre de Usuario',
-                prefixIcon: Icon(Icons.person_outline),
-                border: OutlineInputBorder(),
-                filled: true,
-                fillColor: Color(0xFFF5F5F5),
+            // Header con gradiente
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    AppColors.green,
+                    AppColors.greenDark,
+                  ],
+                ),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
+              ),
+              child: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(50),
+                    ),
+                    child: Icon(
+                      widget.initialUser == null 
+                          ? Icons.person_add_rounded 
+                          : Icons.edit_rounded,
+                      size: 40,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    widget.initialUser == null
+                        ? 'Agregar Nuevo Usuario'
+                        : 'Editar Usuario',
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    widget.initialUser == null
+                        ? 'Complete los datos del nuevo usuario'
+                        : 'Modifique los datos del usuario',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.white.withOpacity(0.9),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _emailController,
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                labelText: 'Correo Electrónico',
-                prefixIcon: Icon(Icons.email_outlined),
-                border: OutlineInputBorder(),
-                filled: true,
-                fillColor: Color(0xFFF5F5F5),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _passwordController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Contraseña',
-                prefixIcon: Icon(Icons.lock_outline),
-                border: OutlineInputBorder(),
-                filled: true,
-                fillColor: Color(0xFFF5F5F5),
-              ),
-            ),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<int>(
-              value: _selectedRoleId,
-              decoration: const InputDecoration(
-                labelText: 'Rol',
-                prefixIcon: Icon(Icons.work_outline),
-                border: OutlineInputBorder(),
-                filled: true,
-                fillColor: Color(0xFFF5F5F5),
-              ),
-              selectedItemBuilder: (BuildContext context) {
-                return _roles.map<Widget>((role) {
-                  final color = _getColorForRole(role['descripcion']);
-                  return Row(
-                    children: [
-                      Container(
-                        width: 16,
-                        height: 16,
-                        decoration: BoxDecoration(
-                          color: color,
-                          shape: BoxShape.circle,
+            
+            // Contenido del formulario
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Campo nombre
+                    _buildStyledTextField(
+                      controller: _nameController,
+                      label: 'Nombre de Usuario',
+                      icon: Icons.person_rounded,
+                      hint: 'Ingrese el nombre de usuario',
+                    ),
+                    const SizedBox(height: 20),
+                    
+                    // Campo email
+                    _buildStyledTextField(
+                      controller: _emailController,
+                      label: 'Correo Electrónico',
+                      icon: Icons.email_rounded,
+                      hint: 'usuario@ejemplo.com',
+                      keyboardType: TextInputType.emailAddress,
+                    ),
+                    const SizedBox(height: 20),
+                    
+                    // Campo contraseña
+                    _buildStyledTextField(
+                      controller: _passwordController,
+                      label: widget.initialUser == null ? 'Contraseña' : 'Nueva Contraseña (opcional)',
+                      icon: Icons.lock_rounded,
+                      hint: widget.initialUser == null ? 'Ingrese una contraseña segura' : 'Dejar vacío para mantener actual',
+                      obscureText: true,
+                    ),
+                    const SizedBox(height: 20),
+                    
+                    // Dropdown de roles estilizado
+                    _buildStyledRoleDropdown(),
+                    
+                    const SizedBox(height: 32),
+                    
+                    // Botones de acción
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildCancelButton(),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(role['descripcion']),
-                    ],
-                  );
-                }).toList();
-              },
-              items: _roles.map((role) {
+                        const SizedBox(width: 16),
+                        Expanded(
+                          flex: 2,
+                          child: _buildSaveButton(),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStyledTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    required String hint,
+    bool obscureText = false,
+    TextInputType? keyboardType,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey[800],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.background.withOpacity(0.3),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey[300]!),
+          ),
+          child: TextField(
+            controller: controller,
+            obscureText: obscureText,
+            keyboardType: keyboardType,
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: TextStyle(color: Colors.grey[500]),
+              prefixIcon: Container(
+                margin: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: AppColors.green, size: 20),
+              ),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStyledRoleDropdown() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Rol del Usuario',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey[800],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.background.withOpacity(0.3),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey[300]!),
+          ),
+          child: DropdownButtonFormField<int>(
+            value: _selectedRoleId,
+            decoration: InputDecoration(
+              hintText: 'Seleccione un rol',
+              hintStyle: TextStyle(color: Colors.grey[500]),
+              prefixIcon: Container(
+                margin: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.work_rounded, color: AppColors.green, size: 20),
+              ),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            ),
+            selectedItemBuilder: (BuildContext context) {
+              return _roles.map<Widget>((role) {
                 final color = _getColorForRole(role['descripcion']);
-                return DropdownMenuItem<int>(
-                  value: role['id_rol'], 
+                return Row(
+                  children: [
+                    Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: color,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      role['descripcion'],
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                  ],
+                );
+              }).toList();
+            },
+            items: _roles.map((role) {
+              final color = _getColorForRole(role['descripcion']);
+              return DropdownMenuItem<int>(
+                value: role['id_rol'],
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Row(
                     children: [
                       Container(
@@ -708,65 +1123,170 @@ class _AddUserDialogState extends State<_AddUserDialog> {
                         decoration: BoxDecoration(
                           color: color,
                           shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: color.withOpacity(0.3),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          _getIconForRole(role['descripcion']),
+                          color: Colors.white,
+                          size: 12,
                         ),
                       ),
                       const SizedBox(width: 12),
-                      Text(role['descripcion']),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            role['descripcion'],
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          Text(
+                            _getDescriptionForRole(role['descripcion']),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
-                );
-              }).toList(),
-              onChanged: (value) {
-                setState(() {
-                  _selectedRoleId = value!;
-                });
-              },
-            ),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _saveUser,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF7BAE2F),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    child: _isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          )
-                        : Text(
-                            widget.initialUser == null ? 'Añadir' : 'Guardar',
-                            style: const TextStyle(color: Colors.white),
-                          ),
-                  ),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.grey[600],
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    child: const Text(
-                      'Cancelar',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ),
-                ),
-              ],
+              );
+            }).toList(),
+            onChanged: (value) {
+              setState(() {
+                _selectedRoleId = value!;
+              });
+            },
+            dropdownColor: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            elevation: 8,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCancelButton() {
+    return Container(
+      height: 50,
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _isLoading ? null : () => Navigator.of(context).pop(),
+          borderRadius: BorderRadius.circular(12),
+          child: Center(
+            child: Text(
+              'Cancelar',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[700],
+              ),
             ),
-          ],
+          ),
         ),
       ),
     );
+  }
+
+  Widget _buildSaveButton() {
+    return Container(
+      height: 50,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppColors.green,
+            AppColors.greenDark,
+          ],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.green.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _isLoading ? null : _saveUser,
+          borderRadius: BorderRadius.circular(12),
+          child: Center(
+            child: _isLoading
+                ? const SizedBox(
+                    height: 24,
+                    width: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        widget.initialUser == null ? Icons.add_rounded : Icons.save_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        widget.initialUser == null ? 'Agregar Usuario' : 'Guardar Cambios',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  IconData _getIconForRole(String role) {
+    switch (role.toLowerCase()) {
+      case 'administrador':
+        return Icons.admin_panel_settings;
+      case 'capturista':
+        return Icons.edit;
+      case 'supervisor':
+        return Icons.visibility;
+      default:
+        return Icons.person;
+    }
+  }
+
+  String _getDescriptionForRole(String role) {
+    switch (role.toLowerCase()) {
+      case 'administrador':
+        return 'Acceso total al sistema';
+      case 'capturista':
+        return 'Registro de información';
+      case 'supervisor':
+        return 'Supervisión y reportes';
+      default:
+        return 'Usuario estándar';
+    }
   }
 
   Future<void> _saveUser() async {
