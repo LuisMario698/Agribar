@@ -2220,7 +2220,7 @@ class _NominaTablaEditableState extends State<NominaTablaEditable> {
 
     // 3) Vista expandida (columnas fijas + header sticky)
   final double headingHeight = 70; // reducido de 72 a 70
-    final double dataRowHeight = 90; // Aumentado significativamente para mejor visualización en modo expandido
+    final double dataRowHeight = 130; // Aumentado aún más para celdas más espaciosas
   // Aumentar un poquito el espaciado para que no se vea tan apretado
   final double columnSpacing = 18;
     // Usar los anchos globales para evitar desalineación entre preview y tabla real
