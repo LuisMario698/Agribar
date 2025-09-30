@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/registrar_actividad.dart';
+import '../services/database_service.dart';
 // Archivo: Actividades_content.dart
 // Pantalla para la gestión de actividades en el sistema Agribar
 // Estructura profesionalizada y documentada en español
@@ -21,6 +22,12 @@ class _ActividadesContentState extends State<ActividadesContent> {
   final TextEditingController fechaController = TextEditingController();
   final TextEditingController searchController = TextEditingController();
   
+  // Variables para el selector de clave
+  List<String> _clavesDisponibles = [];
+  String? _claveSeleccionada;
+  bool _cargandoClaves = false;
+  bool _modoClavePersonalizada = false;
+  
   // Variable para controlar si se muestra el campo personalizado
   bool mostrarCampoPersonalizado = false;
   // Variable para el valor seleccionado en el dropdown
@@ -29,11 +36,72 @@ class _ActividadesContentState extends State<ActividadesContent> {
 void initState() {
   super.initState();
   cargarActividadesDesdeBD();
+  _cargarClavesDisponibles();
   
   // Establecer fecha actual directamente
   final now = DateTime.now();
   fecha = now;
   fechaController.text = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+}
+
+/// Carga las claves disponibles desde la base de datos
+Future<void> _cargarClavesDisponibles() async {
+  if (_cargandoClaves) return;
+
+  setState(() {
+    _cargandoClaves = true;
+  });
+
+  try {
+    final db = DatabaseService();
+    await db.connect();
+    
+    // Generar 100 claves disponibles que NO estén en uso para actividades
+    final result = await db.connection.query("""
+      WITH RECURSIVE numeros AS (
+        SELECT 1 as num
+        UNION ALL
+        SELECT num + 1 
+        FROM numeros 
+        WHERE num < 100
+      ),
+      claves_usadas AS (
+        SELECT clave::INTEGER as clave_num 
+        FROM actividades 
+        WHERE clave ~ '^[0-9]+\$'
+      )
+      SELECT numeros.num::text as clave_disponible
+      FROM numeros
+      LEFT JOIN claves_usadas ON numeros.num = claves_usadas.clave_num
+      WHERE claves_usadas.clave_num IS NULL
+      ORDER BY numeros.num
+      LIMIT 100;
+    """);
+
+    if (result.isNotEmpty) {
+      _clavesDisponibles = result.map((row) => row[0] as String).toList();
+      print('✅ Claves de actividades disponibles cargadas: ${_clavesDisponibles.length}');
+      print('📋 Primeras 10 claves: ${_clavesDisponibles.take(10).join(", ")}');
+    } else {
+      // Si no hay claves disponibles (todos los números del 1-100 están usados)
+      // Generar claves a partir del 101
+      _clavesDisponibles = List.generate(100, (index) => (101 + index).toString());
+      print('⚠️ Todas las claves 1-100 están usadas. Generando 101-200.');
+    }
+    
+    setState(() {
+      _cargandoClaves = false;
+    });
+    
+    await db.close();
+  } catch (e) {
+    print('❌ Error al cargar claves disponibles: $e');
+    setState(() {
+      // Fallback: generar claves básicas disponibles
+      _clavesDisponibles = List.generate(100, (index) => (index + 1).toString());
+      _cargandoClaves = false;
+    });
+  }
 }
 
 Future<void> cargarActividadesDesdeBD() async {
@@ -89,6 +157,48 @@ Future<void> cargarActividadesDesdeBD() async {
         .toList();
   }
 
+  /// Widget para el dropdown de claves disponibles
+  Widget _buildClaveDropdown(Color fillColor) {
+    return DropdownButtonFormField<String>(
+      value: _claveSeleccionada,
+      items: _clavesDisponibles.map((clave) => DropdownMenuItem(
+        value: clave,
+        child: Text('Clave $clave', style: TextStyle(fontSize: 16)),
+      )).toList(),
+      onChanged: (valor) {
+        setState(() {
+          _claveSeleccionada = valor;
+          if (valor != null) {
+            claveController.text = valor;
+          }
+        });
+      },
+      decoration: InputDecoration(
+        hintText: _cargandoClaves ? "Cargando..." : null,
+        filled: true,
+        fillColor: fillColor,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide.none,
+        ),
+        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+        suffixIcon: _cargandoClaves 
+          ? SizedBox(
+              width: 20,
+              height: 20,
+              child: Padding(
+                padding: EdgeInsets.all(12),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF0B7A2F)),
+                ),
+              ),
+            )
+          : null,
+      ),
+    );
+  }
+
   /// Agrega una nueva actividad a la lista
 Future<void> agregarActividad() async {
   // Validación adicional para el campo personalizado
@@ -103,10 +213,10 @@ Future<void> agregarActividad() async {
   }
 
   // Validar campos obligatorios (excluir nombreController de la validación directa)
-  if (importeController.text.isEmpty || fechaController.text.isEmpty) {
+  if (importeController.text.isEmpty || fechaController.text.isEmpty || claveController.text.isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Por favor completa todos los campos'),
+        content: Text('Por favor completa todos los campos incluyendo la clave'),
         backgroundColor: Colors.red,
       ),
     );
@@ -124,7 +234,8 @@ Future<void> agregarActividad() async {
     return;
   }
 
-  final claveGenerada = await generarSiguienteClaveActividad();
+  // Usar la clave seleccionada o personalizada en lugar de generar una automáticamente
+  final claveActividad = claveController.text;
   
   // Determinar el nombre a usar: personalizado si está habilitado, sino el del dropdown
   final nombreActividad = mostrarCampoPersonalizado 
@@ -132,7 +243,7 @@ Future<void> agregarActividad() async {
       : actividadSeleccionada;
   
   final nuevaActividad = {
-    'clave': claveGenerada,
+    'clave': claveActividad,
     'fecha': fechaController.text,
     'importe': double.tryParse(importeController.text) ?? 0.0,
     'nombre': nombreActividad,
@@ -161,8 +272,11 @@ Future<void> agregarActividad() async {
 
   /// Limpia todos los campos del formulario
   void _limpiarCampos() {
+    claveController.clear();
     importeController.clear();
     nombrePersonalizadoController.clear();
+    _claveSeleccionada = null;
+    _modoClavePersonalizada = false;
     mostrarCampoPersonalizado = false; // Resetear el estado del campo personalizado
     actividadSeleccionada = 'Nombre'; // Resetear el dropdown
     
@@ -239,6 +353,7 @@ Future<void> agregarActividad() async {
                                         runSpacing: 16,
                                         alignment: WrapAlignment.start,
                                         children: [
+                                          _claveField(width: isSmall ? double.infinity : 250),
                                           _fechaPickerField(width: isSmall ? double.infinity : 250),
                                           _formInputField(importeController, 'Importe', width: isSmall ? double.infinity : 250),
                                           _actividadDropdown(width: isSmall ? double.infinity : 250),
@@ -430,22 +545,104 @@ Future<void> agregarActividad() async {
     );
   }
 
+  // Widget para selector de clave de actividad
+  Widget _claveField({double width = 250}) {
+    return SizedBox(
+      width: width,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Título y switch en la misma fila
+          SizedBox(
+            height: 24, // Altura fija para alinear con otros títulos
+            child: Row(
+              children: [
+                Text(
+                  'Clave',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF23611C),
+                  ),
+                ),
+                SizedBox(width: 16),
+                Text('Personalizada', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                SizedBox(width: 4),
+                Transform.scale(
+                  scale: 0.7,
+                  child: Switch.adaptive(
+                    value: _modoClavePersonalizada,
+                    onChanged: (value) {
+                      setState(() {
+                        _modoClavePersonalizada = value;
+                        if (!value && _claveSeleccionada != null) {
+                          claveController.text = _claveSeleccionada!;
+                        }
+                      });
+                    },
+                    activeColor: Color(0xFF0B7A2F),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: 8),
+          // Campo de entrada
+          SizedBox(
+            height: 56,
+            child: _modoClavePersonalizada 
+              ? TextField(
+                  controller: claveController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: Color(0xFFEDEDED),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  ),
+                )
+              : _buildClaveDropdown(Color(0xFFEDEDED)),
+          ),
+        ],
+      ),
+    );
+  }
+
   // Widget para input estilizado
   Widget _formInputField(TextEditingController controller, String label, {double width = 250}) {
     return SizedBox(
       width: width,
-      child: TextField(
-        controller: controller,
-        decoration: InputDecoration(
-          labelText: label,
-          filled: true,
-          fillColor: Color(0xFFEDEDED),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: BorderSide.none,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF23611C),
+            ),
           ),
-          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        ),
+          SizedBox(height: 8),
+          SizedBox(
+            height: 56,
+            child: TextField(
+              controller: controller,
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: Color(0xFFEDEDED),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -453,35 +650,51 @@ Future<void> agregarActividad() async {
   // Widget para dropdown de actividad
   Widget _actividadDropdown({double width = 250}) {
     final List<String> actividades = [
-      'Nombre', 'Destajo', 'Tapadora', 'Limpieza', 'Cosecha', 'Riego', 'Fertilización', 'Poda', 'Transplante', 'Siembra', 'Aplicación de Plaguicida', 'Deshierbe', 'Empaque', 'Carga', 'Otro'
+        "Nombre", 'Destajo', 'Tapadora', 'Limpieza', 'Cosecha', 'Riego', 'Fertilización', 'Poda', 'Transplante', 'Siembra', 'Aplicación de Plaguicida', 'Deshierbe', 'Empaque', 'Carga', 'Otro'
     ];
     return SizedBox(
       width: width,
-      child: DropdownButtonFormField<String>(
-        value: actividadSeleccionada,
-        items: actividades.map((act) => DropdownMenuItem(value: act, child: Text(act))).toList(),
-        onChanged: (value) {
-          setState(() {
-            actividadSeleccionada = value ?? 'Nombre';
-            if (value == 'Otro') {
-              mostrarCampoPersonalizado = true;
-              nombrePersonalizadoController.clear(); // Limpiar el campo personalizado
-            } else {
-              mostrarCampoPersonalizado = false;
-              nombrePersonalizadoController.clear(); // Limpiar el campo personalizado al cambiar
-            }
-          });
-        },
-        decoration: InputDecoration(
-          filled: true,
-          fillColor: Color(0xFFEDEDED),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: BorderSide.none,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Actividad',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF23611C),
+            ),
           ),
-          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          labelText: 'Actividad',
-        ),
+          SizedBox(height: 8),
+          SizedBox(
+            height: 56,
+            child: DropdownButtonFormField<String>(
+              value: actividadSeleccionada,
+              items: actividades.map((act) => DropdownMenuItem(value: act, child: Text(act))).toList(),
+              onChanged: (value) {
+                setState(() {
+                  actividadSeleccionada = value ?? 'Nombre';
+                  if (value == 'Otro') {
+                    mostrarCampoPersonalizado = true;
+                    nombrePersonalizadoController.clear(); // Limpiar el campo personalizado
+                  } else {
+                    mostrarCampoPersonalizado = false;
+                    nombrePersonalizadoController.clear(); // Limpiar el campo personalizado al cambiar
+                  }
+                });
+              },
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: Color(0xFFEDEDED),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -490,33 +703,50 @@ Future<void> agregarActividad() async {
   Widget _fechaPickerField({double width = 250}) {
     return SizedBox(
       width: width,
-      child: TextField(
-        controller: fechaController,
-        readOnly: true,
-        decoration: InputDecoration(
-          labelText: 'Fecha',
-          filled: true,
-          fillColor: Color(0xFFEDEDED),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: BorderSide.none,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Fecha',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF23611C),
+            ),
           ),
-          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          suffixIcon: Icon(Icons.calendar_today),
-        ),
-        onTap: () async {
-          DateTime? picked = await showDatePicker(
-            context: context,
-            initialDate: fecha ?? DateTime.now(),
-            firstDate: DateTime(2000),
-            lastDate: DateTime(2100),
-          );
-          setState(() {
-            fecha = picked;
-            // Formato correcto para la base de datos: yyyy-mm-dd
-            fechaController.text = "${picked?.year}-${picked?.month.toString().padLeft(2, '0')}-${picked?.day.toString().padLeft(2, '0')}";
-          });
-                },
+          SizedBox(height: 8),
+          SizedBox(
+            height: 56,
+            child: TextField(
+              controller: fechaController,
+              readOnly: true,
+              decoration: InputDecoration(
+                hintText: 'Seleccionar fecha',
+                filled: true,
+                fillColor: Color(0xFFEDEDED),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                suffixIcon: Icon(Icons.calendar_today),
+              ),
+              onTap: () async {
+                DateTime? picked = await showDatePicker(
+                  context: context,
+                  initialDate: fecha ?? DateTime.now(),
+                  firstDate: DateTime(2000),
+                  lastDate: DateTime(2100),
+                );
+                setState(() {
+                  fecha = picked;
+                  // Formato correcto para la base de datos: yyyy-mm-dd
+                  fechaController.text = "${picked?.year}-${picked?.month.toString().padLeft(2, '0')}-${picked?.day.toString().padLeft(2, '0')}";
+                });
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

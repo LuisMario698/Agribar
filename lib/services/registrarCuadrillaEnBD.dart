@@ -7,21 +7,26 @@ Future<void> registrarCuadrillaEnBD(Map<String, dynamic> cuadrilla) async {
   try {
     await db.connect();
 
-    // Generar la siguiente clave automáticamente
-    final siguienteClave = await _generarSiguienteClave(db);
+    // Usar la clave proporcionada o generar una automática si no se especifica
+    String claveAUsar;
+    if (cuadrilla.containsKey('clave') && cuadrilla['clave'] != null && cuadrilla['clave'].toString().isNotEmpty) {
+      claveAUsar = cuadrilla['clave'].toString();
+    } else {
+      claveAUsar = await _generarSiguienteClave(db);
+    }
 
     await db.connection.query('''
       INSERT INTO cuadrillas (clave, nombre, grupo, actividad, estado)
       VALUES (@clave, @nombre, @grupo, @actividad, @estado)
     ''', substitutionValues: {
-      'clave': siguienteClave,
+      'clave': claveAUsar,
       'nombre': cuadrilla['nombre'],
       'grupo': cuadrilla['grupo'],
       'actividad': cuadrilla['actividad'],
       'estado': cuadrilla['estado'] ?? true, // true = habilitada por default
     });
 
-    print('✅ Cuadrilla registrada correctamente con clave: $siguienteClave');
+    print('✅ Cuadrilla registrada correctamente con clave: $claveAUsar');
   } catch (e) {
     print('❌ Error al registrar cuadrilla: $e');
   } finally {

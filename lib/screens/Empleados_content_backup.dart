@@ -483,7 +483,7 @@ class _RegistroEmpleadoWizardState extends State<RegistroEmpleadoWizard> {
   List<String> registrosPatronalesDisponibles = ["E6483368131", "E5920112136"];
   bool isLoadingCuadrillas = false;
 
-  // Variables para el selector de código de empleado
+  // 🔧 Variables para selector de código de empleado
   List<String> _codigosDisponibles = [];
   String? _codigoSeleccionado;
   bool _cargandoCodigos = false;
@@ -494,10 +494,50 @@ class _RegistroEmpleadoWizardState extends State<RegistroEmpleadoWizard> {
     super.initState();
     _cargarCuadrillasDisponibles();
     _cargarCodigosDisponibles();
-    
-    // Establecer fecha actual por defecto
-    fechaIngreso = DateTime.now();
-    fechaIngresoController.text = "${fechaIngreso!.year}-${fechaIngreso!.month.toString().padLeft(2, '0')}-${fechaIngreso!.day.toString().padLeft(2, '0')}";
+  }
+
+  /// Carga los códigos disponibles desde la base de datos
+  Future<void> _cargarCodigosDisponibles() async {
+    setState(() {
+      _cargandoCodigos = true;
+    });
+
+    try {
+      final db = DatabaseService();
+      await db.connect();
+
+      // Obtener códigos ya asignados
+      final resultadoExistentes = await db.connection.query(
+        'SELECT codigo FROM empleados ORDER BY CAST(codigo AS INTEGER)'
+      );
+
+      final codigosExistentes = resultadoExistentes.map((row) => row[0].toString()).toSet();
+
+      // Generar lista de códigos disponibles (del 1 al 9999)
+      final codigosDisponibles = <String>[];
+      for (int i = 1; i <= 9999; i++) {
+        final codigo = i.toString();
+        if (!codigosExistentes.contains(codigo)) {
+          codigosDisponibles.add(codigo);
+        }
+      }
+
+      await db.close();
+
+      if (mounted) {
+        setState(() {
+          _codigosDisponibles = codigosDisponibles;
+          _cargandoCodigos = false;
+        });
+      }
+    } catch (e) {
+      print('❌ Error al cargar códigos disponibles: $e');
+      if (mounted) {
+        setState(() {
+          _cargandoCodigos = false;
+        });
+      }
+    }
   }
 
   /// Carga las cuadrillas disponibles desde la base de datos
@@ -546,57 +586,6 @@ class _RegistroEmpleadoWizardState extends State<RegistroEmpleadoWizard> {
       }
     }
   }
-
-  /// Carga los códigos disponibles desde la base de datos
-  Future<void> _cargarCodigosDisponibles() async {
-    setState(() {
-      _cargandoCodigos = true;
-    });
-
-    try {
-      final db = DatabaseService();
-      await db.connect();
-
-      // Obtener códigos ya asignados
-      final resultadoExistentes = await db.connection.query(
-        'SELECT codigo FROM empleados ORDER BY CAST(codigo AS INTEGER)'
-      );
-
-      final codigosExistentes = resultadoExistentes.map((row) => row[0].toString()).toSet();
-
-      // Generar lista de códigos disponibles (del 1 al 9999)
-      final codigosDisponibles = <String>[];
-      for (int i = 1; i <= 9999; i++) {
-        final codigo = i.toString();
-        if (!codigosExistentes.contains(codigo)) {
-          codigosDisponibles.add(codigo);
-        }
-      }
-
-      await db.close();
-
-      if (mounted) {
-        setState(() {
-          _codigosDisponibles = codigosDisponibles;
-          _cargandoCodigos = false;
-          
-          // Seleccionar automáticamente el primer código disponible
-          if (_codigosDisponibles.isNotEmpty && !_modoCodigoPersonalizado) {
-            _codigoSeleccionado = _codigosDisponibles.first;
-            codigoController.text = _codigoSeleccionado!;
-          }
-        });
-      }
-    } catch (e) {
-      print('❌ Error al cargar códigos disponibles: $e');
-      if (mounted) {
-        setState(() {
-          _cargandoCodigos = false;
-        });
-      }
-    }
-  }
-
   DateTime? fechaIngreso;
   final TextEditingController fechaIngresoController = TextEditingController();
 
@@ -640,180 +629,64 @@ class _RegistroEmpleadoWizardState extends State<RegistroEmpleadoWizard> {
     'Zacatecas',
   ];
 
-  /// Valida los campos del formulario antes del registro
-  String? _validarCampos() {
-    // Validar nombre
-    if (nombreController.text.trim().isEmpty) {
-      return 'El campo Nombre es obligatorio';
-    }
-    if (nombreController.text.trim().length < 2) {
-      return 'El nombre debe tener al menos 2 caracteres';
-    }
-    if (!RegExp(r'^[a-zA-ZáéíóúñÁÉÍÓÚÑ\s]+$').hasMatch(nombreController.text.trim())) {
-      return 'El nombre solo puede contener letras y espacios';
-    }
-
-    // Validar apellidos
-    if (apellidoPaternoController.text.trim().isEmpty) {
-      return 'El campo Apellido Paterno es obligatorio';
-    }
-    if (apellidoPaternoController.text.trim().length < 2) {
-      return 'El apellido paterno debe tener al menos 2 caracteres';
-    }
-    if (!RegExp(r'^[a-zA-ZáéíóúñÁÉÍÓÚÑ\s]+$').hasMatch(apellidoPaternoController.text.trim())) {
-      return 'El apellido paterno solo puede contener letras y espacios';
-    }
-
-    if (apellidoMaternoController.text.trim().isEmpty) {
-      return 'El campo Apellido Materno es obligatorio';
-    }
-    if (apellidoMaternoController.text.trim().length < 2) {
-      return 'El apellido materno debe tener al menos 2 caracteres';
-    }
-    if (!RegExp(r'^[a-zA-ZáéíóúñÁÉÍÓÚÑ\s]+$').hasMatch(apellidoMaternoController.text.trim())) {
-      return 'El apellido materno solo puede contener letras y espacios';
-    }
-
-    // Validar código
-    String codigoValidar;
-    if (_modoCodigoPersonalizado || _codigoSeleccionado == null) {
-      codigoValidar = codigoController.text.trim();
-    } else {
-      codigoValidar = _codigoSeleccionado!;
-    }
-    
-    if (codigoValidar.isEmpty) {
-      return 'El campo Código es obligatorio';
-    }
-    if (!RegExp(r'^[0-9]+$').hasMatch(codigoValidar)) {
-      return 'El código solo puede contener números';
-    }
-
-    // Validar estado de origen
-    if (estadoOrigen.trim().isEmpty) {
-      return 'Debe seleccionar un Estado de Origen';
-    }
-
-    // Validar fecha de ingreso
-    if (fechaIngreso == null) {
-      return 'Debe seleccionar una Fecha de Ingreso';
-    }
-    if (fechaIngreso!.isAfter(DateTime.now().add(Duration(days: 1)))) {
-      return 'La fecha de ingreso no puede ser futura';
-    }
-
-    // Validar registro patronal
-    if (registroPatronalSeleccionado.trim().isEmpty) {
-      return 'Debe seleccionar un Registro Patronal';
-    }
-
-    // Validar sueldo
-    if (sueldoController.text.trim().isEmpty) {
-      return 'El campo Sueldo es obligatorio';
-    }
-    
-    double? sueldo = double.tryParse(sueldoController.text.trim());
-    if (sueldo == null) {
-      return 'El sueldo debe ser un número válido';
-    }
-    if (sueldo < 0) {
-      return 'El sueldo no puede ser negativo';
-    }
-    if (sueldo > 999999.99) {
-      return 'El sueldo no puede exceder \$999,999.99';
-    }
-
-    return null; // Sin errores
-  }
-
   Future<void> _nextStep() async {
     if (_currentStep < totalSteps - 1) {
       setState(() => _currentStep++);
     } else {
-      // Validar campos antes del registro
-      String? error = _validarCampos();
-      if (error != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(error),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 4),
-          ),
-        );
-        return; // Detener el registro si hay errores
+      // Usar el código seleccionado o del campo de texto, o generar uno automático
+      String nuevoCodigo;
+      if (_modoCodigoPersonalizado && codigoController.text.isNotEmpty) {
+        nuevoCodigo = codigoController.text.trim();
+      } else if (_codigoSeleccionado != null) {
+        nuevoCodigo = _codigoSeleccionado!;
+      } else {
+        nuevoCodigo = await generarSiguienteCodigoEmpleado();
       }
 
-      try {
-        // Usar el código seleccionado o generar uno automático
-        String nuevoCodigo;
-        if (_modoCodigoPersonalizado || _codigoSeleccionado == null) {
-          // Usar código del campo de texto (personalizado o fallback)
-          nuevoCodigo = codigoController.text.trim();
-          if (nuevoCodigo.isEmpty) {
-            nuevoCodigo = await generarSiguienteCodigoEmpleado();
-          }
-        } else {
-          // Usar código seleccionado del dropdown
-          nuevoCodigo = _codigoSeleccionado!;
-        }
-        
-        final nuevoEmpleado = {
-          'codigo': nuevoCodigo,
-          'nombre': nombreController.text.trim(),
-          'apellidoPaterno': apellidoPaternoController.text.trim(),
-          'apellidoMaterno': apellidoMaternoController.text.trim(),
-          'curp': curpController.text.trim(),
-          'rfc': rfcController.text.trim(),
-          'nss': nssController.text.trim(),
-          'estado': estadoOrigen.trim(),
+      final nuevoEmpleado = {
+        'codigo': nuevoCodigo,
+        'nombre': nombreController.text,
+        'apellidoPaterno': apellidoPaternoController.text,
+        'apellidoMaterno': apellidoMaternoController.text,
+        'curp': curpController.text,
+        'rfc': rfcController.text,
+        'nss': nssController.text,
+        'estado': estadoOrigen,
 
-          // Campos laborales con valores por defecto
-          'tipo': 'Temporal', // Valor por defecto
-          'idCuadrilla': null, // Se asignará posteriormente en nómina
-          'fechaIngreso': fechaIngreso!.toIso8601String().split('T').first,
-          'empresa': 'AGRIBAR', // Valor por defecto
-          'puesto': 'Operador', // Valor por defecto
-          'registroPatronal': registroPatronalSeleccionado.trim(),
+        // Campos laborales con valores por defecto
+        'tipo': 'Temporal', // Valor por defecto
+        'idCuadrilla': null, // Se asignará posteriormente en nómina
+        'fechaIngreso': fechaIngreso?.toIso8601String().split('T').first ?? '',
+        'empresa': 'AGRIBAR', // Valor por defecto
+        'puesto': 'Operador', // Valor por defecto
+        'registroPatronal': registroPatronalSeleccionado.isNotEmpty 
+            ? registroPatronalSeleccionado 
+            : 'E6483368131', // Valor por defecto
 
-          // Campos de nómina simplificados
-          'sueldo': double.parse(sueldoController.text.trim()),
-          'domingoLaboral': 0.0, // Campo eliminado, valor por defecto
-          'descuentoComedor': 0.0, // Campo eliminado, valor por defecto
-          'descuentoInfonavit': double.tryParse(descuentoInfonavitController.text.trim()) ?? 0.0,
-        };
-        await registrarEmpleadoEnBD(nuevoEmpleado);
+        // Campos de nómina simplificados
+        'sueldo': double.tryParse(sueldoController.text) ?? 0.0,
+        'domingoLaboral': 0.0, // Campo eliminado, valor por defecto
+        'descuentoComedor': 0.0, // Campo eliminado, valor por defecto
+        'descuentoInfonavit': double.tryParse(descuentoInfonavitController.text) ?? 0.0,
+      };
+      await registrarEmpleadoEnBD(nuevoEmpleado);
 
-        // Llamar al callback para agregar el empleado a la lista en memoria
-        widget.onEmpleadoRegistrado([
-          nuevoCodigo,
-          nombreController.text.trim(),
-          apellidoPaternoController.text.trim(), 
-          apellidoMaternoController.text.trim(),
-          'General', // Valor por defecto para cuadrilla
-          sueldoController.text.trim(),
-          '', // Eliminamos tipoDescuentoInfonavit
-        ]);
+      // Llamar al callback para agregar el empleado a la lista en memoria
+      widget.onEmpleadoRegistrado([
+        nuevoCodigo,
+        nombreController.text,
+        apellidoPaternoController.text, apellidoMaternoController.text,
+        'General', // Valor por defecto para cuadrilla
+        sueldoController.text,
+        '', // Eliminamos tipoDescuentoInfonavit
+      ]);
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('¡Empleado registrado exitosamente!'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 3),
-          ),
-        );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('¡Registro completado!')));
 
-        setState(() => _currentStep = 0);
-        _limpiarCampos();
-        
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al registrar empleado: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 4),
-          ),
-        );
-      }
+      setState(() => _currentStep = 0);
+      _limpiarCampos();
     }
   }
 
@@ -852,22 +725,14 @@ class _RegistroEmpleadoWizardState extends State<RegistroEmpleadoWizard> {
     estadoOrigen = '';
     nssController.clear();
     registroPatronalController.clear();
+    fechaIngreso = null;
+    fechaIngresoController.clear();
     sueldoController.clear();
     descuentoInfonavitController.clear();
     
-    // Restablecer fecha actual por defecto
-    fechaIngreso = DateTime.now();
-    fechaIngresoController.text = "${fechaIngreso!.year}-${fechaIngreso!.month.toString().padLeft(2, '0')}-${fechaIngreso!.day.toString().padLeft(2, '0')}";
-    
-    // Resetear selector de código
+    // Limpiar variables del selector de código
     _codigoSeleccionado = null;
     _modoCodigoPersonalizado = false;
-    
-    // Resetear registro patronal
-    registroPatronalSeleccionado = '';
-    
-    // Recargar códigos disponibles y seleccionar el primero
-    _cargarCodigosDisponibles();
     
     setState(() {});
   }
@@ -1048,382 +913,203 @@ class _RegistroEmpleadoWizardState extends State<RegistroEmpleadoWizard> {
     // Estilo de tarjeta
     BoxDecoration cardDecoration = BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(8),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withOpacity(0.08),
-          blurRadius: 8,
-          offset: Offset(0, 4),
+          color: Colors.black.withOpacity(0.05),
+          blurRadius: 4,
+          offset: Offset(0, 2),
         ),
       ],
     );
-    EdgeInsets cardPadding = const EdgeInsets.all(24);
+    EdgeInsets cardPadding = const EdgeInsets.all(16);
 
     return Center(
       child: Container(
-        width: 900,
-        child: Column(
+        width: 800,
+        height: 600,
+        child: Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 32,
+          runSpacing: 32,
           children: [
-            // Título de la sección
+            // Apellido Paterno
             Container(
-              margin: EdgeInsets.only(bottom: 32),
-              child: Row(
+              width: 290,
+              height: 100,
+              decoration: cardDecoration,
+              padding: cardPadding,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Icon(Icons.person, color: Color(0xFF0B7A2F), size: 32),
-                  SizedBox(width: 16),
                   Text(
-                    'Información Personal',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF0B7A2F),
+                    'Apellido Paterno',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: _customInput(
+                        apellidoPaternoController,
+                        '',
+                        grisInput,
+                      ),
                     ),
                   ),
                 ],
               ),
-            ),
-            
-            // Fila 1: Código de Empleado | Nombre
-            Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    height: 140,
-                    decoration: cardDecoration,
-                    padding: cardPadding,
-                    margin: EdgeInsets.only(right: 20, bottom: 20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.badge, color: Color(0xFF0B7A2F), size: 20),
-                            SizedBox(width: 12),
-                            Text(
-                              'Código de Empleado',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF0B7A2F),
-                              ),
-                            ),
-                            Spacer(),
-                            Text('Personalizado', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-                            SizedBox(width: 8),
-                            Transform.scale(
-                              scale: 0.8,
-                              child: Switch.adaptive(
-                                value: _modoCodigoPersonalizado,
-                                onChanged: (value) {
-                                  setState(() {
-                                    _modoCodigoPersonalizado = value;
-                                    if (!value && _codigoSeleccionado != null) {
-                                      codigoController.text = _codigoSeleccionado!;
-                                    }
-                                  });
-                                },
-                                activeColor: Color(0xFF0B7A2F),
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 16),
-                        Expanded(
-                          child: _modoCodigoPersonalizado 
-                            ? _buildCustomTextField(
-                                controller: codigoController,
-                                hint: 'Ingrese código',
-                                fillColor: grisInput,
-                                isNumeric: true,
-                              )
-                            : _buildCodigoDropdown(grisInput),
-                        ),
-                      ],
+            ), // Apellido Materno
+            Container(
+              width: 290,
+              height: 100,
+              decoration: cardDecoration,
+              padding: cardPadding,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Apellido Materno',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: _customInput(
+                        apellidoMaternoController,
+                        '',
+                        grisInput,
+                      ),
                     ),
                   ),
-                ),
-                Expanded(
-                  child: Container(
-                    height: 140,
-                    decoration: cardDecoration,
-                    padding: cardPadding,
-                    margin: EdgeInsets.only(bottom: 20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.person_outline, color: Color(0xFF0B7A2F), size: 20),
-                            SizedBox(width: 12),
-                            Text(
-                              'Nombre',
-                              style: TextStyle(
-                                fontSize: 18, 
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF0B7A2F),
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 16),
-                        Expanded(
-                          child: _buildCustomTextField(
-                            controller: nombreController,
-                            hint: 'Ingrese nombre',
-                            fillColor: grisInput,
+                ],
+              ),
+            ), // Nombre
+            Container(
+              width: 290,
+              height: 100,
+              decoration: cardDecoration,
+              padding: cardPadding,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Nombre',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: _customInput(nombreController, '', grisInput),
+                    ),
+                  ),
+                ],
+              ),
+            ), // CURP
+            Container(
+              width: 290,
+              height: 100,
+              decoration: cardDecoration,
+              padding: cardPadding,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'CURP',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: _customInput(curpController, '', grisInput),
+                    ),
+                  ),
+                ],
+              ),
+            ), // RFC
+            Container(
+              width: 290,
+              height: 100,
+              decoration: cardDecoration,
+              padding: cardPadding,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'RFC',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: _customInput(rfcController, '', grisInput),
+                    ),
+                  ),
+                ],
+              ),
+            ), // NSS
+            Container(
+              width: 290,
+              height: 100,
+              decoration: cardDecoration,
+              padding: cardPadding,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'NSS',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: _customInput(nssController, '', grisInput),
+                    ),
+                  ),
+                ],
+              ),
+            ), // Estado de Origen
+            Container(
+              width: 290,
+              height: 100,
+              decoration: cardDecoration,
+              padding: cardPadding,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Estado de Origen',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: DropdownButtonFormField<String>(
+                        value: estadoOrigen.isEmpty ? null : estadoOrigen,
+                        items:
+                            estadosMexico
+                                .map(
+                                  (e) => DropdownMenuItem(
+                                    value: e,
+                                    child: Text(e),
+                                  ),
+                                )
+                                .toList(),
+                        onChanged:
+                            (v) => setState(() => estadoOrigen = v ?? ''),
+                        decoration: InputDecoration(
+                          labelText: "Estado",
+                          filled: true,
+                          fillColor: grisInput,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
                           ),
                         ),
-                      ],
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
-            
-            // Fila 2: Apellido Paterno | Apellido Materno
-            Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    height: 140,
-                    decoration: cardDecoration,
-                    padding: cardPadding,
-                    margin: EdgeInsets.only(right: 20, bottom: 20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.family_restroom, color: Color(0xFF0B7A2F), size: 20),
-                            SizedBox(width: 12),
-                            Text(
-                              'Apellido Paterno',
-                              style: TextStyle(
-                                fontSize: 18, 
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF0B7A2F),
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 16),
-                        Expanded(
-                          child: _buildCustomTextField(
-                            controller: apellidoPaternoController,
-                            hint: 'Ingrese apellido paterno',
-                            fillColor: grisInput,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: Container(
-                    height: 140,
-                    decoration: cardDecoration,
-                    padding: cardPadding,
-                    margin: EdgeInsets.only(bottom: 20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.family_restroom_outlined, color: Color(0xFF0B7A2F), size: 20),
-                            SizedBox(width: 12),
-                            Text(
-                              'Apellido Materno',
-                              style: TextStyle(
-                                fontSize: 18, 
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF0B7A2F),
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 16),
-                        Expanded(
-                          child: _buildCustomTextField(
-                            controller: apellidoMaternoController,
-                            hint: 'Ingrese apellido materno',
-                            fillColor: grisInput,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            
-            // Fila 3: Estado de Origen | CURP
-            Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    height: 140,
-                    decoration: cardDecoration,
-                    padding: cardPadding,
-                    margin: EdgeInsets.only(right: 20, bottom: 20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.location_on, color: Color(0xFF0B7A2F), size: 20),
-                            SizedBox(width: 12),
-                            Text(
-                              'Estado de Origen',
-                              style: TextStyle(
-                                fontSize: 18, 
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF0B7A2F),
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 16),
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
-                            value: estadoOrigen.isEmpty ? null : estadoOrigen,
-                            items: estadosMexico.map((e) => DropdownMenuItem(
-                              value: e,
-                              child: Text(e, style: TextStyle(fontSize: 15)),
-                            )).toList(),
-                            onChanged: (v) => setState(() => estadoOrigen = v ?? ''),
-                            decoration: InputDecoration(
-                              hintText: "Seleccione estado",
-                              filled: true,
-                              fillColor: grisInput,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: BorderSide.none,
-                              ),
-                              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: Container(
-                    height: 140,
-                    decoration: cardDecoration,
-                    padding: cardPadding,
-                    margin: EdgeInsets.only(bottom: 20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.credit_card, color: Color(0xFF0B7A2F), size: 20),
-                            SizedBox(width: 12),
-                            Text(
-                              'CURP',
-                              style: TextStyle(
-                                fontSize: 18, 
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF0B7A2F),
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 16),
-                        Expanded(
-                          child: _buildCustomTextField(
-                            controller: curpController,
-                            hint: 'Ingrese CURP (18 caracteres)',
-                            fillColor: grisInput,
-                            maxLength: 18,
-                            isUppercase: true,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            
-            // Fila 4: RFC | NSS
-            Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    height: 140,
-                    decoration: cardDecoration,
-                    padding: cardPadding,
-                    margin: EdgeInsets.only(right: 20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.account_balance_wallet, color: Color(0xFF0B7A2F), size: 20),
-                            SizedBox(width: 12),
-                            Text(
-                              'RFC',
-                              style: TextStyle(
-                                fontSize: 18, 
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF0B7A2F),
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 16),
-                        Expanded(
-                          child: _buildCustomTextField(
-                            controller: rfcController,
-                            hint: 'Ingrese RFC (12-13 caracteres)',
-                            fillColor: grisInput,
-                            maxLength: 13,
-                            isUppercase: true,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: Container(
-                    height: 140,
-                    decoration: cardDecoration,
-                    padding: cardPadding,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.medical_services, color: Color(0xFF0B7A2F), size: 20),
-                            SizedBox(width: 12),
-                            Text(
-                              'NSS',
-                              style: TextStyle(
-                                fontSize: 18, 
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF0B7A2F),
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 16),
-                        Expanded(
-                          child: _buildCustomTextField(
-                            controller: nssController,
-                            hint: 'Ingrese NSS (11 dígitos)',
-                            fillColor: grisInput,
-                            maxLength: 11,
-                            isNumeric: true,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),
@@ -1750,239 +1436,25 @@ class _RegistroEmpleadoWizardState extends State<RegistroEmpleadoWizard> {
               ),
             ),
             
-            // Cards organizadas en fila
+            // Cards organizadas en columna
             Expanded(
-              child: Row(
+              child: Column(
                 children: [
-                  // Sueldo
-                  Expanded(
-                    child: Container(
-                      height: 120,
-                      decoration: cardDecoration,
-                      padding: cardPadding,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.payments_outlined,
-                                color: Color(0xFF0B7A2F),
-                                size: 20,
-                              ),
-                              SizedBox(width: 8),
-                              Text(
-                                'Sueldo Diario',
-                                style: TextStyle(
-                                  fontSize: 18, 
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF0B7A2F),
-                                ),
-                              ),
-                            ],
-                          ),
-                          Expanded(
-                            child: Center(
-                              child: TextField(
-                                controller: sueldoController,
-                                keyboardType: TextInputType.numberWithOptions(decimal: true),
-                                decoration: InputDecoration(
-                                  filled: true,
-                                  fillColor: grisInput,
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide.none,
-                                  ),
-                                  prefixIcon: Icon(
-                                    Icons.attach_money,
-                                    color: Color(0xFF0B7A2F),
-                                  ),
-                                  hintText: '0.00',
-                                  suffixText: 'MXN',
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                  // Selector de código de empleado
+                  Container(
+                    width: double.infinity,
+                    height: 140,
+                    decoration: cardDecoration,
+                    padding: cardPadding,
+                    child: _buildCodigoSelectorRegistro(grisInput, verde),
                   ),
                   
-                  SizedBox(width: 24),
+                  SizedBox(height: 24),
                   
-                  // Descuento Infonavit
+                  // Row con sueldo y descuento
                   Expanded(
-                    child: Container(
-                      height: 120,
-                      decoration: cardDecoration,
-                      padding: cardPadding,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.account_balance,
-                                color: Color(0xFF0B7A2F),
-                                size: 20,
-                              ),
-                              SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'Descuento Infonavit',
-                                  style: TextStyle(
-                                    fontSize: 18, 
-                                    fontWeight: FontWeight.w600,
-                                    color: Color(0xFF0B7A2F),
-                                  ),
-                                ),
-                              ),
-                              Switch(
-                                value: descuentoInfonavitController.text.isNotEmpty,
-                                onChanged: (v) => setState(() {
-                                  if (v == true) {
-                                    descuentoInfonavitController.text = '5.0';
-                                  } else {
-                                    descuentoInfonavitController.clear();
-                                  }
-                                }),
-                                activeColor: Color(0xFF0B7A2F),
-                              ),
-                            ],
-                          ),
-                          Expanded(
-                            child: Center(
-                              child: TextField(
-                                controller: descuentoInfonavitController,
-                                keyboardType: TextInputType.numberWithOptions(decimal: true),
-                                enabled: descuentoInfonavitController.text.isNotEmpty,
-                                decoration: InputDecoration(
-                                  filled: true,
-                                  fillColor: descuentoInfonavitController.text.isNotEmpty 
-                                      ? grisInput 
-                                      : Colors.grey[100],
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide.none,
-                                  ),
-                                  prefixIcon: Icon(
-                                    Icons.percent,
-                                    color: descuentoInfonavitController.text.isNotEmpty 
-                                        ? Color(0xFF0B7A2F)
-                                        : Colors.grey,
-                                  ),
-                                  hintText: descuentoInfonavitController.text.isNotEmpty 
-                                      ? '5.0' 
-                                      : 'Sin descuento',
-                                  suffixText: '%',
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Widget para el dropdown de códigos disponibles
-  Widget _buildCodigoDropdown(Color grisInput) {
-    if (_cargandoCodigos) {
-      return Container(
-        height: 40,
-        alignment: Alignment.center,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF7BAE2F)),
-              ),
-            ),
-            SizedBox(width: 8),
-            Text('Cargando...', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-          ],
-        ),
-      );
-    }
-    
-    if (_codigosDisponibles.isEmpty) {
-      return Container(
-        height: 40,
-        alignment: Alignment.center,
-        child: Text('Sin códigos', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-      );
-    }
-    
-    return DropdownButtonFormField<String>(
-      value: _codigoSeleccionado,
-      decoration: InputDecoration(
-        hintText: 'Seleccione código',
-        filled: true,
-        fillColor: grisInput,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide.none,
-        ),
-        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      ),
-      items: _codigosDisponibles.take(50).map((codigo) {
-        return DropdownMenuItem(
-          value: codigo,
-          child: Text('Código $codigo', style: TextStyle(fontSize: 14)),
-        );
-      }).toList(),
-      onChanged: (value) {
-        setState(() {
-          _codigoSeleccionado = value;
-          if (value != null) {
-            codigoController.text = value;
-          }
-        });
-      },
-      dropdownColor: Colors.white,
-      menuMaxHeight: 200,
-    );
-  }
-
-  /// Widget para campos de texto personalizados
-  Widget _buildCustomTextField({
-    required TextEditingController controller,
-    required String hint,
-    required Color fillColor,
-    int? maxLength,
-    bool isNumeric = false,
-    bool isUppercase = false,
-  }) {
-    return TextField(
-      controller: controller,
-      maxLength: maxLength,
-      textCapitalization: isUppercase ? TextCapitalization.characters : TextCapitalization.words,
-      keyboardType: isNumeric ? TextInputType.number : TextInputType.text,
-      decoration: InputDecoration(
-        hintText: hint,
-        filled: true,
-        fillColor: fillColor,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide.none,
-        ),
-        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        counterText: '', // Ocultar contador de caracteres
-      ),
-      style: TextStyle(fontSize: 14),
-    );
-  }
-}
+                    child: Row(
+                      children: [
+                        // Sueldo
+                        Expanded(
+                          child: Container(

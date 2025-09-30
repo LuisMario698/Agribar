@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/edicion_empleado_service.dart';
+import '../services/database_service.dart';
 
 class EditarEmpleadoDialog extends StatefulWidget {
   final Map<String, dynamic> empleadoData;
@@ -34,6 +35,12 @@ class _EditarEmpleadoDialogState extends State<EditarEmpleadoDialog> {
   late TextEditingController _sueldoController;
   late TextEditingController _descuentoInfonavitController;
 
+  // Variables para manejo de códigos disponibles
+  List<String> _codigosDisponibles = [];
+  String? _codigoSeleccionado;
+  bool _cargandoCodigos = false;
+  bool _modoCodigoPersonalizado = false;
+
   // Lista de estados de México
   final List<String> _estadosMexico = [
     'Aguascalientes', 'Baja California', 'Baja California Sur', 'Campeche',
@@ -48,6 +55,57 @@ class _EditarEmpleadoDialogState extends State<EditarEmpleadoDialog> {
   void initState() {
     super.initState();
     _inicializarControladores();
+    _cargarCodigosDisponibles();
+  }
+
+  /// Carga los códigos disponibles desde la base de datos
+  Future<void> _cargarCodigosDisponibles() async {
+    setState(() {
+      _cargandoCodigos = true;
+    });
+
+    try {
+      final db = DatabaseService();
+      await db.connect();
+
+      // Obtener códigos ya asignados
+      final resultadoExistentes = await db.connection.query(
+        'SELECT codigo FROM empleados ORDER BY CAST(codigo AS INTEGER)'
+      );
+
+      final codigosExistentes = resultadoExistentes.map((row) => row[0].toString()).toSet();
+
+      // Generar lista de códigos disponibles (del 1 al 9999)
+      final codigosDisponibles = <String>[];
+      for (int i = 1; i <= 9999; i++) {
+        final codigo = i.toString();
+        if (!codigosExistentes.contains(codigo)) {
+          codigosDisponibles.add(codigo);
+        }
+      }
+
+      await db.close();
+
+      if (mounted) {
+        setState(() {
+          _codigosDisponibles = codigosDisponibles;
+          _cargandoCodigos = false;
+          
+          // Si el código actual del empleado existe en disponibles, seleccionarlo
+          final codigoActual = _codigoController.text.trim();
+          if (codigoActual.isNotEmpty && _codigosDisponibles.contains(codigoActual)) {
+            _codigoSeleccionado = codigoActual;
+          }
+        });
+      }
+    } catch (e) {
+      print('❌ Error al cargar códigos disponibles: $e');
+      if (mounted) {
+        setState(() {
+          _cargandoCodigos = false;
+        });
+      }
+    }
   }
 
   void _inicializarControladores() {
@@ -143,7 +201,7 @@ class _EditarEmpleadoDialogState extends State<EditarEmpleadoDialog> {
               padding: EdgeInsets.all(24),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [Color(0xFF0B7A2F), Color(0xFF0F9B3A)],
+                  colors: [Color(0xFF7BAE2F), Color(0xFF43A047)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -154,13 +212,10 @@ class _EditarEmpleadoDialogState extends State<EditarEmpleadoDialog> {
               ),
               child: Row(
                 children: [
-                  Container(
-                    padding: EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(Icons.person_outline, color: Colors.white, size: 28),
+                  Icon(
+                    Icons.edit,
+                    color: Colors.white,
+                    size: 28,
                   ),
                   SizedBox(width: 16),
                   Expanded(
@@ -171,30 +226,25 @@ class _EditarEmpleadoDialogState extends State<EditarEmpleadoDialog> {
                           'Editar Empleado',
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 22,
+                            fontSize: 24,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         SizedBox(height: 4),
                         Text(
-                          '${widget.empleadoData['nombre']} ${widget.empleadoData['apellido_paterno']}',
+                          'Modificar información personal y nómina',
                           style: TextStyle(
                             color: Colors.white.withOpacity(0.9),
-                            fontSize: 16,
+                            fontSize: 14,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: IconButton(
-                      onPressed: () => Navigator.of(context).pop(false),
-                      icon: Icon(Icons.close, color: Colors.white, size: 24),
-                    ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: Icon(Icons.close, color: Colors.white, size: 24),
+                    tooltip: 'Cerrar',
                   ),
                 ],
               ),
@@ -213,27 +263,30 @@ class _EditarEmpleadoDialogState extends State<EditarEmpleadoDialog> {
                       title: 'Información Personal',
                       icon: Icons.person,
                       children: [
+                        // Selector de código de empleado
+                        _buildCodigoSelector(),
+                        SizedBox(height: 16),
+                        
                         Row(
                           children: [
                             Expanded(
                               child: _buildTextField(
-                                controller: _codigoController,
-                                label: 'Código de Empleado',
-                                hint: 'Solo números',
-                                icon: Icons.badge,
-                                keyboardType: TextInputType.number,
+                                controller: _nombreController,
+                                label: 'Nombre',
+                                icon: Icons.person_outline,
+                                textCapitalization: TextCapitalization.words,
                                 formatters: [
-                                  FilteringTextInputFormatter.digitsOnly,
-                                  LengthLimitingTextInputFormatter(10),
+                                  FilteringTextInputFormatter.allow(RegExp(r'[a-zA-ZñÑáéíóúÁÉÍÓÚüÜ\s]')),
+                                  LengthLimitingTextInputFormatter(50),
                                 ],
                               ),
                             ),
                             SizedBox(width: 16),
                             Expanded(
                               child: _buildTextField(
-                                controller: _nombreController,
-                                label: 'Nombre',
-                                icon: Icons.person_outline,
+                                controller: _apellidoPaternoController,
+                                label: 'Apellido Paterno',
+                                icon: Icons.family_restroom,
                                 textCapitalization: TextCapitalization.words,
                                 formatters: [
                                   FilteringTextInputFormatter.allow(RegExp(r'[a-zA-ZñÑáéíóúÁÉÍÓÚüÜ\s]')),
@@ -249,19 +302,6 @@ class _EditarEmpleadoDialogState extends State<EditarEmpleadoDialog> {
                           children: [
                             Expanded(
                               child: _buildTextField(
-                                controller: _apellidoPaternoController,
-                                label: 'Apellido Paterno',
-                                icon: Icons.family_restroom,
-                                textCapitalization: TextCapitalization.words,
-                                formatters: [
-                                  FilteringTextInputFormatter.allow(RegExp(r'[a-zA-ZñÑáéíóúÁÉÍÓÚüÜ\s]')),
-                                  LengthLimitingTextInputFormatter(50),
-                                ],
-                              ),
-                            ),
-                            SizedBox(width: 16),
-                            Expanded(
-                              child: _buildTextField(
                                 controller: _apellidoMaternoController,
                                 label: 'Apellido Materno',
                                 icon: Icons.family_restroom_outlined,
@@ -271,6 +311,10 @@ class _EditarEmpleadoDialogState extends State<EditarEmpleadoDialog> {
                                   LengthLimitingTextInputFormatter(50),
                                 ],
                               ),
+                            ),
+                            SizedBox(width: 16),
+                            Expanded(
+                              child: _buildDropdownField(),
                             ),
                           ],
                         ),
@@ -390,9 +434,9 @@ class _EditarEmpleadoDialogState extends State<EditarEmpleadoDialog> {
             Container(
               padding: EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.grey[50],
+                color: Color(0xFFF3E9D2).withOpacity(0.3),
                 border: Border(
-                  top: BorderSide(color: Colors.grey[200]!, width: 1),
+                  top: BorderSide(color: Color(0xFF7BAE2F).withOpacity(0.2), width: 1),
                 ),
                 borderRadius: BorderRadius.only(
                   bottomLeft: Radius.circular(24),
@@ -407,6 +451,9 @@ class _EditarEmpleadoDialogState extends State<EditarEmpleadoDialog> {
                     style: TextButton.styleFrom(
                       foregroundColor: Colors.grey[600],
                       padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                     child: Text(
                       'Cancelar',
@@ -417,13 +464,14 @@ class _EditarEmpleadoDialogState extends State<EditarEmpleadoDialog> {
                   ElevatedButton(
                     onPressed: _guardando ? null : _guardarCambios,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(0xFF0B7A2F),
+                      backgroundColor: Color(0xFF7BAE2F),
                       foregroundColor: Colors.white,
                       padding: EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      elevation: 2,
+                      elevation: 3,
+                      shadowColor: Color(0xFF7BAE2F).withOpacity(0.3),
                     ),
                     child: _guardando 
                         ? Row(
@@ -465,11 +513,21 @@ class _EditarEmpleadoDialogState extends State<EditarEmpleadoDialog> {
   /// Valida los datos del formulario antes de guardar
   String? _validarFormulario() {
     // Validar código (obligatorio, solo números)
-    if (_codigoController.text.trim().isEmpty) {
-      return 'El código de empleado es obligatorio';
+    final codigoText = _codigoController.text.trim();
+    if (codigoText.isEmpty) {
+      return 'Debe seleccionar o ingresar un código de empleado';
     }
-    if (!RegExp(r'^\d+$').hasMatch(_codigoController.text.trim())) {
+    if (!RegExp(r'^\d+$').hasMatch(codigoText)) {
       return 'El código debe contener solo números';
+    }
+
+    // Validar que el código no esté duplicado (excepto el actual del empleado)
+    final codigoActualEmpleado = widget.empleadoData['codigo']?.toString() ?? '';
+    if (codigoText != codigoActualEmpleado && !_modoCodigoPersonalizado) {
+      // En modo selector, verificar que el código esté disponible
+      if (!_codigosDisponibles.contains(codigoText)) {
+        return 'El código seleccionado ya no está disponible. Recargue la lista o use modo personalizado.';
+      }
     }
 
     // Validar nombre (obligatorio)
@@ -625,12 +683,12 @@ class _EditarEmpleadoDialogState extends State<EditarEmpleadoDialog> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey[200]!),
+        border: Border.all(color: Color(0xFF7BAE2F).withOpacity(0.2)),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 6,
-            offset: Offset(0, 2),
+            color: Color(0xFF7BAE2F).withOpacity(0.1),
+            blurRadius: 8,
+            offset: Offset(0, 3),
           ),
         ],
       ),
@@ -640,24 +698,24 @@ class _EditarEmpleadoDialogState extends State<EditarEmpleadoDialog> {
           Row(
             children: [
               Container(
-                padding: EdgeInsets.all(8),
+                padding: EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Color(0xFF0B7A2F).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  color: Color(0xFF7BAE2F).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
                   icon,
-                  color: Color(0xFF0B7A2F),
-                  size: 20,
+                  color: Color(0xFF7BAE2F),
+                  size: 22,
                 ),
               ),
-              SizedBox(width: 12),
+              SizedBox(width: 14),
               Text(
                 title,
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF0B7A2F),
+                  color: Color(0xFF7BAE2F),
                 ),
               ),
             ],
@@ -687,7 +745,7 @@ class _EditarEmpleadoDialogState extends State<EditarEmpleadoDialog> {
           decoration: InputDecoration(
             labelText: label,
             prefixText: prefix,
-            prefixIcon: Icon(icon, color: Color(0xFF0B7A2F)),
+            prefixIcon: Icon(icon, color: Color(0xFF7BAE2F)),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: Colors.grey[300]!),
@@ -698,7 +756,7 @@ class _EditarEmpleadoDialogState extends State<EditarEmpleadoDialog> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Color(0xFF0B7A2F), width: 2),
+              borderSide: BorderSide(color: Color(0xFF7BAE2F), width: 2),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -742,7 +800,7 @@ class _EditarEmpleadoDialogState extends State<EditarEmpleadoDialog> {
       value: _estadoOrigen.isNotEmpty ? _estadoOrigen : null,
       decoration: InputDecoration(
         labelText: 'Estado de Origen',
-        prefixIcon: Icon(Icons.location_on, color: Color(0xFF0B7A2F)),
+        prefixIcon: Icon(Icons.location_on, color: Color(0xFF7BAE2F)),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: Colors.grey[300]!),
@@ -753,7 +811,7 @@ class _EditarEmpleadoDialogState extends State<EditarEmpleadoDialog> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Color(0xFF0B7A2F), width: 2),
+          borderSide: BorderSide(color: Color(0xFF7BAE2F), width: 2),
         ),
         filled: true,
         fillColor: Colors.grey[50],
@@ -773,7 +831,170 @@ class _EditarEmpleadoDialogState extends State<EditarEmpleadoDialog> {
         setState(() => _estadoOrigen = value ?? '');
       },
       dropdownColor: Colors.white,
-      icon: Icon(Icons.arrow_drop_down, color: Color(0xFF0B7A2F)),
+      icon: Icon(Icons.arrow_drop_down, color: Color(0xFF7BAE2F)),
+    );
+  }
+
+  /// Widget para seleccionar el código de empleado
+  Widget _buildCodigoSelector() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Color(0xFFF3E9D2).withOpacity(0.3),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Color(0xFF7BAE2F).withOpacity(0.3)),
+      ),
+      padding: EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.badge, color: Color(0xFF7BAE2F), size: 20),
+              SizedBox(width: 8),
+              Text(
+                'Código de Empleado',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF7BAE2F),
+                ),
+              ),
+              Spacer(),
+              // Toggle entre selector y personalizado
+              Switch.adaptive(
+                value: _modoCodigoPersonalizado,
+                onChanged: (value) {
+                  setState(() {
+                    _modoCodigoPersonalizado = value;
+                    if (!value && _codigoSeleccionado != null) {
+                      _codigoController.text = _codigoSeleccionado!;
+                    }
+                  });
+                },
+                activeColor: Color(0xFF7BAE2F),
+              ),
+              SizedBox(width: 8),
+              Text(
+                'Personalizado',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 12),
+          
+          if (_modoCodigoPersonalizado) ...[
+            // Modo personalizado - campo de texto
+            _buildTextField(
+              controller: _codigoController,
+              label: 'Código Personalizado',
+              hint: 'Ingrese un código único (solo números)',
+              icon: Icons.edit,
+              keyboardType: TextInputType.number,
+              formatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(10),
+              ],
+            ),
+          ] else ...[
+            // Modo selector - dropdown con códigos disponibles
+            if (_cargandoCodigos)
+              Container(
+                height: 60,
+                alignment: Alignment.center,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF7BAE2F)),
+                      ),
+                    ),
+                    SizedBox(width: 12),
+                    Text(
+                      'Cargando códigos disponibles...',
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
+                  ],
+                ),
+              )
+            else if (_codigosDisponibles.isEmpty)
+              Container(
+                height: 60,
+                alignment: Alignment.center,
+                child: Text(
+                  'No hay códigos disponibles',
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
+              )
+            else
+              DropdownButtonFormField<String>(
+                value: _codigoSeleccionado,
+                decoration: InputDecoration(
+                  labelText: 'Seleccionar Código',
+                  prefixIcon: Icon(Icons.list, color: Color(0xFF7BAE2F)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey[300]!),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey[300]!),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Color(0xFF7BAE2F), width: 2),
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                  labelStyle: TextStyle(color: Colors.grey[700]),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                ),
+                items: _codigosDisponibles.take(100).map((codigo) {
+                  return DropdownMenuItem(
+                    value: codigo,
+                    child: Text(
+                      'Código $codigo',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _codigoSeleccionado = value;
+                    if (value != null) {
+                      _codigoController.text = value;
+                    }
+                  });
+                },
+                dropdownColor: Colors.white,
+                icon: Icon(Icons.arrow_drop_down, color: Color(0xFF7BAE2F)),
+                hint: Text(
+                  'Seleccione un código disponible',
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
+                menuMaxHeight: 300,
+              ),
+          ],
+          
+          if (!_modoCodigoPersonalizado && _codigosDisponibles.length > 100) ...[
+            SizedBox(height: 8),
+            Text(
+              'Mostrando los primeros 100 códigos disponibles. Use modo personalizado para códigos específicos.',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600],
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
