@@ -1208,21 +1208,26 @@ class _ResumenCuadrillasDialogState extends State<ResumenCuadrillasDialog> {
         }
       }
 
-      // Generar cheques (2 por página)
-      for (int i = 0; i < todosLosEmpleados.length; i += 2) {
+      // Generar cheques (4 por página A4)
+      for (int i = 0; i < todosLosEmpleados.length; i += 4) {
         pdf.addPage(
           pw.Page(
-            pageFormat: PdfPageFormat.letter,
-            margin: const pw.EdgeInsets.all(0), // Sin márgenes adicionales, manejamos todo internamente
+            pageFormat: PdfPageFormat.a4, // Cambiar a A4 (595 x 842 pt)
+            margin: const pw.EdgeInsets.all(0), // Sin márgenes, usamos coordenadas absolutas
             build: (context) {
-              return pw.Column(
+              return pw.Stack(
                 children: [
-                  // Primer cheque
-                  _construirCheque(todosLosEmpleados[i], numeroInicial + i),
-                  pw.SizedBox(height: 20), // Espaciado más compacto entre cheques
-                  // Segundo cheque (si existe)
+                  // Primer cheque (superior)
+                  _construirChequeConPosicion(todosLosEmpleados[i], numeroInicial + i, 0),
+                  // Segundo cheque (medio alto)
                   if (i + 1 < todosLosEmpleados.length)
-                    _construirCheque(todosLosEmpleados[i + 1], numeroInicial + i + 1),
+                    _construirChequeConPosicion(todosLosEmpleados[i + 1], numeroInicial + i + 1, 1),
+                  // Tercer cheque (medio bajo)
+                  if (i + 2 < todosLosEmpleados.length)
+                    _construirChequeConPosicion(todosLosEmpleados[i + 2], numeroInicial + i + 2, 2),
+                  // Cuarto cheque (inferior)
+                  if (i + 3 < todosLosEmpleados.length)
+                    _construirChequeConPosicion(todosLosEmpleados[i + 3], numeroInicial + i + 3, 3),
                 ],
               );
             },
@@ -1266,8 +1271,8 @@ class _ResumenCuadrillasDialogState extends State<ResumenCuadrillasDialog> {
     setState(() => _generandoPdf = false);
   }
 
-  /// Construir un cheque individual con formato exacto de la imagen
-  pw.Widget _construirCheque(Map<String, dynamic> empleado, int numeroCheque) {
+  /// Construir un cheque individual con coordenadas absolutas para A4
+  pw.Widget _construirChequeConPosicion(Map<String, dynamic> empleado, int numeroCheque, int posicion) {
     // Convertir totalNeto a double de forma segura
     double totalNeto = _parseToDouble(empleado['totalNeto']);
     
@@ -1289,85 +1294,92 @@ class _ResumenCuadrillasDialogState extends State<ResumenCuadrillasDialog> {
     ];
     String fechaFormateada = '${now.day} DE ${meses[now.month - 1]} DEL ${now.year}';
     
-    return pw.Container(
-      height: 400, // Altura aumentada para simular hoja carta
-      width: double.infinity,
-      // Márgenes aumentados para centrar mejor el contenido
-      padding: const pw.EdgeInsets.fromLTRB(120, 80, 80, 180), // Más márgenes en todos los lados
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          // Número de folio y fecha (arriba a la derecha)
-          pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.end,
-            children: [
-              pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.center,
-                children: [
-                  pw.Text(
-                    numeroCheque.toString(),
-                    style: pw.TextStyle(
-                      fontSize: 10, // 9-10 pts
-                      fontWeight: pw.FontWeight.bold,
-                    ),
-                  ),
-                  pw.SizedBox(height: 4), // Espaciado entre folio y fecha
-                  pw.Text(
-                    fechaFormateada,
-                    style: pw.TextStyle(
-                      fontSize: 10, // 10 pts
-                      fontWeight: pw.FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          
-          pw.SizedBox(height: 40), // Espaciado hasta el nombre
-          
-          // Nombre del beneficiario y monto
-          pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              // Nombre del beneficiario (centro-izquierda)
-              pw.Expanded(
-                flex: 3,
-                child: pw.Text(
-                  empleado['nombre']?.toString().toUpperCase() ?? 'SIN NOMBRE',
-                  style: pw.TextStyle(
-                    fontSize: 11, // 11-12 pts
-                    fontWeight: pw.FontWeight.bold,
-                  ),
-                ),
-              ),
-              
-              pw.SizedBox(width: 30), // Más espacio entre nombre y monto
-              
-              // Monto en números (alineado a la derecha)
-              pw.Text(
-                cantidadNumeros,
-                style: pw.TextStyle(
-                  fontSize: 11, // 11-12 pts
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          
-          pw.SizedBox(height: 20), // Espaciado hasta el monto en letras
-          
-          // Monto en letras (debajo del nombre)
-          pw.Text(
-            cantidadLetras.toUpperCase(), // Todo en MAYÚSCULAS
+    // Calcular coordenadas Y según la posición (A4 tiene 842 pt de altura)
+    // En PDF el origen (0,0) está en la esquina inferior izquierda
+    // Cada cheque ocupa aprox. 210 pt de alto
+    double offsetY = posicion * 210; // Espaciado entre cheques
+    
+    // Coordenadas base para el primer cheque (superior)
+    // Convertimos las coordenadas del sistema "desde arriba" al sistema PDF "desde abajo"
+    double numChequeY = 816 - offsetY;
+    double fechaY = 802 - offsetY;
+    double nombreY = 779 - offsetY;
+    double cantidadNumY = 779 - offsetY;
+    double cantidadLetrasY = 756 - offsetY;
+    
+    return pw.Stack(
+      children: [
+        // Número de cheque (x=359, y=816 para el primero)
+        pw.Positioned(
+          left: 359,
+          bottom: numChequeY, // Usar bottom en lugar de top
+          child: pw.Text(
+            numeroCheque.toString(),
             style: pw.TextStyle(
-              fontSize: 10, // 10 pts
+              fontSize: 9, // Reducido de 10 a 9
               fontWeight: pw.FontWeight.bold,
             ),
           ),
-        ],
-      ),
+        ),
+        
+        // Fecha (x=345, y=802 para el primero)
+        pw.Positioned(
+          left: 345,
+          bottom: fechaY, // Usar bottom en lugar de top
+          child: pw.Text(
+            fechaFormateada,
+            style: pw.TextStyle(
+              fontSize: 9, // Reducido de 10 a 9
+              fontWeight: pw.FontWeight.bold,
+            ),
+          ),
+        ),
+        
+        // Nombre beneficiario (x=107, y=779 para el primero)
+        pw.Positioned(
+          left: 107,
+          bottom: nombreY, // Usar bottom en lugar de top
+          child: pw.Container(
+            width: 350, // Ancho máximo para el nombre
+            child: pw.Text(
+              empleado['nombre']?.toString().toUpperCase() ?? 'SIN NOMBRE',
+              style: pw.TextStyle(
+                fontSize: 10, // Reducido de 11 a 10
+                fontWeight: pw.FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+        
+        // Cantidad numérica (x=461, y=779 para el primero)
+        pw.Positioned(
+          left: 461,
+          bottom: cantidadNumY, // Usar bottom en lugar de top
+          child: pw.Text(
+            cantidadNumeros,
+            style: pw.TextStyle(
+              fontSize: 10, // Reducido de 11 a 10
+              fontWeight: pw.FontWeight.bold,
+            ),
+          ),
+        ),
+        
+        // Cantidad en letras (x=116, y=756 para el primero)
+        pw.Positioned(
+          left: 116,
+          bottom: cantidadLetrasY, // Usar bottom en lugar de top
+          child: pw.Container(
+            width: 450, // Ancho máximo para la cantidad en letras
+            child: pw.Text(
+              cantidadLetras.toUpperCase(),
+              style: pw.TextStyle(
+                fontSize: 10, // Reducido de 10 a 9
+                fontWeight: pw.FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
